@@ -1,5 +1,5 @@
-import { useMemo, useRef, useState } from 'react';
-import { ArrowLeft, Check, ChevronDown, Eye, FileText, Plus, Trash2, Undo2, Redo2 } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ArrowLeft, Check, ChevronDown, Copy, Eye, FileText, Pencil, Plus, Redo2, Star, Trash2, Undo2, X } from 'lucide-react';
 import './CollectionWorkspace.css';
 
 const SYMBOL_TOOLS = [
@@ -10,103 +10,25 @@ const SYMBOL_TOOLS = [
   ['table', '| | Table', '| Column 1 | Column 2 |\n| --- | --- |\n|  |  |'], ['note-callout', '> [!NOTE] Note', '> [!NOTE]\n> '],
   ['tip-callout', '> [!TIP] Tip', '> [!TIP]\n> '], ['warning-callout', '> [!WARNING] Warning', '> [!WARNING]\n> '], ['important-callout', '> [!IMPORTANT] Important', '> [!IMPORTANT]\n> '],
 ];
+const OUTPUT_RE = /```(?:output|terminal-output)\n([\s\S]*?)```/gi;
+const READABILITY = { default: ['.86rem','1.65'], good: ['.96rem','1.75'], best: ['1.02rem','1.85'], great: ['1.08rem','1.95'] };
 
 function snippet(value = '') { return value.replace(/```[\s\S]*?```/g, ' [code] ').replace(/[#>*_`|-]/g, ' ').replace(/\s+/g, ' ').trim(); }
 function relativeDate(value) { const ts = typeof value === 'number' ? value : Date.parse(value || ''); if (!Number.isFinite(ts)) return 'just now'; const minutes = Math.max(0, Math.round((Date.now() - ts) / 60000)); if (minutes < 1) return 'just now'; if (minutes < 60) return `${minutes}m ago`; const hours = Math.round(minutes / 60); if (hours < 24) return `${hours}h ago`; const days = Math.round(hours / 24); if (days < 30) return `${days}d ago`; return new Date(ts).toLocaleDateString(); }
-function renderMarkdown(text = '') {
-  return text.split('\n').map((line, index) => {
-    const key = `${index}-${line}`;
-    if (/^### /.test(line)) return <h4 key={key}>{line.slice(4)}</h4>;
-    if (/^## /.test(line)) return <h3 key={key}>{line.slice(3)}</h3>;
-    if (/^# /.test(line)) return <h2 key={key}>{line.slice(2)}</h2>;
-    if (/^- \[ \] /.test(line)) return <div key={key} className="preview-check">☐ {line.slice(6)}</div>;
-    if (/^- \[x\] /i.test(line)) return <div key={key} className="preview-check">☑ {line.slice(6)}</div>;
-    if (/^[-*] /.test(line)) return <li key={key}>{line.slice(2)}</li>;
-    if (/^\d+\. /.test(line)) return <li key={key}>{line.replace(/^\d+\. /, '')}</li>;
-    if (/^> /.test(line)) return <blockquote key={key}>{line.slice(2)}</blockquote>;
-    if (/^---$/.test(line.trim())) return <hr key={key} />;
-    if (!line.trim()) return <div key={key} className="preview-space" />;
-    const pieces = line.split(/(\*\*[^*]+\*\*|_[^_]+_|`[^`]+`|~~[^~]+~~)/g);
-    return <p key={key}>{pieces.map((part, partIndex) => part.startsWith('**') ? <strong key={partIndex}>{part.slice(2, -2)}</strong> : part.startsWith('_') ? <em key={partIndex}>{part.slice(1, -1)}</em> : part.startsWith('`') ? <code key={partIndex}>{part.slice(1, -1)}</code> : part.startsWith('~~') ? <s key={partIndex}>{part.slice(2, -2)}</s> : part)}</p>;
-  });
-}
+function parseSegments(value = '') { const segments = []; let cursor = 0; for (const match of value.matchAll(OUTPUT_RE)) { const start = match.index ?? cursor; const end = start + match[0].length; if (start > cursor) segments.push({ type: 'text', content: value.slice(cursor, start), start, end: start }); segments.push({ type: 'output', content: (match[1] || '').replace(/\n$/, ''), start, end }); cursor = end; } if (cursor < value.length || !segments.length) segments.push({ type: 'text', content: value.slice(cursor), start: cursor, end: value.length }); return segments; }
+function inline(text = '') { return text.split(/(\*\*[^*]+\*\*|_[^_]+_|`[^`]+`|~~[^~]+~~)/g).map((part, i) => part.startsWith('**') ? <strong key={i}>{part.slice(2,-2)}</strong> : part.startsWith('_') ? <em key={i}>{part.slice(1,-1)}</em> : part.startsWith('`') ? <code key={i}>{part.slice(1,-1)}</code> : part.startsWith('~~') ? <s key={i}>{part.slice(2,-2)}</s> : part); }
+function Preview({ body, readability }) { const [copied, setCopied] = useState(false); const [width, setWidth] = useState('comfortable'); const copy = async () => { try { await navigator.clipboard.writeText(body); setCopied(true); window.setTimeout(() => setCopied(false), 1400); } catch {} }; if (!body.trim()) return <div className="editor-preview-empty"><strong>Nothing to preview yet</strong><span>Start writing and your finished note will appear here.</span></div>; const lines = body.split('\n'); const blocks=[]; let list=[]; const flush=()=>{if(list.length){blocks.push(<ul key={`ul-${blocks.length}`}>{list}</ul>);list=[];}}; lines.forEach((line,index)=>{ if(/^[-*] /.test(line)){list.push(<li key={`li-${index}`}>{inline(line.slice(2))}</li>);return;} flush(); if(/^### /.test(line))blocks.push(<h4 key={index}>{inline(line.slice(4))}</h4>); else if(/^## /.test(line))blocks.push(<h3 key={index}>{inline(line.slice(3))}</h3>); else if(/^# /.test(line))blocks.push(<h2 key={index}>{inline(line.slice(2))}</h2>); else if(/^> /.test(line))blocks.push(<blockquote key={index}>{inline(line.slice(2))}</blockquote>); else if(/^---$/.test(line.trim()))blocks.push(<hr key={index}/>); else if(!line.trim())blocks.push(<div key={index} className="preview-space"/>); else if(/^- \[[ x]\] /.test(line))blocks.push(<p key={index}>☐ {inline(line.slice(6))}</p>); else blocks.push(<p key={index}>{inline(line)}</p>); }); flush(); return <div className="editor-preview-rich"><div className="preview-toolbar"><span><Eye size={14}/> Reading preview</span><div><button type="button" className={width==='comfortable'?'active':''} onClick={()=>setWidth('comfortable')}>Read</button><button type="button" className={width==='wide'?'active':''} onClick={()=>setWidth('wide')}>Wide</button><button type="button" onClick={copy}>{copied?<><Check size={13}/> Copied</>:<><Copy size={13}/> Copy</>}</button></div></div><article className={width==='wide'?'preview-wide':''} style={{fontSize:READABILITY[readability][0],lineHeight:READABILITY[readability][1]}}>{blocks}</article></div>; }
 
 export default function CollectionWorkspace({ course, collection, newNoteName, setNewNoteName, addNote, onBack, onSaveNote, onDeleteNote, message }) {
-  const [view, setView] = useState('notes');
-  const [draft, setDraft] = useState(null);
-  const [history, setHistory] = useState([]);
-  const [redo, setRedo] = useState([]);
-  const textareaRef = useRef(null);
-  const notes = collection?.notes ?? [];
-  const visibleNotes = useMemo(() => notes, [notes]);
-
-  const selectNote = (note) => { setDraft({ ...note }); setHistory([]); setRedo([]); setView('editor'); };
-  const updateDraft = (patch) => { if (!draft) return; setHistory((items) => [...items.slice(-100), draft]); setRedo([]); setDraft((current) => ({ ...current, ...patch })); };
-  const saveDraft = () => { if (!draft) return; onSaveNote(draft); setHistory([]); setRedo([]); };
-  const insertTool = (tool) => {
-    if (!draft) return;
-    const textarea = textareaRef.current;
-    const value = draft.content || '';
-    const start = textarea?.selectionStart ?? value.length;
-    const end = textarea?.selectionEnd ?? value.length;
-    const selected = value.slice(start, end);
-    const insert = tool[2];
-    const formatted = ['bold', 'italic', 'code', 'strike'].includes(tool[0]) ? `${insert}${selected}${insert}` : `${insert}${selected}`;
-    const next = value.slice(0, start) + formatted + value.slice(end);
-    updateDraft({ content: next });
-    requestAnimationFrame(() => { textarea?.focus(); const caret = start + formatted.length; textarea?.setSelectionRange(caret, caret); });
-  };
-
-  if (!collection) return null;
-  return (
-    <main className="screen feature-screen collection-workspace-screen">
-      <section className="full-glass-panel collection-workspace">
-        {view === 'notes' ? (
-          <>
-            <header className="collection-mobile-header notes-only-header">
-              <button className="back-button" onClick={onBack} aria-label="Back to collections"><ArrowLeft size={20} /></button>
-              <div className="collection-mobile-title"><span className="eyebrow">{course.name} · Collection</span><h1>{collection.title}</h1><p>{collection.description}</p></div>
-              <span className="collection-note-count"><FileText size={14} /> {notes.length}</span>
-            </header>
-            <section className="collection-notes-panel glass-inner notes-only-panel">
-              <div className="collection-notes-heading"><div><span className="heading-dot" /><h2>Notes</h2></div><span>{notes.length} {notes.length === 1 ? 'note' : 'notes'}</span></div>
-              <form className="collection-new-note" onSubmit={addNote}><input value={newNoteName} onChange={(e) => setNewNoteName(e.target.value)} placeholder="New Note" aria-label="New note name" /><button type="submit" aria-label="Create note"><Plus size={18} /></button></form>
-              <div className="collection-note-list">
-                {visibleNotes.length === 0 ? <div className="collection-empty"><FileText size={26} /><strong>No notes yet</strong><span>Create your first note in this collection.</span></div> : visibleNotes.map((note, index) => (
-                  <article className="collection-note-card" key={note.id} onClick={() => selectNote(note)}>
-                    <div className="collection-note-number">{String(index + 1).padStart(2, '0')}</div>
-                    <div className="collection-note-copy"><strong>{note.title || 'Untitled note'}</strong><small>{relativeDate(note.updatedAt || note.createdAt)}</small><span>{snippet(note.content) || 'Empty note'}</span></div>
-                    {onDeleteNote && <button className="collection-delete" onClick={(e) => { e.stopPropagation(); onDeleteNote(note.id); }} aria-label="Delete note"><Trash2 size={16} /></button>}
-                  </article>
-                ))}
-              </div>
-            </section>
-            {message && <p className="message">{message}</p>}
-          </>
-        ) : (
-          <section className="collection-editor-full">
-            <header className="collection-editor-header">
-              <button className="back-button" onClick={() => setView('notes')} aria-label="Back to collection notes"><ArrowLeft size={20} /></button>
-              <div><span className="eyebrow">{course.name} · {collection.title}</span><h1>Note Editor</h1></div>
-              <button className="editor-save editor-save-header" onClick={saveDraft}><Check size={16} /> Save</button>
-            </header>
-            <div className="collection-editor-body">
-              <input className="collection-title-input" value={draft?.title || ''} onChange={(e) => updateDraft({ title: e.target.value })} aria-label="Note title" placeholder="Note title" />
-              <div className="collection-editor-actions">
-                <label className="symbols-picker"><span>Symbols</span><ChevronDown size={13} /><select aria-label="Note symbols" defaultValue="" onChange={(e) => { const tool = SYMBOL_TOOLS.find(([key]) => key === e.target.value); if (tool) insertTool(tool); e.target.value = ''; }}><option value="">Symbols</option>{SYMBOL_TOOLS.map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label>
-                <button onClick={() => { const previous = history[history.length - 1]; if (!previous) return; setRedo((items) => [...items, draft]); setDraft(previous); setHistory((items) => items.slice(0, -1)); }} disabled={!history.length} aria-label="Undo"><Undo2 size={16} /></button>
-                <button onClick={() => { const next = redo[redo.length - 1]; if (!next) return; setHistory((items) => [...items, draft]); setDraft(next); setRedo((items) => items.slice(0, -1)); }} disabled={!redo.length} aria-label="Redo"><Redo2 size={16} /></button>
-                <span className="editor-mode-label">Markdown editor</span>
-              </div>
-              <div className="collection-editor-workarea">
-                <textarea ref={textareaRef} className="collection-editor-textarea" value={draft?.content || ''} onChange={(e) => updateDraft({ content: e.target.value })} placeholder="Write your note here…" aria-label="Note content" />
-                <div className="collection-preview glass-inner"><div className="preview-label"><Eye size={14} /> Preview</div><div className="collection-preview-body">{draft?.content ? renderMarkdown(draft.content) : <span className="muted">Your note preview will appear here.</span>}</div></div>
-              </div>
-            </div>
-            {message && <p className="message">{message}</p>}
-          </section>
-        )}
-      </section>
-    </main>
-  );
+  const [view,setView]=useState('notes'); const [draft,setDraft]=useState(null); const [history,setHistory]=useState([]); const [redo,setRedo]=useState([]); const [mode,setMode]=useState('edit'); const [readability,setReadability]=useState(()=>localStorage.getItem('mobile-note-readability')||'default'); const [confirmDelete,setConfirmDelete]=useState(false); const [activeIndex,setActiveIndex]=useState(0); const textareaRef=useRef(null);
+  const notes=collection?.notes??[]; const segments=useMemo(()=>parseSegments(draft?.content||''),[draft?.content]); const activeSegment=segments[activeIndex]||segments[0]; const activeValue=activeSegment?.content||draft?.content||'';
+  useEffect(()=>{if(view!=='editor'||!draft)return;const timer=setTimeout(()=>onSaveNote({...draft}),450);return()=>clearTimeout(timer)},[draft,view,onSaveNote]);
+  useEffect(()=>{if(activeIndex>=segments.length)setActiveIndex(Math.max(segments.length-1,0))},[activeIndex,segments.length]);
+  const selectNote=note=>{setDraft({favorite:false,...note});setHistory([]);setRedo([]);setActiveIndex(0);setMode('edit');setConfirmDelete(false);setView('editor')};
+  const commit=useCallback(patch=>{setDraft(current=>{if(!current)return current;setHistory(items=>[...items.slice(-100),current]);setRedo([]);return {...current,...patch}})},[]);
+  const updateSegment=(index,nextContent)=>{if(!draft)return;const current=draft.content||'';const segment=parseSegments(current)[index];if(!segment)return;const replacement=segment.type==='output'?`\`\`\`output\n${nextContent}\n\`\`\``:nextContent;commit({content:`${current.slice(0,segment.start)}${replacement}${current.slice(segment.end)}`})};
+  const insertTool=tool=>{if(!draft)return;const el=textareaRef.current;const value=activeValue;const start=el?.selectionStart??value.length;const end=el?.selectionEnd??value.length;const selected=value.slice(start,end);const insert=tool[2];const wrapped=['bold','italic','code','strike'].includes(tool[0]);const formatted=wrapped?`${insert}${selected}${insert}`:`${insert}${selected}`;updateSegment(activeIndex,`${value.slice(0,start)}${formatted}${value.slice(end)}`);requestAnimationFrame(()=>{el?.focus();const caret=start+formatted.length;el?.setSelectionRange(selected?start+insert.length:caret,selected?start+insert.length+selected.length:caret)})};
+  const undo=()=>{const previous=history.at(-1);if(!previous||!draft)return;setRedo(items=>[...items,draft]);setDraft(previous);setHistory(items=>items.slice(0,-1))}; const redoEdit=()=>{const next=redo.at(-1);if(!next||!draft)return;setHistory(items=>[...items,draft]);setDraft(next);setRedo(items=>items.slice(0,-1))}; const save=()=>{if(!draft)return;onSaveNote(draft);setHistory([]);setRedo([])}; const removeOutput=index=>{if(!draft)return;const current=draft.content||'';const segment=parseSegments(current)[index];if(!segment||segment.type!=='output')return;commit({content:`${current.slice(0,segment.start)}${current.slice(segment.end)}`.replace(/\n{3,}/g,'\n\n')})};
+  if(!collection)return null;
+  return <main className="screen feature-screen collection-workspace-screen"><section className="full-glass-panel collection-workspace">{view==='notes'?<><header className="collection-mobile-header notes-only-header"><button className="back-button" onClick={onBack} aria-label="Back to collections"><ArrowLeft size={20}/></button><div className="collection-mobile-title"><span className="eyebrow">{course.name} · Collection</span><h1>{collection.title}</h1><p>{collection.description}</p></div><span className="collection-note-count"><FileText size={14}/> {notes.length}</span></header><section className="collection-notes-panel glass-inner notes-only-panel"><div className="collection-notes-heading"><div><span className="heading-dot"/><h2>Notes</h2></div><span>{notes.length} {notes.length===1?'note':'notes'}</span></div><form className="collection-new-note" onSubmit={addNote}><input value={newNoteName} onChange={e=>setNewNoteName(e.target.value)} placeholder="New Note" aria-label="New note name"/><button type="submit" aria-label="Create note"><Plus size={18}/></button></form><div className="collection-note-list">{notes.length===0?<div className="collection-empty"><FileText size={26}/><strong>No notes yet</strong><span>Create your first note in this collection.</span></div>:notes.map((note,index)=><article className="collection-note-card" key={note.id} onClick={()=>selectNote(note)}><div className="collection-note-number">{String(index+1).padStart(2,'0')}</div><div className="collection-note-copy"><strong>{note.title||'Untitled note'}</strong><small>{relativeDate(note.updatedAt||note.createdAt)}</small><span>{snippet(note.content)||'Empty note'}</span></div>{onDeleteNote&&<button className="collection-delete" onClick={e=>{e.stopPropagation();onDeleteNote(note.id)}} aria-label="Delete note"><Trash2 size={16}/></button>}</article>)}</div></section>{message&&<p className="message">{message}</p>}</>:<section className="collection-editor-full"><header className="collection-editor-header"><button className="back-button" onClick={()=>setView('notes')} aria-label="Back to collection notes"><ArrowLeft size={20}/></button><div><span className="eyebrow">{course.name} · {collection.title}</span><h1>{draft?.title||'Note Editor'}</h1></div><div className="editor-header-actions"><button className={`editor-icon-button ${draft?.favorite?'is-favorite':''}`} onClick={()=>commit({favorite:!draft?.favorite})} aria-label={draft?.favorite?'Remove from favorites':'Add to favorites'}><Star size={18} fill={draft?.favorite?'currentColor':'none'}/></button><button className="editor-save editor-save-header" onClick={save}><Check size={16}/> Save</button></div></header><div className="collection-editor-body"><div className="editor-title-row"><input className="collection-title-input" value={draft?.title||''} onChange={e=>commit({title:e.target.value})} aria-label="Note title" placeholder="Note title"/><button className="editor-delete-button" onClick={()=>setConfirmDelete(true)} aria-label="Delete note"><Trash2 size={17}/></button></div><div className="collection-editor-actions"><label className="symbols-picker"><span>Symbols</span><ChevronDown size={13}/><select aria-label="Note symbols" defaultValue="" disabled={mode==='preview'} onChange={e=>{const tool=SYMBOL_TOOLS.find(([key])=>key===e.target.value);if(tool)insertTool(tool);e.target.value=''}}><option value="">Symbols</option>{SYMBOL_TOOLS.map(([key,label])=><option key={key} value={key}>{label}</option>)}</select></label><button onClick={undo} disabled={mode==='preview'||!history.length} aria-label="Undo" title="Undo"><Undo2 size={16}/></button><button onClick={redoEdit} disabled={mode==='preview'||!redo.length} aria-label="Redo" title="Redo"><Redo2 size={16}/></button><label className="readability-picker"><span>Readability</span><select value={readability} onChange={e=>{setReadability(e.target.value);localStorage.setItem('mobile-note-readability',e.target.value)}} aria-label="Preview readability"><option value="default">Default</option><option value="good">Good</option><option value="best">Best</option><option value="great">Great</option></select></label><button className="editor-mode-button" onClick={()=>setMode(mode==='edit'?'preview':'edit')}>{mode==='edit'?<><Eye size={14}/> Preview</>:<><Pencil size={14}/> Edit</>}</button></div><div className="collection-editor-workarea">{mode==='edit'?<div className="collection-document-editor">{segments.map((segment,index)=>segment.type==='output'?<section key={`out-${index}`} className="document-output"><div className="document-output-head"><span>Output</span><button onClick={()=>removeOutput(index)} aria-label="Remove output"><Trash2 size={14}/> Remove</button></div><textarea ref={index===activeIndex?textareaRef:null} value={segment.content} onFocus={()=>setActiveIndex(index)} onClick={()=>setActiveIndex(index)} onChange={e=>updateSegment(index,e.target.value)} spellCheck={false} aria-label="Code output"/> </section>:<textarea key={`text-${index}`} ref={index===activeIndex?textareaRef:null} value={segment.content} onFocus={()=>setActiveIndex(index)} onClick={()=>setActiveIndex(index)} onChange={e=>updateSegment(index,e.target.value)} spellCheck={false} aria-label="Note body" placeholder={index===0?'Write markdown here…':undefined}/> )}</div>:<Preview body={draft?.content||''} readability={readability}/>}<div className="editor-preview-panel"><Preview body={draft?.content||''} readability={readability}/></div></div></div><p className="editor-autosave">Autosaved · edited {relativeDate(draft?.updatedAt)}</p>{message&&<p className="message">{message}</p>}{confirmDelete&&<div className="delete-confirm-overlay" role="alertdialog" aria-modal="true"><div className="delete-confirm-card"><button className="delete-close" onClick={()=>setConfirmDelete(false)} aria-label="Close"><X size={17}/></button><div className="delete-icon"><Trash2 size={20}/></div><h2>Delete note?</h2><p>This note will be removed from this collection.</p><div className="delete-actions"><button onClick={()=>setConfirmDelete(false)}>Cancel</button><button className="danger" onClick={()=>{setConfirmDelete(false);onDeleteNote?.(draft.id)}}>Delete</button></div></div></div>}</section>}</section></main>;
 }
