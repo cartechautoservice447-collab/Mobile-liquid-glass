@@ -1,1 +1,0 @@
-Icon artwork is reserved for the exact master asset supplied by the user. The binary asset must be installed before declaring Phase 1 visually verified.
