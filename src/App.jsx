@@ -96,7 +96,7 @@ export default function App() {
     event.preventDefault(); const title = newNoteName.trim(); if (!title || !selectedCourseId || !selectedCollectionId) return;
     const noteId = `note-${Date.now()}`;
     setCourses((current) => current.map((course) => course.id !== selectedCourseId ? course : { ...course, collections: course.collections.map((collection) => collection.id !== selectedCollectionId ? collection : { ...collection, notes: [...collection.notes, { id: noteId, title, content: '' }] }) }));
-    setNewNoteName(''); setSelectedNoteId(noteId); setEditorContent(''); setPage('editor'); setMessage('Note created.');
+    setNewNoteName(''); setSelectedNoteId(noteId); setEditorContent(''); setPage('notes'); setMessage('Note created.');
   };
   const saveNote = () => {
     if (!selectedCourseId || !selectedCollectionId || !selectedNoteId) return;
