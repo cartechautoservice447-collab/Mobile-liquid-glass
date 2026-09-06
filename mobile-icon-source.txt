@@ -1,1 +1,0 @@
-The mobile app icon source is the exact Liquid Glass Studio master artwork supplied by the user, downsampled only for this initial 64px foundation icon. Higher-resolution web/PWA sizes will be added during the icon verification phase.
