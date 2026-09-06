@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { isSupabaseConfigured, supabase } from './lib/supabase.js';
 
+const ICON = '/icon.svg';
+
 export default function App() {
   const [session, setSession] = useState(null);
   const [email, setEmail] = useState('');
@@ -76,7 +78,7 @@ export default function App() {
     return (
       <main className="screen">
         <section className="glass-card welcome-card">
-          <img className="app-icon" src="/icon-64.png" alt="Liquid Glass Studio" />
+          <img className="app-icon" src={ICON} alt="Liquid Glass Studio" />
           <span className="eyebrow">Liquid Glass Studio</span>
           <h1>Mobile foundation</h1>
           <p>You are signed in. The mobile feature layers will be added one at a time.</p>
@@ -90,7 +92,7 @@ export default function App() {
     <main className="screen">
       <section className="glass-card auth-card">
         <div className="brand">
-          <img className="app-icon" src="/icon-64.png" alt="Liquid Glass Studio" />
+          <img className="app-icon" src={ICON} alt="Liquid Glass Studio" />
           <div>
             <span className="eyebrow">Liquid Glass Studio</span>
             <h1>Welcome back</h1>
