@@ -1,1 +1,0 @@
-Binary source note: this file documents the icon path while GitHub contents text operations are being used. The app currently references /icon-64.png; binary icon replacement is the next repository-object operation.
