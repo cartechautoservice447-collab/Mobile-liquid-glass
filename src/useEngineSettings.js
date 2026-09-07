@@ -139,6 +139,8 @@ export default function useEngineSettings(userId) {
     } else {
       document.body.style.background = settings.theme === 'dark' ? '#07111f' : '#eef4fb';
     }
+
+    window.dispatchEvent(new CustomEvent('glass-settings-changed'));
   }, [settings]);
 
   useEffect(() => {
