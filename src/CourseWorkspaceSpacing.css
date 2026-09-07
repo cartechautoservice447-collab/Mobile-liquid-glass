@@ -1,33 +1,46 @@
 /* Course workspace breathing room + stability layer. */
 .course-workspace-screen .course-workspace-panel{
+  padding-top:13px!important;
   padding-bottom:18px!important;
 }
 
-/* The back/action row must visibly breathe before the first glass surface. */
+/* Give the back/action row clear visual separation from the first glass box. */
 .course-workspace-screen .course-workspace-header{
-  margin-bottom:28px!important;
+  margin-bottom:32px!important;
+}
+
+/* Keep every Course glass surface visually independent. */
+.course-workspace-screen .course-workspace-hero,
+.course-workspace-screen .course-workspace-progress,
+.course-workspace-screen .course-tool-folder{
+  position:relative;
+  isolation:isolate;
+  overflow:hidden;
+  box-sizing:border-box;
 }
 
 /* Separate stacked glass surfaces so they do not visually fuse together. */
 .course-workspace-screen .course-workspace-hero{
-  margin-bottom:14px!important;
+  margin-bottom:16px!important;
 }
 .course-workspace-screen .course-workspace-progress{
   margin-top:0!important;
 }
 .course-workspace-screen .course-workspace-section-heading{
-  margin-top:20px!important;
-  margin-bottom:11px!important;
+  margin-top:22px!important;
+  margin-bottom:12px!important;
 }
 .course-workspace-screen .course-workspace-tools{
-  gap:12px!important;
+  gap:13px!important;
 }
 
-/* Keep theme veils behind Course content instead of washing out text/icons. */
+/* Keep all theme veils behind Course content. */
 .course-workspace-screen .course-workspace-hero::after,
 .course-workspace-screen .course-workspace-hero::before,
 .course-workspace-screen .course-workspace-progress::after,
-.course-workspace-screen .course-tool-folder::after{
+.course-workspace-screen .course-workspace-progress::before,
+.course-workspace-screen .course-tool-folder::after,
+.course-workspace-screen .course-tool-folder::before{
   z-index:0;
   pointer-events:none;
 }
@@ -38,56 +51,67 @@
   z-index:1;
 }
 
-/* Stable glass-box sizing. */
+/* Prevent text and icons from ever escaping their glass bounds. */
 .course-workspace-screen .course-workspace-hero,
 .course-workspace-screen .course-workspace-progress,
 .course-workspace-screen .course-tool-folder{
-  box-sizing:border-box;
+  max-width:100%;
+  min-width:0;
 }
-.course-workspace-screen .course-workspace-hero{
-  width:100%;
+.course-workspace-screen .course-workspace-copy,
+.course-workspace-screen .course-tool-copy{
+  min-width:0;
+  max-width:100%;
+  overflow:hidden;
 }
 
 @media(max-width:430px){
   .course-workspace-screen .course-workspace-panel{
+    padding-top:12px!important;
     padding-bottom:16px!important;
   }
   .course-workspace-screen .course-workspace-header{
-    margin-bottom:24px!important;
+    margin-bottom:28px!important;
+  }
+  .course-workspace-screen .course-workspace-hero{
+    margin-bottom:14px!important;
+  }
+  .course-workspace-screen .course-workspace-section-heading{
+    margin-top:20px!important;
+    margin-bottom:11px!important;
+  }
+  .course-workspace-screen .course-workspace-tools{
+    gap:12px!important;
+  }
+}
+
+@media(max-width:360px){
+  .course-workspace-screen .course-workspace-panel{
+    padding-top:11px!important;
+  }
+  .course-workspace-screen .course-workspace-header{
+    margin-bottom:25px!important;
   }
   .course-workspace-screen .course-workspace-hero{
     margin-bottom:13px!important;
   }
   .course-workspace-screen .course-workspace-section-heading{
     margin-top:18px!important;
-    margin-bottom:10px!important;
   }
   .course-workspace-screen .course-workspace-tools{
     gap:11px!important;
   }
 }
 
-@media(max-width:360px){
+@media(max-width:330px){
+  .course-workspace-screen .course-workspace-panel{
+    padding-top:10px!important;
+  }
   .course-workspace-screen .course-workspace-header{
-    margin-bottom:21px!important;
+    margin-bottom:23px!important;
   }
   .course-workspace-screen .course-workspace-hero{
     margin-bottom:12px!important;
-  }
-  .course-workspace-screen .course-workspace-section-heading{
-    margin-top:16px!important;
-  }
-  .course-workspace-screen .course-workspace-tools{
-    gap:10px!important;
-  }
-}
-
-@media(max-width:330px){
-  .course-workspace-screen .course-workspace-header{
-    margin-bottom:19px!important;
-  }
-  .course-workspace-screen .course-workspace-hero{
-    margin-bottom:11px!important;
   }
 }
 
