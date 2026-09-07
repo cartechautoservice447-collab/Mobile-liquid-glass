@@ -7,11 +7,9 @@ export default function CourseWorkspace({ course, totalNotes, onBack, onCollecti
   return (
     <main className="screen feature-screen">
       <section className="full-glass-panel course-workspace-panel">
-        <header className="course-workspace-header glass-inner">
+        <div className="course-workspace-back-row">
           <button className="back-button" onClick={onBack} aria-label="Back to dashboard"><ArrowLeft size={20} /></button>
-          <div className="course-workspace-title"><span className="eyebrow">Course workspace</span><h1>{course.name}</h1><p>{course.description}</p></div>
-          <span className="course-workspace-progress">{course.progress || 0}%</span>
-        </header>
+        </div>
         <section className="course-workspace-stats">
           <div className="glass-inner workspace-stat"><FolderOpen size={18} /><strong>{collections}</strong><span>Collections</span></div>
           <div className="glass-inner workspace-stat"><FileText size={18} /><strong>{noteCount}</strong><span>Notes</span></div>
