@@ -63,3 +63,36 @@
 }
 
 @media(prefers-reduced-motion:reduce){.dashboard-screen *{scroll-behavior:auto!important}}
+
+/* Audit hardening: preserve separate touch targets without covering course metadata. */
+.course-dashboard-card .course-open{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.course-dashboard-card .delete-course{top:7px;right:7px;bottom:auto}
+.course-dashboard-card .course-top{padding-right:48px}
+.course-dashboard-card .note-pill{max-width:calc(100% - 48px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+@media(max-width:700px){
+  .course-dashboard-card{overflow:visible}
+  .course-dashboard-card .course-open{overflow:hidden}
+  .course-dashboard-card .course-top{padding-right:44px}
+}
+
+@media(max-width:480px){
+  .course-dashboard-card{height:154px;min-height:154px}
+  .course-dashboard-card .course-open{padding:12px}
+  .course-dashboard-card .delete-course{width:44px;height:44px;top:5px;right:5px}
+  .course-dashboard-card .course-top{padding-right:43px}
+  .course-dashboard-card .note-pill{max-width:calc(100% - 43px)}
+}
+
+@media(max-width:380px){
+  .course-dashboard-card{height:152px;min-height:152px}
+  .course-dashboard-card .course-open{padding:11px}
+}
+
+@media(max-width:330px){
+  .course-dashboard-card{height:150px;min-height:150px}
+  .course-dashboard-card .course-open{padding:10px}
+  .course-copy{margin:8px 0 6px}
+  .course-copy h3{font-size:13px}
+  .course-copy p{font-size:9.2px}
+}
