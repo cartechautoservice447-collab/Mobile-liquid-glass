@@ -128,3 +128,56 @@
 @media(max-width:330px){
   .course-grid{row-gap:11px}
 }
+
+/* Compact Add New Course action: content-width glass button, aligned to the right below the course section heading. */
+.add-course-trigger{
+  width:max-content;
+  max-width:100%;
+  min-height:48px;
+  height:48px;
+  margin-left:auto;
+  margin-right:0;
+  margin-bottom:16px;
+  display:inline-grid;
+  grid-template-columns:36px auto 16px;
+  align-items:center;
+  gap:8px;
+  padding:6px 11px 6px 8px;
+  border-radius:15px;
+  overflow:hidden;
+  box-sizing:border-box;
+}
+.add-course-trigger .add-course-symbol{width:34px;height:34px;border-radius:11px}
+.add-course-trigger strong{font-size:12px;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.add-course-trigger small{display:none}
+.add-course-trigger>span:last-child{font-size:18px;line-height:1}
+
+@media(max-width:700px){
+  .add-course-trigger{
+    width:max-content;
+    max-width:100%;
+    min-height:48px;
+    height:48px;
+    margin-left:auto;
+    margin-right:0;
+    margin-bottom:12px;
+    grid-template-columns:36px auto 16px;
+    gap:7px;
+    padding:6px 10px 6px 7px;
+    border-radius:15px;
+  }
+  .add-course-trigger .add-course-symbol{width:34px;height:34px;border-radius:11px}
+  .add-course-trigger strong{font-size:12px}
+}
+
+@media(max-width:380px){
+  .add-course-trigger{min-height:46px;height:46px;grid-template-columns:32px auto 15px;gap:6px;padding:6px 9px 6px 6px}
+  .add-course-trigger .add-course-symbol{width:32px;height:32px;border-radius:10px}
+  .add-course-trigger strong{font-size:11.5px}
+}
+
+@media(max-width:330px){
+  .add-course-trigger{min-height:44px;height:44px;grid-template-columns:31px auto 14px;gap:6px;padding:5px 8px 5px 6px;border-radius:14px}
+  .add-course-trigger .add-course-symbol{width:31px;height:31px;border-radius:9px}
+  .add-course-trigger strong{font-size:11px}
+}
