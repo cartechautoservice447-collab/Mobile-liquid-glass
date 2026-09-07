@@ -95,7 +95,23 @@
         <button type="button" data-pomodoro-preset="long">15 min</button>
       </div>
       <div class="pomodoro-cycle" data-pomodoro-cycle>Focus · 25 min session</div>`;
-    const close = () => { const backdrop = modal.closest('.modal-backdrop'); if (backdrop) backdrop.remove(); mountedModal = null; if (timer) clearInterval(timer); timer = null; };
+    const close = () => {
+      const backdrop = modal.closest('.modal-backdrop');
+      mountedModal = null;
+      if (timer) { clearInterval(timer); timer = null; }
+      running = false;
+
+      if (backdrop) {
+        backdrop.dispatchEvent(new MouseEvent('click', {
+          bubbles: true,
+          cancelable: true,
+          view: window,
+        }));
+        setTimeout(() => {
+          if (document.body.contains(backdrop)) backdrop.remove();
+        }, 0);
+      }
+    };
     modal.querySelector('.modal-close').addEventListener('click', close);
     modal.querySelector('[data-pomodoro-close]').addEventListener('click', close);
     modal.querySelector('[data-pomodoro-start]').addEventListener('click', () => running ? pause() : start());
