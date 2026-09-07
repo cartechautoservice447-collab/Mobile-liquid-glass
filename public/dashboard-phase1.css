@@ -1,0 +1,72 @@
+/* Phase 1 — Dashboard-only refinement. Scoped to Dashboard classes so other interfaces remain untouched. */
+
+.dashboard-screen .dashboard-header {
+  background: linear-gradient(145deg, rgba(255,255,255,.19), rgba(255,255,255,.065));
+  border-color: rgba(255,255,255,.25);
+  box-shadow: 0 20px 55px rgba(0,0,0,.22), inset 0 1px rgba(255,255,255,.3);
+}
+
+.dashboard-screen .quick-actions .action-card {
+  background: linear-gradient(145deg, rgba(255,255,255,.125), rgba(255,255,255,.045));
+  border-color: rgba(255,255,255,.18);
+  box-shadow: inset 0 1px rgba(255,255,255,.17), 0 12px 32px rgba(0,0,0,.12);
+  transition: transform .16s ease, border-color .16s ease, background .16s ease, box-shadow .16s ease;
+}
+
+.dashboard-screen .quick-actions .action-card:hover,
+.dashboard-screen .quick-actions .action-card:focus-visible {
+  transform: translateY(-2px);
+  border-color: rgba(175,225,255,.38);
+  background: linear-gradient(145deg, rgba(255,255,255,.16), rgba(255,255,255,.06));
+  box-shadow: inset 0 1px rgba(255,255,255,.22), 0 16px 36px rgba(0,0,0,.17);
+  outline: none;
+}
+
+.dashboard-screen .course-dashboard-card:first-child {
+  border-color: rgba(175,225,255,.34);
+  box-shadow: 0 22px 55px rgba(30,120,210,.18), inset 0 1px rgba(255,255,255,.28);
+}
+
+.dashboard-screen .course-dashboard-card:first-child::before {
+  content: 'Continue learning';
+  position: absolute;
+  top: 12px;
+  right: 52px;
+  z-index: 2;
+  padding: 5px 8px;
+  border: 1px solid rgba(185,235,255,.24);
+  border-radius: 999px;
+  background: rgba(120,210,245,.12);
+  color: rgba(225,248,255,.82);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+
+.dashboard-screen .course-dashboard-card:first-child .course-footer span:first-child {
+  color: rgba(220,248,255,.86);
+  font-weight: 700;
+}
+
+.dashboard-screen .add-course-trigger {
+  background: rgba(255,255,255,.055);
+  border-color: rgba(255,255,255,.16);
+  box-shadow: inset 0 1px rgba(255,255,255,.12);
+}
+
+.dashboard-screen .add-course-trigger:hover,
+.dashboard-screen .add-course-trigger:focus-visible {
+  border-color: rgba(175,225,255,.34);
+  outline: none;
+}
+
+@media (max-width: 700px) {
+  .dashboard-screen .course-dashboard-card:first-child::before {
+    top: 10px;
+    right: 48px;
+    font-size: 8px;
+    padding: 4px 7px;
+  }
+}
