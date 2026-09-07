@@ -1,14 +1,19 @@
 /*
- * Single-source glass surface renderer for the two cards that previously
- * carried their own permanent refraction/veil recipes.
+ * Single-source glass surface renderer for Course, Saved Notes, and Notes Editor.
  *
- * Type 1/2/3/4 are the existing Engine Settings languages. Selecting one
- * changes the same surface variables used by the rest of the app, then this
- * runtime layer applies those variables directly to the Course card and Saved
- * Notes card. No SVG refraction filter or extra veil is allowed on either card.
+ * Type 1/2/3/4 are the existing Engine Settings languages. The three target
+ * surfaces below use the same recipe and are hard-synced whenever the engine
+ * theme changes or the route renders them. Component CSS is not allowed to
+ * restore a permanent alternate glass treatment.
  */
 
 const STYLE_ID = 'mobile-liquid-glass-surface-runtime-lock';
+const TARGETS = [
+  '.course-dashboard-card .course-open',
+  '.collection-note-card',
+  '.generated-editor-glass.collection-workspace',
+];
+
 const STYLE = `
   /* Structural wrapper: never a second glass surface. */
   html[data-glass-theme] .app-root-layer .course-dashboard-card {
@@ -22,9 +27,10 @@ const STYLE = `
     overflow: visible !important;
   }
 
-  /* The real Course card uses one dashboard-grade glass surface. */
+  /* One theme-owned glass surface for Course, Saved Notes, and Notes Editor. */
   html[data-glass-theme] .app-root-layer .course-dashboard-card .course-open,
-  html[data-glass-theme] .app-root-layer .collection-note-card {
+  html[data-glass-theme] .app-root-layer .collection-note-card,
+  html[data-glass-theme] .app-root-layer .generated-editor-glass.collection-workspace {
     position: relative !important;
     box-sizing: border-box !important;
     background-color: var(--glass-theme-bg) !important;
@@ -36,14 +42,15 @@ const STYLE = `
     border-radius: var(--glass-theme-radius) !important;
     box-shadow: var(--glass-theme-shadow) !important;
     filter: none !important;
-    isolation: isolate !important;
   }
 
-  /* Completely replace the old fog-producing pseudo layers. */
+  /* The three target surfaces have no legacy refraction/veil layer. */
   html[data-glass-theme] .app-root-layer .course-dashboard-card .course-open::before,
   html[data-glass-theme] .app-root-layer .course-dashboard-card .course-open::after,
   html[data-glass-theme] .app-root-layer .collection-note-card::before,
-  html[data-glass-theme] .app-root-layer .collection-note-card::after {
+  html[data-glass-theme] .app-root-layer .collection-note-card::after,
+  html[data-glass-theme] .app-root-layer .generated-editor-glass.collection-workspace::before,
+  html[data-glass-theme] .app-root-layer .generated-editor-glass.collection-workspace::after {
     content: none !important;
     display: none !important;
     filter: none !important;
@@ -53,12 +60,20 @@ const STYLE = `
   }
 
   html[data-glass-theme] .app-root-layer .course-dashboard-card .course-open > *,
-  html[data-glass-theme] .app-root-layer .collection-note-card > * {
+  html[data-glass-theme] .app-root-layer .collection-note-card > *,
+  html[data-glass-theme] .app-root-layer .generated-editor-glass.collection-workspace > * {
     position: relative !important;
     z-index: 1 !important;
   }
 
-  /* Keep the existing motion without changing the selected glass language. */
+  /* Keep the editor's internal controls/content layers separate from the outer glass. */
+  html[data-glass-theme] .app-root-layer .generated-editor-glass.collection-workspace .generated-editor-topbar,
+  html[data-glass-theme] .app-root-layer .generated-editor-glass.collection-workspace .generated-format-toolbar,
+  html[data-glass-theme] .app-root-layer .generated-editor-glass.collection-workspace .generated-controls {
+    position: relative !important;
+    z-index: 2 !important;
+  }
+
   html[data-glass-theme] .app-root-layer .course-dashboard-card:hover,
   html[data-glass-theme] .app-root-layer .collection-note-card:hover {
     filter: brightness(1.03) !important;
@@ -126,18 +141,18 @@ function syncThemeVariables() {
   root.style.setProperty('--glass-theme-saturation', recipe.saturation);
 }
 
-function hardSyncCards() {
+function hardSyncTargets() {
   const recipe = activeRecipe();
-  document.querySelectorAll('.course-dashboard-card .course-open, .collection-note-card').forEach((card) => {
-    card.style.setProperty('background-color', recipe.bg, 'important');
-    card.style.setProperty('background-image', recipe.sheen, 'important');
-    card.style.setProperty('backdrop-filter', `blur(${recipe.blur}) saturate(${recipe.saturation}) contrast(105%)`, 'important');
-    card.style.setProperty('-webkit-backdrop-filter', `blur(${recipe.blur}) saturate(${recipe.saturation}) contrast(105%)`, 'important');
-    card.style.setProperty('border', `1px solid ${recipe.border}`, 'important');
-    card.style.setProperty('border-top-color', recipe.topBorder, 'important');
-    card.style.setProperty('border-radius', recipe.radius, 'important');
-    card.style.setProperty('box-shadow', recipe.shadow, 'important');
-    card.style.setProperty('filter', 'none', 'important');
+  document.querySelectorAll(TARGETS.join(',')).forEach((surface) => {
+    surface.style.setProperty('background-color', recipe.bg, 'important');
+    surface.style.setProperty('background-image', recipe.sheen, 'important');
+    surface.style.setProperty('backdrop-filter', `blur(${recipe.blur}) saturate(${recipe.saturation}) contrast(105%)`, 'important');
+    surface.style.setProperty('-webkit-backdrop-filter', `blur(${recipe.blur}) saturate(${recipe.saturation}) contrast(105%)`, 'important');
+    surface.style.setProperty('border', `1px solid ${recipe.border}`, 'important');
+    surface.style.setProperty('border-top-color', recipe.topBorder, 'important');
+    surface.style.setProperty('border-radius', recipe.radius, 'important');
+    surface.style.setProperty('box-shadow', recipe.shadow, 'important');
+    surface.style.setProperty('filter', 'none', 'important');
   });
 }
 
@@ -148,15 +163,13 @@ if (typeof document !== 'undefined') {
   if (!style) {
     style = document.createElement('style');
     style.id = STYLE_ID;
-    style.textContent = STYLE;
     document.head.appendChild(style);
-  } else if (style.textContent !== STYLE) {
-    style.textContent = STYLE;
   }
+  style.textContent = STYLE;
 
   const sync = () => {
     syncThemeVariables();
-    hardSyncCards();
+    hardSyncTargets();
   };
 
   const observer = new MutationObserver(sync);
