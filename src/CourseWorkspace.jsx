@@ -1,11 +1,11 @@
-import { BookOpen, FileText, FolderOpen, History, Play, ArrowLeft, Timer } from 'lucide-react';
+import { BookOpen, FileText, FolderOpen, History, Play, ArrowLeft } from 'lucide-react';
 import './CourseWorkspace.css';
 
 const ACCENT = {
   sky: '#72d7ff', violet: '#bd86ff', amber: '#ffd166', emerald: '#67e8b1', rose: '#ff88a8', cyan: '#65e6ff',
 };
 
-export default function CourseWorkspace({ course, onBack, onCourses, onCollections, onNotes, onStudySession, onPomodoro, onOverview }) {
+export default function CourseWorkspace({ course, onBack, onCourses, onCollections, onNotes, onStudySession, onOverview }) {
   const accent = ACCENT[course.color] || ACCENT.sky;
   const noteCount = course.collections.reduce((sum, collection) => sum + collection.notes.length, 0);
   const collections = course.collections.length;
@@ -50,7 +50,7 @@ export default function CourseWorkspace({ course, onBack, onCourses, onCollectio
 
         <div className="course-workspace-section-heading">
           <div><span className="heading-dot" /><h2>Course tools</h2></div>
-          <span>4 tools</span>
+          <span>4 folders</span>
         </div>
 
         <section className="course-workspace-tools" aria-label="Course tools">
@@ -61,12 +61,6 @@ export default function CourseWorkspace({ course, onBack, onCourses, onCollectio
             <span className="course-tool-arrow">›</span>
           </button>)}
         </section>
-
-        <button className="course-pomodoro-shortcut glass-card" onClick={onPomodoro}>
-          <span className="action-icon"><Timer size={18} /></span>
-          <span><strong>Start focus timer</strong><small>Use Pomodoro for this course.</small></span>
-          <span className="action-arrow">›</span>
-        </button>
       </section>
     </main>
   );
