@@ -56,8 +56,9 @@
       updateCounter();
     }
 
+    // Keep the React-owned Accent Color selector intact. It controls the course color state.
     const accentRow = modal.querySelector('.course-form-row');
-    if (accentRow) accentRow.remove();
+    if (accentRow) accentRow.classList.add('course-form-row-reference');
 
     const cancel = modal.querySelector('.secondary-button');
     if (cancel) cancel.remove();
