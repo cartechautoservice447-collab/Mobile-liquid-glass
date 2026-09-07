@@ -1,10 +1,18 @@
 (() => {
   const MAX_DESCRIPTION = 200;
+  let enhancedModal = null;
+  let modalObserver = null;
 
   function enhanceCourseCreator() {
     const modal = document.querySelector('.course-create-modal');
-    if (!modal) return;
+    if (!modal || modal === enhancedModal) return Boolean(modal);
 
+    enhancedModal = modal;
+    modalObserver?.disconnect();
+    modalObserver = null;
+
+    const backdrop = modal.closest('.modal-backdrop');
+    if (backdrop) backdrop.classList.add('course-create-backdrop');
     modal.classList.add('course-create-reference-active');
 
     const symbol = modal.querySelector('.modal-symbol');
@@ -76,9 +84,34 @@
       modal.dataset.referenceFocusHandled = 'true';
       requestAnimationFrame(() => nameInput?.focus());
     }
+
+    return true;
   }
 
-  const observer = new MutationObserver(enhanceCourseCreator);
-  observer.observe(document.body, { childList: true, subtree: true });
-  enhanceCourseCreator();
+  function watchForModal() {
+    if (enhanceCourseCreator()) return;
+    modalObserver?.disconnect();
+    modalObserver = new MutationObserver(() => {
+      if (enhanceCourseCreator()) modalObserver?.disconnect();
+    });
+    modalObserver.observe(document.body, { childList: true, subtree: true });
+    requestAnimationFrame(() => requestAnimationFrame(() => enhanceCourseCreator()));
+  }
+
+  document.addEventListener('click', (event) => {
+    const button = event.target instanceof Element ? event.target.closest('button') : null;
+    if (!button) return;
+    const text = button.textContent?.replace(/\s+/g, ' ').trim().toLowerCase();
+    if (text === 'add new course' || text.includes('add new course')) watchForModal();
+  }, true);
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      enhancedModal = null;
+      modalObserver?.disconnect();
+      modalObserver = null;
+    }
+  }, true);
+
+  watchForModal();
 })();
