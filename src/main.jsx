@@ -9,6 +9,7 @@ import './LiquidGlassEngine.css';
 import './LiquidGlassFinalOverrides.css';
 import './DashboardResponsive.css';
 import './CourseWorkspaceSpacing.css';
+import './NotesEditorResponsive.css';
 import './GlassSurfaceRuntimeLock.js';
 
 createRoot(document.getElementById('root')).render(
