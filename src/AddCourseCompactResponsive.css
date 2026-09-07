@@ -87,32 +87,39 @@
   .add-course-trigger strong{font-size:11.5px!important}
 }
 
-/* New placement: keep the existing Add New Course box, but anchor it to the
-   top-right of the Course Folders/card section instead of letting it sit low. */
+/* Place Add New Course in the Course Folders section only.
+   The progress/quick-action snapshot remains completely above this row. */
 @media(min-width:701px){
   .dashboard-screen .dashboard-shell{
     display:grid;
     grid-template-columns:minmax(0,1fr) auto;
+    grid-template-areas:
+      "header header"
+      "quick quick"
+      "heading add"
+      "courses courses"
+      "message message";
     align-content:start;
     column-gap:14px;
   }
-  .dashboard-screen .dashboard-shell > .dashboard-header,
-  .dashboard-screen .dashboard-shell > .quick-actions,
-  .dashboard-screen .dashboard-shell > .course-grid,
-  .dashboard-screen .dashboard-shell > .message{
-    grid-column:1 / -1;
-  }
+
+  .dashboard-screen .dashboard-shell > .dashboard-header{grid-area:header;}
+  .dashboard-screen .dashboard-shell > .quick-actions{grid-area:quick;}
   .dashboard-screen .dashboard-shell > .section-heading{
-    grid-column:1;
-    grid-row:auto;
+    grid-area:heading;
     align-self:center;
   }
   .dashboard-screen .dashboard-shell > .add-course-trigger{
-    grid-column:2;
-    grid-row:auto;
+    grid-area:add;
     align-self:center;
     justify-self:end;
     margin:0 0 10px auto!important;
+  }
+  .dashboard-screen .dashboard-shell > .course-grid{
+    grid-area:courses;
+  }
+  .dashboard-screen .dashboard-shell > .message{
+    grid-area:message;
   }
 }
 
