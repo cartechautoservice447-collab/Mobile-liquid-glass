@@ -8,6 +8,7 @@ import './LiquidGlassSurfaceOverrides.css';
 import './LiquidGlassEngine.css';
 import './LiquidGlassFinalOverrides.css';
 import './DashboardResponsive.css';
+import './AddCourseCompactResponsive.css';
 import './CourseWorkspaceSpacing.css';
 import './NotesEditorResponsive.css';
 import './GlassSurfaceRuntimeLock.js';
