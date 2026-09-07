@@ -7,7 +7,20 @@
 .collection-editor-full .generated-workarea.preview-mode .generated-preview-pane{display:block}
 .collection-editor-full .generated-editor-footer{display:none!important}
 .collection-editor-full .generated-title-row{display:none!important}
+
+/* The note title/selector belongs inside the existing top glass, never as another glass. */
+.collection-editor-full .generated-editor-topbar{overflow:visible}
+.collection-editor-full .generated-title-inline{min-width:0;flex:1;height:36px;display:flex;align-items:center;justify-content:center;margin:0 6px;overflow:hidden}
+.collection-editor-full .generated-title-inline input,.collection-editor-full .generated-title-inline select{width:100%;min-width:0;height:32px;border:0;outline:0;background:transparent;color:#d7edff;font-size:.88rem;font-weight:600;text-align:center;padding:0 6px;border-radius:8px;appearance:none;-webkit-appearance:none}
+.collection-editor-full .generated-title-inline input::placeholder{color:rgba(194,222,255,.55)}
+.collection-editor-full .generated-title-inline select{cursor:pointer;text-overflow:ellipsis}
+.collection-editor-full .generated-title-inline select option{background:#132b59;color:#eaf5ff}
+.collection-editor-full .generated-title-inline>svg{flex:none;margin-left:-23px;margin-right:5px;pointer-events:none;color:rgba(214,239,255,.65)}
+.collection-editor-full .generated-title-inline:has(select){padding:0 8px;border:1px solid rgba(180,230,255,.13);border-radius:10px;background:rgba(255,255,255,.055)}
+
 @media(max-width:620px){
   .collection-editor-full .generated-workarea .generated-editor-pane,.collection-editor-full .generated-workarea .generated-preview-pane{height:100%;border-radius:12px}
   .collection-editor-full .generated-workarea.preview-mode .generated-preview-content{height:100%}
+  .collection-editor-full .generated-title-inline{margin:0 4px}
+  .collection-editor-full .generated-title-inline input,.collection-editor-full .generated-title-inline select{font-size:.8rem}
 }
