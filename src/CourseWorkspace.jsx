@@ -1,14 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, ChevronRight, FileText, FolderOpen, MoreHorizontal, Pencil, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, ChevronRight, FileText, FolderOpen, MoreHorizontal, Pencil, Plus, Trash2, X } from 'lucide-react';
 import './CourseWorkspace.css';
 
 const ACCENT = {
   sky: '#72d7ff', violet: '#bd86ff', amber: '#ffd166', emerald: '#67e8b1', rose: '#ff88a8', cyan: '#65e6ff',
 };
 
-export default function CourseWorkspace({ course, onBack, onCourses, onOpenCollection, onOpenNote, onUpdateCourse, onDelete, onMore }) {
+export default function CourseWorkspace({ course, onBack, onCourses, onOpenCollection, onOpenNote, onUpdateCourse, onDelete }) {
   const [tab, setTab] = useState('notes');
   const [editOpen, setEditOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
   const [draftName, setDraftName] = useState(course.name);
   const [draftDescription, setDraftDescription] = useState(course.description);
   const accent = ACCENT[course.color] || ACCENT.sky;
@@ -37,7 +38,7 @@ export default function CourseWorkspace({ course, onBack, onCourses, onOpenColle
           <div className="course-details-title"><span className="eyebrow">Course workspace</span><h1>Course Details</h1></div>
           <div className="course-header-actions">
             <button className="icon-button" onClick={() => setEditOpen(true)} aria-label="Edit course"><Pencil size={17} /></button>
-            <button className="icon-button" onClick={onMore} aria-label="More course actions"><MoreHorizontal size={19} /></button>
+            <button className="icon-button" onClick={() => setMoreOpen(true)} aria-label="More course actions"><MoreHorizontal size={19} /></button>
           </div>
         </header>
 
@@ -73,10 +74,11 @@ export default function CourseWorkspace({ course, onBack, onCourses, onOpenColle
           </section>
         )}
 
-        <button className="course-manage-button glass-card" onClick={() => onOpenCollection(course.collections[0]?.id)} disabled={!course.collections[0]}><span className="action-icon"><Plus size={18} /></span><span><strong>Manage Collections</strong><small>Organize notes and add new study groups.</small></span><ChevronRight size={17} /></button>
-        <MobileCourseNav active="courses" onHome={onBack} onCourses={onCourses} onCollections={() => course.collections[0] && onOpenCollection(course.collections[0].id)} onNotes={() => setTab('notes')} onMore={onMore} />
+        <button className="course-manage-button glass-card" onClick={() => course.collections[0] && onOpenCollection(course.collections[0].id)} disabled={!course.collections[0]}><span className="action-icon"><Plus size={18} /></span><span><strong>Manage Collections</strong><small>Organize notes and add new study groups.</small></span><ChevronRight size={17} /></button>
+        <MobileCourseNav active="courses" onHome={onBack} onCourses={onCourses} onCollections={() => course.collections[0] && onOpenCollection(course.collections[0].id)} onNotes={() => setTab('notes')} onMore={() => setMoreOpen(true)} />
 
-        {editOpen && <div className="modal-backdrop" onClick={() => setEditOpen(false)}><section className="glass-modal" onClick={(event) => event.stopPropagation()}><button className="modal-close" onClick={() => setEditOpen(false)} aria-label="Close"><MoreHorizontal size={18} /></button><span className="modal-symbol"><Pencil size={20} /></span><h2>Edit course</h2><p>Update the course identity without changing its notes or collections.</p><form className="course-edit-form" onSubmit={saveEdit}><label><span>Course name</span><input value={draftName} onChange={(event) => setDraftName(event.target.value)} required autoFocus /></label><label><span>Description</span><textarea value={draftDescription} onChange={(event) => setDraftDescription(event.target.value)} rows={3} /></label><div className="course-form-actions"><button type="button" className="secondary-button" onClick={() => setEditOpen(false)}>Cancel</button><button type="submit" className="primary-button">Save changes</button></div></form><button className="course-danger-button" onClick={() => { setEditOpen(false); onDelete(); }}><Trash2 size={15} /> Delete course</button></section></div>}
+        {moreOpen && <div className="modal-backdrop" onClick={() => setMoreOpen(false)}><section className="glass-modal course-more-menu" onClick={(event) => event.stopPropagation()}><button className="modal-close" onClick={() => setMoreOpen(false)} aria-label="Close"><X size={18} /></button><span className="modal-symbol"><MoreHorizontal size={21} /></span><h2>Course actions</h2><p>Manage this course without leaving the Course Details screen.</p><div className="course-menu-actions"><button onClick={() => { setMoreOpen(false); setEditOpen(true); }}><Pencil size={16} /> Edit course</button><button onClick={() => { setMoreOpen(false); setTab('collections'); }}><FolderOpen size={16} /> View collections</button><button onClick={() => { setMoreOpen(false); setTab('notes'); }}><FileText size={16} /> View notes</button><button className="course-menu-danger" onClick={() => { setMoreOpen(false); onDelete(); }}><Trash2 size={16} /> Delete course</button></div></section></div>}
+        {editOpen && <div className="modal-backdrop" onClick={() => setEditOpen(false)}><section className="glass-modal" onClick={(event) => event.stopPropagation()}><button className="modal-close" onClick={() => setEditOpen(false)} aria-label="Close"><X size={18} /></button><span className="modal-symbol"><Pencil size={20} /></span><h2>Edit course</h2><p>Update the course identity without changing its notes or collections.</p><form className="course-edit-form" onSubmit={saveEdit}><label><span>Course name</span><input value={draftName} onChange={(event) => setDraftName(event.target.value)} required autoFocus /></label><label><span>Description</span><textarea value={draftDescription} onChange={(event) => setDraftDescription(event.target.value)} rows={3} /></label><div className="course-form-actions"><button type="button" className="secondary-button" onClick={() => setEditOpen(false)}>Cancel</button><button type="submit" className="primary-button">Save changes</button></div></form><button className="course-danger-button" onClick={() => { setEditOpen(false); onDelete(); }}><Trash2 size={15} /> Delete course</button></section></div>}
       </section>
     </main>
   );
