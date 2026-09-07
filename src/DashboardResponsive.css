@@ -114,3 +114,17 @@
 @media(max-width:330px){
   .course-dashboard-card{height:160px;min-height:160px}
 }
+
+/* Balanced mobile course-card separation: keep cards visually grouped after the height increase. */
+@media(max-width:700px){
+  .course-grid{row-gap:18px}
+}
+@media(max-width:480px){
+  .course-grid{row-gap:15px}
+}
+@media(max-width:380px){
+  .course-grid{row-gap:13px}
+}
+@media(max-width:330px){
+  .course-grid{row-gap:11px}
+}
