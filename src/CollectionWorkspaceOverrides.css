@@ -16,31 +16,28 @@
 .collection-editor-full .generated-title-inline>svg{flex:none;margin-left:-23px;margin-right:5px;pointer-events:none;color:rgba(214,239,255,.65)}
 .collection-editor-full .generated-title-inline:has(select){padding:0 8px;border:1px solid rgba(180,230,255,.13);border-radius:10px;background:rgba(255,255,255,.055)}
 
-/* ONE glass piece for the entire Collection list screen. */
-.collection-workspace-screen{padding:0!important;min-height:100dvh}
-.collection-workspace-screen .generated-editor-glass.collection-workspace{width:100%;height:100dvh;min-height:100dvh;padding:calc(10px + env(safe-area-inset-top)) 12px calc(10px + env(safe-area-inset-bottom));border-radius:0;border:0;display:flex;flex-direction:column}
-.collection-workspace-screen .notes-only-panel{width:100%;height:auto;min-height:0;flex:1;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;backdrop-filter:none!important;display:flex;flex-direction:column;overflow:hidden}
-.collection-workspace-screen .collection-notes-panel{width:100%;height:auto;min-height:0;flex:1;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;backdrop-filter:none!important;display:flex;flex-direction:column;overflow:hidden}
-
-/* Back icon and T icon sit directly inside the one large glass, at the top. */
-.collection-workspace-screen .collection-mobile-header{height:52px;min-height:52px;flex:none;margin:0 0 10px;padding:0 2px;display:grid;grid-template-columns:40px 1fr 40px;align-items:center;gap:8px;background:transparent!important;border:0!important;border-radius:0!important;box-shadow:none!important;backdrop-filter:none!important}
+/* ONE unified curved glass piece for the entire Collection Workspace. */
+.collection-workspace-screen{padding:0!important;min-height:100dvh;display:block}
+.collection-workspace-screen .generated-editor-glass.collection-workspace{box-sizing:border-box;width:calc(100vw - 12px);height:calc(100dvh - 12px);min-height:calc(100dvh - 12px);margin:6px;padding:0 12px calc(10px + env(safe-area-inset-bottom));border:1px solid rgba(175,232,255,.42);border-radius:28px;background:radial-gradient(circle at 78% 0%,rgba(0,205,255,.20),transparent 38%),radial-gradient(circle at 10% 4%,rgba(130,55,255,.23),transparent 36%),linear-gradient(145deg,rgba(18,27,82,.96),rgba(18,62,112,.92) 55%,rgba(22,91,105,.88));box-shadow:inset 0 1px 1px rgba(255,255,255,.5),inset 0 -40px 90px rgba(0,0,0,.14),0 18px 55px rgba(25,90,160,.2);backdrop-filter:blur(30px);display:flex;flex-direction:column;overflow:hidden;color:#eaf6ff}
+.collection-workspace-screen .notes-only-panel,.collection-workspace-screen .collection-notes-panel{width:100%;height:auto;min-height:0;flex:1;margin:0!important;padding:0 2px 4px!important;border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;backdrop-filter:none!important;display:flex;flex-direction:column;overflow:hidden}
+.collection-workspace-screen .collection-mobile-header{height:54px;min-height:54px;flex:none;margin:0;padding:0 2px;display:grid;grid-template-columns:40px minmax(0,1fr) 40px;align-items:center;gap:8px;background:transparent!important;border:0!important;border-radius:0!important;box-shadow:none!important;backdrop-filter:none!important}
 .collection-workspace-screen .collection-mobile-title{display:none!important}
-.collection-workspace-screen .collection-mobile-header .back-button{width:36px;height:36px;border:1px solid rgba(190,230,255,.22);border-radius:10px;background:rgba(255,255,255,.09);color:#e6f6ff;display:grid;place-items:center}
-.collection-workspace-screen .collection-note-count{justify-self:end;width:36px;height:36px;margin:0;padding:0;border-radius:10px;display:grid;place-items:center;background:rgba(255,255,255,.09);border:1px solid rgba(190,230,255,.18);color:#e8f6ff;font-size:0}
+.collection-workspace-screen .collection-mobile-header .back-button{width:38px;height:38px;border:1px solid rgba(190,235,255,.2);border-radius:12px;background:rgba(255,255,255,.075);box-shadow:inset 0 1px rgba(255,255,255,.18);color:#eaf6ff;display:grid;place-items:center}
+.collection-workspace-screen .collection-note-count{justify-self:end;width:38px;height:38px;margin:0;padding:0;border-radius:12px;display:grid;place-items:center;background:rgba(255,255,255,.075);border:1px solid rgba(190,235,255,.18);box-shadow:inset 0 1px rgba(255,255,255,.18);color:#e8f6ff;font-size:0}
 .collection-workspace-screen .collection-note-count svg{width:16px;height:16px}
-
-/* Centered New Notes button, followed by Saved Notes and the saved note cards. */
-.collection-workspace-screen .collection-notes-heading{flex:none;display:block;text-align:center;padding:0 0 8px;color:#f1f8ff;font-size:.9rem}
-.collection-workspace-screen .collection-notes-heading strong{font-weight:650}
+.collection-workspace-screen .collection-notes-heading{flex:none;display:block;text-align:center;padding:4px 0 10px;color:#f1f8ff;font-size:.92rem}
+.collection-workspace-screen .collection-notes-heading strong{font-weight:700;color:#f3f9ff}
 .collection-workspace-screen .collection-notes-heading span{display:none}
-.collection-workspace-screen .collection-new-note-button{flex:none;align-self:center;display:flex!important;align-items:center;justify-content:center;width:140px;min-width:140px;height:38px;margin:0 auto 14px!important;padding:0 14px;border:1px solid rgba(180,230,255,.25);border-radius:12px;background:linear-gradient(120deg,rgba(150,225,255,.20),rgba(95,218,226,.14));color:#effaff;gap:7px;font-size:.72rem;box-shadow:inset 0 1px 1px rgba(255,255,255,.18),0 8px 22px rgba(0,0,0,.10)}
+.collection-workspace-screen .collection-new-note-button{flex:none;align-self:center;display:flex!important;align-items:center;justify-content:center;width:148px;min-width:148px;height:40px;margin:0 auto 14px!important;padding:0 14px;border:1px solid rgba(190,235,255,.24);border-radius:12px;background:linear-gradient(120deg,rgba(150,225,255,.20),rgba(95,218,226,.14));color:#effaff;gap:7px;font-size:.72rem;font-weight:700;box-shadow:inset 0 1px 1px rgba(255,255,255,.18),0 8px 22px rgba(0,0,0,.10)}
 .collection-workspace-screen .collection-note-list{width:100%;min-height:0;flex:1;overflow:auto;padding:0 1px 8px;display:flex;flex-direction:column;gap:8px}
-.collection-workspace-screen .collection-note-card{flex:none;min-height:60px}
+.collection-workspace-screen .collection-note-card{flex:none;min-height:62px}
 
-@media(max-width:620px){
-  .collection-workspace-screen .generated-editor-glass.collection-workspace{padding-left:10px;padding-right:10px}
-  .collection-workspace-screen .collection-mobile-header{grid-template-columns:40px 1fr 40px;padding:0}
-  .collection-workspace-screen .collection-mobile-header .back-button,.collection-workspace-screen .collection-note-count{width:36px;height:36px}
+@media(max-width:430px){
+  .collection-workspace-screen .generated-editor-glass.collection-workspace{width:calc(100vw - 8px);height:calc(100dvh - 8px);min-height:calc(100dvh - 8px);margin:4px;border-radius:24px;padding-left:10px;padding-right:10px}
+  .collection-workspace-screen .collection-mobile-header{grid-template-columns:36px minmax(0,1fr) 36px;height:50px;min-height:50px;padding:0}
+  .collection-workspace-screen .collection-mobile-header .back-button,.collection-workspace-screen .collection-note-count{width:34px;height:34px;border-radius:11px}
+  .collection-workspace-screen .collection-new-note-button{width:146px;min-width:146px;height:42px;margin-bottom:12px!important}
+  .collection-workspace-screen .collection-note-card{min-height:60px;border-radius:14px}
   .collection-editor-full .generated-workarea .generated-editor-pane,.collection-editor-full .generated-workarea .generated-preview-pane{height:100%;border-radius:12px}
   .collection-editor-full .generated-workarea.preview-mode .generated-preview-content{height:100%}
   .collection-editor-full .generated-title-inline{margin:0 4px}
