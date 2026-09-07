@@ -112,8 +112,11 @@ export default function EngineSettingsModal({ settings, setSetting, reset, close
               <button className={settings.theme === 'dark' ? 'active' : ''} onClick={() => setSetting('theme', 'dark')} aria-pressed={settings.theme === 'dark'}><Moon size={15} /> Night</button>
             </div>
             <ToggleRow label="Pure black" description="Force a flat black canvas behind the glass." checked={settings.pureBlack} onChange={(value) => setSetting('pureBlack', value)} />
-            <ToggleRow label="Background theme" description="Show the blue/violet stage layer and allow its opacity to be tuned." checked={settings.backgroundThemeEnabled} onChange={(value) => setSetting('backgroundThemeEnabled', value)} />
-            {settings.backgroundThemeEnabled && <Slider label="Background opacity" value={settings.backgroundOpacity} min={0} max={100} display={`${settings.backgroundOpacity}%`} onChange={(value) => setSetting('backgroundOpacity', value)} />}
+            <ToggleRow label="Background theme" description="Show the blue/violet stage layer and allow its opacity and brightness to be tuned." checked={settings.backgroundThemeEnabled} onChange={(value) => setSetting('backgroundThemeEnabled', value)} />
+            {settings.backgroundThemeEnabled && <>
+              <Slider label="Background opacity" value={settings.backgroundOpacity} min={0} max={100} display={`${settings.backgroundOpacity}%`} onChange={(value) => setSetting('backgroundOpacity', value)} />
+              <Slider label="Background brightness" value={settings.backgroundBrightness} min={0} max={200} display={`${settings.backgroundBrightness}%`} onChange={(value) => setSetting('backgroundBrightness', value)} />
+            </>}
             <ToggleRow label="Fully dark theme" description="Use a uniform deep-dark stage and hide the ambient color orbs." checked={settings.fullDarkBackground} onChange={(value) => setSetting('fullDarkBackground', value)} />
           </section>
 
