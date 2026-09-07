@@ -91,14 +91,14 @@
   function navigateDashboard(key, dashboard, shell, nav) {
     qsa(nav, '.dashboard-nav-item').forEach((item) => item.classList.toggle('active', item.dataset.dashboardNav === key));
     if (key === 'home') { window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
-    if (key === 'courses') { qs(shell, '.course-dashboard-card')?.scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
+    if (key === 'courses') { qs(shell, '[data-dashboard-courses]')?.click(); return; }
     const firstCourse = qs(shell, '.course-dashboard-card:first-child .course-open');
     if (key === 'collections' || key === 'notes') {
       if (!firstCourse) return;
       firstCourse.click();
       setTimeout(() => {
-        const targetLabel = key === 'collections' ? 'Collections' : 'All Notes';
-        const target = qsa(document, '.course-workspace-actions button').find((button) => (button.textContent || '').includes(targetLabel));
+        const targetLabel = key === 'collections' ? 'Collections' : 'Notes';
+        const target = qsa(document, '.course-content-tabs [role="tab"]').find((button) => (button.textContent || '').trim() === targetLabel);
         target?.click();
       }, 40);
       return;
