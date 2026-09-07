@@ -1,12 +1,13 @@
 import { useMemo, useState } from 'react';
-import { ArrowLeft, FileText, Folder, Plus, Search } from 'lucide-react';
+import { ArrowLeft, FileText, Folder, MoreHorizontal, Plus, Search, X } from 'lucide-react';
 
 const ACCENT = {
   sky: '#72d7ff', violet: '#bd86ff', amber: '#ffd166', emerald: '#67e8b1', rose: '#ff88a8', cyan: '#65e6ff',
 };
 
-export default function CourseFolderPage({ courses, onBack, onOpenCourse, onAddCourse, onHome, onCollections, onNotes, onMore }) {
+export default function CourseFolderPage({ courses, onBack, onOpenCourse, onAddCourse, onHome, onCollections, onNotes }) {
   const [query, setQuery] = useState('');
+  const [moreOpen, setMoreOpen] = useState(false);
   const filteredCourses = useMemo(() => {
     const normalized = query.trim().toLowerCase();
     if (!normalized) return courses;
@@ -51,7 +52,9 @@ export default function CourseFolderPage({ courses, onBack, onOpenCourse, onAddC
           {!filteredCourses.length && <div className="empty-state glass-inner">No courses match “{query}”.</div>}
         </div>
 
-        <MobileCourseNav active="courses" onHome={onHome} onCourses={() => {}} onCollections={onCollections} onNotes={onNotes} onMore={onMore} />
+        <MobileCourseNav active="courses" onHome={onHome} onCourses={() => {}} onCollections={onCollections} onNotes={onNotes} onMore={() => setMoreOpen(true)} />
+
+        {moreOpen && <div className="modal-backdrop" onClick={() => setMoreOpen(false)}><section className="glass-modal course-more-menu" onClick={(event) => event.stopPropagation()}><button className="modal-close" onClick={() => setMoreOpen(false)} aria-label="Close"><X size={18} /></button><span className="modal-symbol"><MoreHorizontal size={21} /></span><h2>Course library</h2><p>Quick actions for your course library.</p><div className="course-menu-actions"><button onClick={() => { setMoreOpen(false); onAddCourse(); }}><Plus size={16} /> Add a course</button><button onClick={() => { setMoreOpen(false); onHome(); }}>⌂ Return home</button></div></section></div>}
       </section>
     </main>
   );
@@ -61,5 +64,5 @@ function MobileCourseNav({ active, onHome, onCourses, onCollections, onNotes, on
   const items = [
     ['home', 'Home', onHome], ['courses', 'Courses', onCourses], ['collections', 'Collections', onCollections], ['notes', 'Notes', onNotes], ['more', 'More', onMore],
   ];
-  return <nav className="course-mobile-nav" aria-label="Course navigation">{items.map(([key, label, handler]) => <button key={key} className={active === key ? 'nav-active' : ''} onClick={handler} aria-current={active === key ? 'page' : undefined}><span>{key === 'home' ? '⌂' : key === 'courses' ? '▣' : key === 'collections' ? '▥' : key === 'notes' ? '▤' : '•••'}</span><small>{label}</small></button>)}</nav>;
+  return <nav className="course-mobile-nav" aria-label="Course navigation">{items.map(([key, label, handler]) => <button key={key} className={active === key ? 'nav-active' : ''} onClick={handler}><span>{key === 'home' ? '⌂' : key === 'courses' ? '▣' : key === 'collections' ? '▥' : key === 'notes' ? '▤' : '•••'}</span><small>{label}</small></button>)}</nav>;
 }
