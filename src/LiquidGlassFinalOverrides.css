@@ -20,6 +20,28 @@
   box-shadow:inset 0 1px 2px rgba(255,255,255,.35),inset 0 -2px 4px rgba(0,0,0,.18),0 8px 32px rgba(0,0,0,.22);
 }
 
+/* Course dashboard uses an outer structural wrapper plus one real water-gel surface.
+   Keep the wrapper transparent so it cannot double-blur/fog the card. */
+.app-root-layer .course-dashboard-card{
+  background:transparent!important;
+  background-image:none!important;
+  backdrop-filter:none!important;
+  -webkit-backdrop-filter:none!important;
+  border:0!important;
+  box-shadow:none!important;
+  overflow:visible!important;
+}
+.app-root-layer .course-dashboard-card .course-open{
+  background-color:var(--water-gel-bg)!important;
+  background-image:linear-gradient(135deg,rgba(255,255,255,.14) 0%,rgba(255,255,255,.02) 55%,rgba(255,255,255,.09) 100%)!important;
+  backdrop-filter:blur(var(--liquid-density,12px)) saturate(200%) contrast(105%)!important;
+  -webkit-backdrop-filter:blur(var(--liquid-density,12px)) saturate(200%) contrast(105%)!important;
+  border:1px solid rgba(255,255,255,.22)!important;
+  border-top-color:rgba(255,255,255,.4)!important;
+  border-radius:inherit;
+  box-shadow:inset 0 1px 2px rgba(255,255,255,.5),inset 0 -2px 4px rgba(0,0,0,.25),0 8px 32px rgba(0,0,0,.37)!important;
+}
+
 /* Keep intentionally dark editor canvases readable; only their enclosing glass remains liquid. */
 .app-root-layer .generated-editor-pane,
 .app-root-layer .generated-preview-pane,
