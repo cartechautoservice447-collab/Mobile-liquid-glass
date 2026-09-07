@@ -7,6 +7,7 @@ import './styles.css';
 import './LiquidGlassSurfaceOverrides.css';
 import './LiquidGlassEngine.css';
 import './LiquidGlassFinalOverrides.css';
+import './DashboardResponsive.css';
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
