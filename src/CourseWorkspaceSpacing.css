@@ -1,0 +1,10 @@
+/* Course workspace breathing room: separate the back/action row from the first content glass surface. */
+.course-workspace-screen .course-workspace-header{margin-bottom:15px;}
+
+@media(max-width:430px){
+ .course-workspace-screen .course-workspace-header{margin-bottom:13px;}
+}
+
+@media(max-width:360px){
+ .course-workspace-screen .course-workspace-header{margin-bottom:12px;}
+}
