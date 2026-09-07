@@ -1,7 +1,7 @@
 /* Shared Liquid Glass stage: the same blue/violet atmosphere and three drifting soft orbs used by the reference engine. */
 .app-root-layer{position:relative;min-height:100dvh;isolation:isolate;overflow:hidden;background:#07111f}
 .app-root-layer> :not(.liquid-environment):not(.liquid-refraction-defs){position:relative;z-index:1}
-.liquid-environment{position:fixed;inset:0;z-index:0;overflow:hidden;pointer-events:none;background:radial-gradient(120% 90% at 10% 0%,oklch(.62 .18 250) 0%,transparent 60%),radial-gradient(100% 80% at 100% 10%,oklch(.58 .17 285) 0%,transparent 55%),linear-gradient(170deg,oklch(.5 .17 258),oklch(.36 .15 268));transition:background 600ms ease}
+.liquid-environment{position:fixed;inset:0;z-index:0;overflow:hidden;background:radial-gradient(120% 90% at 10% 0%,oklch(.62 .18 250) 0%,transparent 60%),radial-gradient(100% 80% at 100% 10%,oklch(.58 .17 285) 0%,transparent 55%),linear-gradient(170deg,oklch(.5 .17 258),oklch(.36 .15 268));filter:brightness(var(--background-brightness,1));transition:background 600ms ease,filter 250ms ease}
 .liquid-environment-orb{position:absolute;border-radius:9999px;filter:blur(60px);opacity:.75;pointer-events:none;animation:liquid-environment-drift 18s ease-in-out infinite}
 .liquid-environment-orb-a{width:26rem;height:26rem;top:-6rem;left:-5rem;background:oklch(.75 .19 250)}
 .liquid-environment-orb-b{width:22rem;height:22rem;bottom:-7rem;right:-4rem;background:oklch(.78 .2 330);animation-delay:-6s}
