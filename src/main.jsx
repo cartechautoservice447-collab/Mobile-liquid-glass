@@ -6,6 +6,7 @@ import LiquidRefractionFilter from './LiquidRefractionFilter.jsx';
 import './styles.css';
 import './LiquidGlassSurfaceOverrides.css';
 import './LiquidGlassEngine.css';
+import './LiquidGlassFinalOverrides.css';
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
