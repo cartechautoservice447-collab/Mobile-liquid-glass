@@ -1,0 +1,31 @@
+/* Theme selector: styling only. No dashboard layout or feature changes. */
+.theme-control{position:relative;display:inline-flex;z-index:20}
+.theme-control-menu{position:absolute;right:0;top:calc(100% + 9px);width:208px;padding:8px;border:1px solid rgba(190,235,255,.24);border-radius:19px;background:linear-gradient(145deg,rgba(255,255,255,.17),rgba(255,255,255,.065));box-shadow:0 22px 55px rgba(0,0,0,.32),inset 0 1px rgba(255,255,255,.25);backdrop-filter:blur(28px) saturate(150%);-webkit-backdrop-filter:blur(28px) saturate(150%);color:#eef8ff}
+.theme-control-menu::before{content:'';position:absolute;right:18px;top:-5px;width:10px;height:10px;transform:rotate(45deg);border-left:1px solid rgba(190,235,255,.2);border-top:1px solid rgba(190,235,255,.2);background:rgba(50,80,115,.72)}
+.theme-control-label{padding:7px 9px 6px;color:rgba(225,241,255,.52);font-size:9px;font-weight:850;letter-spacing:.14em;text-transform:uppercase}
+.theme-control-option{width:100%;display:grid;grid-template-columns:30px minmax(0,1fr) 18px;align-items:center;gap:8px;min-height:48px;padding:6px 8px;border:1px solid transparent;border-radius:14px;background:transparent;color:#eef8ff;text-align:left;cursor:pointer}
+.theme-control-option:hover,.theme-control-option:focus-visible{border-color:rgba(190,235,255,.17);background:rgba(255,255,255,.08);outline:none}
+.theme-control-option.active{border-color:rgba(190,235,255,.22);background:linear-gradient(110deg,rgba(255,255,255,.095),rgba(95,210,240,.075));box-shadow:inset 0 1px rgba(255,255,255,.12)}
+.theme-control-swatch{width:25px;height:25px;border-radius:9px;border:1px solid rgba(255,255,255,.22);box-shadow:inset 0 1px rgba(255,255,255,.24),0 5px 14px rgba(0,0,0,.12)}
+.theme-control-swatch.midnight{background:linear-gradient(145deg,#17396a,#6d6be0 58%,#5ed9ff)}
+.theme-control-swatch.sea{background:linear-gradient(145deg,#0a4c59,#56bfb2 58%,#a4ece3)}
+.theme-control-name{display:block;font-size:11px;font-weight:750;line-height:1.15}
+.theme-control-current{display:block;margin-top:3px;color:rgba(225,241,255,.46);font-size:8px}
+.theme-control-check{font-size:14px;color:#9ceaff;text-align:center}
+
+html[data-app-theme='midnight'] body{background:radial-gradient(circle at 20% 0%,rgba(86,184,255,.12),transparent 35%),radial-gradient(circle at 100% 100%,rgba(144,102,255,.10),transparent 42%),#07111f}
+html[data-app-theme='sea'] body{background:radial-gradient(circle at 18% 0%,rgba(98,222,208,.15),transparent 35%),radial-gradient(circle at 100% 100%,rgba(74,181,207,.12),transparent 43%),#061a22}
+
+html[data-app-theme='sea'] .glass-card,html[data-app-theme='sea'] .full-glass-panel{background:linear-gradient(145deg,rgba(23,86,91,.34),rgba(37,114,119,.14));border-color:rgba(170,246,238,.21)}
+html[data-app-theme='sea'] .glass-inner{background:rgba(75,177,171,.085);border-color:rgba(170,246,238,.16)}
+html[data-app-theme='sea'] .dashboard-screen .dashboard-header{background:linear-gradient(145deg,rgba(209,255,250,.14),rgba(63,173,177,.06));border-color:rgba(170,246,238,.22)}
+html[data-app-theme='sea'] .dashboard-screen .quick-actions .action-card{background:linear-gradient(145deg,rgba(205,255,249,.10),rgba(53,184,183,.045));border-color:rgba(170,246,238,.15)}
+html[data-app-theme='sea'] .dashboard-screen .course-dashboard-card:first-child{background:linear-gradient(145deg,rgba(196,255,249,.13),rgba(70,190,205,.06));border-color:rgba(170,246,238,.28);box-shadow:0 24px 65px rgba(38,150,154,.18),inset 0 1px rgba(255,255,255,.25)}
+html[data-app-theme='sea'] .dashboard-screen .dashboard-progress-snapshot,html[data-app-theme='sea'] .dashboard-screen .dashboard-recent-notes{background:linear-gradient(145deg,rgba(205,255,249,.08),rgba(54,166,170,.035));border-color:rgba(170,246,238,.14)}
+html[data-app-theme='sea'] .dashboard-screen .dashboard-bottom-nav{background:linear-gradient(145deg,rgba(212,255,251,.12),rgba(57,151,161,.05));border-color:rgba(170,246,238,.18)}
+html[data-app-theme='sea'] .course-tool-folder,html[data-app-theme='sea'] .collection-list-card{background:linear-gradient(145deg,rgba(205,255,249,.09),rgba(55,171,174,.045));border-color:rgba(170,246,238,.16)}
+html[data-app-theme='sea'] .generated-editor-glass,html[data-app-theme='sea'] .notes-only-panel{border-color:rgba(170,246,238,.25)}
+html[data-app-theme='sea'] .primary-button{background:linear-gradient(135deg,#a6ece4,#70d8e1);color:#06242a}
+html[data-app-theme='sea'] .icon-button,html[data-app-theme='sea'] .back-button,html[data-app-theme='sea'] .course-mini-action{border-color:rgba(170,246,238,.18)}
+
+@media (max-width:430px){.theme-control-menu{right:-2px;width:196px}.theme-control-option{min-height:46px}.theme-control-label{padding-top:6px}}
