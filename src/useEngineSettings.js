@@ -126,6 +126,19 @@ export default function useEngineSettings(userId) {
     root.style.setProperty('--liquid-bounce-damping', String(settings.bounceDamping));
     root.style.setProperty('--background-opacity', String(settings.backgroundOpacity / 100));
     root.style.setProperty('--liquid-motion-duration', `${Math.round(420 - (settings.bounceStiffness - 100) * 0.7)}ms`);
+
+    const opacity = settings.backgroundOpacity / 100;
+    if (settings.pureBlack) {
+      document.body.style.background = '#000';
+    } else if (settings.fullDarkBackground) {
+      document.body.style.background = '#050507';
+    } else if (settings.backgroundThemeEnabled) {
+      document.body.style.background = settings.theme === 'dark'
+        ? `radial-gradient(circle at 20% 0%, rgb(23 59 98 / ${opacity}) 0, transparent 45%), radial-gradient(circle at 100% 100%, rgb(44 22 93 / ${opacity}) 0, transparent 48%), #07111f`
+        : `radial-gradient(circle at 20% 0%, rgb(110 197 255 / ${opacity}) 0, transparent 45%), radial-gradient(circle at 100% 100%, rgb(171 126 255 / ${opacity}) 0, transparent 48%), #eef4fb`;
+    } else {
+      document.body.style.background = settings.theme === 'dark' ? '#07111f' : '#eef4fb';
+    }
   }, [settings]);
 
   useEffect(() => {
