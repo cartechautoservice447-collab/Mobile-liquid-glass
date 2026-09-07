@@ -9,6 +9,7 @@ export const ENGINE_DEFAULTS = {
   pureBlack: false,
   backgroundThemeEnabled: false,
   backgroundOpacity: 100,
+  backgroundBrightness: 100,
   fullDarkBackground: false,
   liquidDensity: 12,
   liquidTransparency: 45,
@@ -64,6 +65,7 @@ export default function useEngineSettings(userId) {
       pureBlack: readStored(scopeKey(scope, 'pure-black'), ENGINE_DEFAULTS.pureBlack) === 'true',
       backgroundThemeEnabled: readStored(scopeKey(scope, 'background-theme'), ENGINE_DEFAULTS.backgroundThemeEnabled) === 'true',
       backgroundOpacity: clamp(readStored(scopeKey(scope, 'background-opacity'), ENGINE_DEFAULTS.backgroundOpacity), 0, 100, ENGINE_DEFAULTS.backgroundOpacity),
+      backgroundBrightness: clamp(readStored(scopeKey(scope, 'background-brightness'), ENGINE_DEFAULTS.backgroundBrightness), 0, 200, ENGINE_DEFAULTS.backgroundBrightness),
       fullDarkBackground: readStored(scopeKey(scope, 'full-dark-background'), ENGINE_DEFAULTS.fullDarkBackground) === 'true',
       liquidDensity: clamp(readStored(scopeKey(scope, 'liquid-density'), ENGINE_DEFAULTS.liquidDensity), 0, 40, ENGINE_DEFAULTS.liquidDensity),
       liquidTransparency: clamp(readStored(scopeKey(scope, 'liquid-transparency'), ENGINE_DEFAULTS.liquidTransparency), 5, 95, ENGINE_DEFAULTS.liquidTransparency),
@@ -86,6 +88,7 @@ export default function useEngineSettings(userId) {
       ['pure-black', settings.pureBlack],
       ['background-theme', settings.backgroundThemeEnabled],
       ['background-opacity', settings.backgroundOpacity],
+      ['background-brightness', settings.backgroundBrightness],
       ['full-dark-background', settings.fullDarkBackground],
       ['liquid-density', settings.liquidDensity],
       ['liquid-transparency', settings.liquidTransparency],
@@ -131,6 +134,7 @@ export default function useEngineSettings(userId) {
     root.style.setProperty('--liquid-bounce', String(settings.bounceStiffness));
     root.style.setProperty('--liquid-bounce-damping', String(settings.bounceDamping));
     root.style.setProperty('--background-opacity', String(settings.backgroundOpacity / 100));
+    root.style.setProperty('--background-brightness', String(settings.backgroundBrightness / 100));
     root.style.setProperty('--liquid-motion-duration', `${Math.round(420 - (settings.bounceStiffness - 100) * 0.7)}ms`);
 
     const opacity = settings.backgroundOpacity / 100;
@@ -171,6 +175,7 @@ export default function useEngineSettings(userId) {
       if (key === 'glassTheme') return { ...current, glassTheme: GLASS_THEME_VALUES.includes(value) ? value : current.glassTheme };
       if (key === 'pureBlack' || key === 'backgroundThemeEnabled' || key === 'fullDarkBackground') return { ...current, [key]: Boolean(value) };
       if (key === 'backgroundOpacity') return { ...current, backgroundOpacity: clamp(value, 0, 100, current.backgroundOpacity) };
+      if (key === 'backgroundBrightness') return { ...current, backgroundBrightness: clamp(value, 0, 200, current.backgroundBrightness) };
       if (key === 'liquidDensity') return { ...current, liquidDensity: clamp(value, 0, 40, current.liquidDensity) };
       if (key === 'liquidTransparency') return { ...current, liquidTransparency: clamp(value, 5, 95, current.liquidTransparency) };
       if (key === 'liquidClearness') return { ...current, liquidClearness: clamp(value, 0, 100, current.liquidClearness) };
