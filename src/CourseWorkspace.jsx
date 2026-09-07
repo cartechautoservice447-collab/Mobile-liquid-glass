@@ -23,12 +23,12 @@ export default function CourseWorkspace({ course, onBack, onCourses, onCollectio
     <main className="screen feature-screen course-workspace-screen">
       <section className="full-glass-panel course-workspace-panel">
         <header className="course-workspace-header">
-          <button className="back-button" onClick={onBack} aria-label="Back to dashboard"><ArrowLeft size={19} /></button>
+          <button type="button" className="back-button" onClick={onBack} aria-label="Back to dashboard"><ArrowLeft size={19} /></button>
           <div className="course-workspace-title">
             <span className="eyebrow">Course workspace</span>
             <h1>{course.name}</h1>
           </div>
-          <button className="course-mini-action" onClick={onCourses} aria-label="All courses"><History size={17} /></button>
+          <button type="button" className="course-mini-action" onClick={onCourses} aria-label="All courses"><History size={17} /></button>
         </header>
 
         <section className="course-workspace-hero glass-card" style={{ '--course-accent': accent }}>
@@ -55,7 +55,7 @@ export default function CourseWorkspace({ course, onBack, onCourses, onCollectio
         </div>
 
         <section className="course-workspace-tools" aria-label="Course tools">
-          {tools.map((tool, index) => <button key={tool.title} className="glass-card course-tool-folder" onClick={tool.onClick} style={{ '--course-accent': accent }}>
+          {tools.map((tool, index) => <button type="button" key={tool.title} className="glass-card course-tool-folder" onClick={tool.onClick} style={{ '--course-accent': accent }}>
             <span className="course-tool-index">0{index + 1}</span>
             <span className="course-tool-icon">{tool.icon}</span>
             <span className="course-tool-copy"><strong>{tool.title}</strong><small>{tool.text}</small></span>
