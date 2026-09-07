@@ -1,7 +1,18 @@
 /* Course workspace breathing room + stability layer. */
+.course-workspace-screen{
+  overflow-x:hidden!important;
+  overflow-y:auto!important;
+  -webkit-overflow-scrolling:touch;
+  overscroll-behavior-y:contain;
+  min-height:100dvh;
+}
+
 .course-workspace-screen .course-workspace-panel{
   padding-top:13px!important;
   padding-bottom:18px!important;
+  height:auto!important;
+  max-height:none!important;
+  overflow:visible!important;
 }
 
 /* Give the back/action row clear visual separation from the first glass box. */
