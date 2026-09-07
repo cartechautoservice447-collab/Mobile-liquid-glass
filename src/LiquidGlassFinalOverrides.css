@@ -42,6 +42,33 @@
   box-shadow:inset 0 1px 2px rgba(255,255,255,.5),inset 0 -2px 4px rgba(0,0,0,.25),0 8px 32px rgba(0,0,0,.37)!important;
 }
 
+/* Course cards must have only one refractive pass: keep the sheen crisp and
+   use a subtle rim instead of filtering the entire card surface. */
+.app-root-layer .course-dashboard-card .course-open::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  z-index:0;
+  pointer-events:none;
+  border-radius:inherit;
+  background:linear-gradient(135deg,rgba(255,255,255,.12) 0%,rgba(255,255,255,.018) 55%,rgba(255,255,255,.07) 100%);
+  filter:none!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.18);
+}
+.app-root-layer .course-dashboard-card .course-open::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  z-index:0;
+  pointer-events:none;
+  border-radius:inherit;
+  background:radial-gradient(140% 100% at 0% 0%,color-mix(in oklab,var(--course-accent,#72d7ff) 28%,transparent),transparent 60%);
+  opacity:.82;
+}
+.app-root-layer .course-dashboard-card .course-open>*{position:relative;z-index:1}
+.app-root-layer .course-dashboard-card .folder-icon{box-shadow:inset 0 1px 2px rgba(255,255,255,.32),0 8px 22px rgba(0,0,0,.1)}
+.app-root-layer .course-dashboard-card .note-pill{border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.15);box-shadow:inset 0 1px rgba(255,255,255,.18)}
+
 /* Keep intentionally dark editor canvases readable; only their enclosing glass remains liquid. */
 .app-root-layer .generated-editor-pane,
 .app-root-layer .generated-preview-pane,
