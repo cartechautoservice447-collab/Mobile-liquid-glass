@@ -8,6 +8,7 @@ import './LiquidGlassSurfaceOverrides.css';
 import './LiquidGlassEngine.css';
 import './LiquidGlassFinalOverrides.css';
 import './DashboardResponsive.css';
+import './CourseWorkspaceSpacing.css';
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

@@ -1,6 +1,5 @@
 import { BookOpen, FileText, FolderOpen, History, Play, ArrowLeft } from 'lucide-react';
 import './CourseWorkspace.css';
-import './CourseWorkspaceSpacing.css';
 
 const ACCENT = {
   sky: '#72d7ff', violet: '#bd86ff', amber: '#ffd166', emerald: '#67e8b1', rose: '#ff88a8', cyan: '#65e6ff',
