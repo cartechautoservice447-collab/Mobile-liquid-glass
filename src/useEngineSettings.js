@@ -5,6 +5,7 @@ export const ENGINE_DEFAULTS = {
   uiTextClarity: 'default',
   performance: 'high',
   theme: 'light',
+  glassTheme: 'type-1',
   pureBlack: false,
   backgroundThemeEnabled: false,
   backgroundOpacity: 100,
@@ -20,6 +21,7 @@ export const ENGINE_DEFAULTS = {
 const LEGACY_PERFORMANCE_KEY = 'mobile-liquid-glass-performance';
 const STORAGE_PREFIX = 'mobile-liquid-glass-engine-v1';
 const CLARITY_VALUES = ['default', 'smooth', 'medium', 'punchy'];
+const GLASS_THEME_VALUES = ['type-1', 'type-2', 'type-3', 'type-4'];
 
 const clamp = (value, min, max, fallback) => {
   const numeric = Number(value);
@@ -49,6 +51,7 @@ export default function useEngineSettings(userId) {
   useEffect(() => {
     const scope = userId || 'guest';
     const legacyPerformance = readStored(LEGACY_PERFORMANCE_KEY, ENGINE_DEFAULTS.performance);
+    const storedGlassTheme = readStored(scopeKey(scope, 'glass-theme'), ENGINE_DEFAULTS.glassTheme);
     setSettings({
       displayName: readStored(scopeKey(scope, 'display-name'), ENGINE_DEFAULTS.displayName, (value) => value.trim().slice(0, 40)),
       uiTextClarity: (() => {
@@ -57,6 +60,7 @@ export default function useEngineSettings(userId) {
       })(),
       performance: readStored(scopeKey(scope, 'performance'), legacyPerformance) === 'ultra' ? 'ultra' : 'high',
       theme: readStored(scopeKey(scope, 'theme'), ENGINE_DEFAULTS.theme) === 'dark' ? 'dark' : 'light',
+      glassTheme: GLASS_THEME_VALUES.includes(storedGlassTheme) ? storedGlassTheme : ENGINE_DEFAULTS.glassTheme,
       pureBlack: readStored(scopeKey(scope, 'pure-black'), ENGINE_DEFAULTS.pureBlack) === 'true',
       backgroundThemeEnabled: readStored(scopeKey(scope, 'background-theme'), ENGINE_DEFAULTS.backgroundThemeEnabled) === 'true',
       backgroundOpacity: clamp(readStored(scopeKey(scope, 'background-opacity'), ENGINE_DEFAULTS.backgroundOpacity), 0, 100, ENGINE_DEFAULTS.backgroundOpacity),
@@ -78,6 +82,7 @@ export default function useEngineSettings(userId) {
       ['ui-text-clarity', settings.uiTextClarity],
       ['performance', settings.performance],
       ['theme', settings.theme],
+      ['glass-theme', settings.glassTheme],
       ['pure-black', settings.pureBlack],
       ['background-theme', settings.backgroundThemeEnabled],
       ['background-opacity', settings.backgroundOpacity],
@@ -101,6 +106,7 @@ export default function useEngineSettings(userId) {
     document.documentElement.dataset.fullDarkBackground = settings.fullDarkBackground ? 'on' : 'off';
     document.documentElement.dataset.uiTextClarity = settings.uiTextClarity;
     document.documentElement.dataset.glassPerformance = settings.performance;
+    document.documentElement.dataset.glassTheme = settings.glassTheme;
 
     const transparency = settings.liquidTransparency / 100;
     const density = settings.liquidDensity;
@@ -162,6 +168,7 @@ export default function useEngineSettings(userId) {
         return { ...current, performance };
       }
       if (key === 'theme') return { ...current, theme: value === 'dark' ? 'dark' : 'light' };
+      if (key === 'glassTheme') return { ...current, glassTheme: GLASS_THEME_VALUES.includes(value) ? value : current.glassTheme };
       if (key === 'pureBlack' || key === 'backgroundThemeEnabled' || key === 'fullDarkBackground') return { ...current, [key]: Boolean(value) };
       if (key === 'backgroundOpacity') return { ...current, backgroundOpacity: clamp(value, 0, 100, current.backgroundOpacity) };
       if (key === 'liquidDensity') return { ...current, liquidDensity: clamp(value, 0, 40, current.liquidDensity) };
