@@ -1,0 +1,50 @@
+/* Final unification layer for the reference Liquid Glass engine. */
+.course-dashboard-card .course-open::before,
+.collection-note-card::before,
+.collection-workspace-screen .collection-note-card::before,
+.course-folder-card::before{filter:url(#liquid-refraction)!important}
+
+/* The shared stage is the visual source behind every glass surface. */
+.app-root-layer{background:transparent!important}
+
+/* Match the reference five-part water-gel surface on generic Mobile glass containers. */
+.app-root-layer .glass-card,
+.app-root-layer .full-glass-panel{
+  background-color:var(--water-gel-bg)!important;
+  background-image:linear-gradient(135deg,rgba(255,255,255,.14) 0%,rgba(255,255,255,.02) 55%,rgba(255,255,255,.09) 100%)!important;
+  backdrop-filter:blur(var(--liquid-density,12px)) saturate(200%) contrast(105%)!important;
+  -webkit-backdrop-filter:blur(var(--liquid-density,12px)) saturate(200%) contrast(105%)!important;
+  border:1px solid rgba(255,255,255,.22);
+  border-top-color:rgba(255,255,255,.4);
+  border-radius:calc(18px + var(--liquid-gel,.55)*26px);
+  box-shadow:inset 0 1px 2px rgba(255,255,255,.35),inset 0 -2px 4px rgba(0,0,0,.18),0 8px 32px rgba(0,0,0,.22);
+}
+
+/* Keep intentionally dark editor canvases readable; only their enclosing glass remains liquid. */
+.app-root-layer .generated-editor-pane,
+.app-root-layer .generated-preview-pane,
+.app-root-layer .note-preview,
+.app-root-layer .document-output{background-color:initial}
+
+/* Glass utility controls use the same translucent lens language. */
+.app-root-layer .icon-button,
+.app-root-layer .back-button,
+.app-root-layer .course-mini-action,
+.app-root-layer .modal-close,
+.app-root-layer .collection-note-count,
+.app-root-layer .performance-control,
+.app-root-layer .engine-chip,
+.app-root-layer .engine-performance-switch button,
+.app-root-layer .engine-theme-pair button,
+.app-root-layer .engine-reset-button{
+  border-color:rgba(255,255,255,.25);
+  background:rgba(255,255,255,.10);
+  box-shadow:inset 0 1px rgba(255,255,255,.18);
+  backdrop-filter:blur(calc(var(--liquid-density,12px) * .8)) saturate(180%);
+  -webkit-backdrop-filter:blur(calc(var(--liquid-density,12px) * .8)) saturate(180%);
+}
+
+.dark .app-root-layer .glass-card,
+.dark .app-root-layer .full-glass-panel{background-image:linear-gradient(135deg,rgba(255,255,255,.10),rgba(255,255,255,.015) 55%,rgba(255,255,255,.06))!important}
+
+@media(prefers-reduced-motion:reduce){.app-root-layer .glass-card,.app-root-layer .full-glass-panel{transition:none!important}}
