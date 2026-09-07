@@ -1,0 +1,32 @@
+/* Mobile UI sizing overrides */
+.add-course-trigger {
+  min-height: 62px !important;
+  padding: 10px 12px !important;
+  border-radius: 17px !important;
+  gap: 9px !important;
+}
+
+.add-course-trigger .add-course-symbol {
+  width: 34px !important;
+  height: 34px !important;
+  min-width: 34px !important;
+  border-radius: 11px !important;
+}
+
+.add-course-trigger .add-course-symbol svg {
+  width: 16px !important;
+  height: 16px !important;
+}
+
+.add-course-trigger strong {
+  font-size: 13px !important;
+}
+
+.add-course-trigger small {
+  font-size: 10px !important;
+  margin-top: 3px !important;
+}
+
+.add-course-trigger .action-arrow {
+  font-size: 20px !important;
+}
