@@ -7,6 +7,7 @@
 
   let activeTheme = localStorage.getItem(THEME_KEY) === 'sea' ? 'sea' : 'midnight';
   let menu = null;
+  let trigger = null;
 
   function closeMenu() {
     menu?.remove();
@@ -26,8 +27,9 @@
     });
   }
 
-  function openMenu(trigger) {
+  function openMenu(nextTrigger) {
     closeMenu();
+    trigger = nextTrigger;
     menu = document.createElement('div');
     menu.className = 'theme-control-menu';
     menu.setAttribute('role', 'radiogroup');
@@ -40,55 +42,60 @@
       </button>`).join('')}`;
 
     document.body.appendChild(menu);
-
-    menu.querySelectorAll('[data-theme-option]').forEach((button) => button.addEventListener('click', (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      activeTheme = button.dataset.themeOption === 'sea' ? 'sea' : 'midnight';
-      localStorage.setItem(THEME_KEY, activeTheme);
-      renderMenu();
-    }));
-
     renderMenu();
-    positionMenu(trigger);
+    positionMenu();
   }
 
-  function positionMenu(trigger) {
-    if (!trigger || !menu) return;
+  function positionMenu() {
+    if (!trigger || !menu || !document.body.contains(trigger)) return;
     const rect = trigger.getBoundingClientRect();
     const width = Math.min(208, window.innerWidth - 16);
     const left = Math.max(8, Math.min(rect.right - width, window.innerWidth - width - 8));
-    const top = rect.bottom + 9;
+    const menuHeight = menu.offsetHeight || 120;
+    const below = rect.bottom + 9;
+    const top = below + menuHeight <= window.innerHeight - 8
+      ? below
+      : Math.max(8, rect.top - menuHeight - 9);
     menu.style.position = 'fixed';
     menu.style.left = `${left}px`;
     menu.style.top = `${top}px`;
     menu.style.right = 'auto';
+    menu.style.bottom = 'auto';
   }
 
-  function bind() {
-    const trigger = document.querySelector('.dashboard-screen .icon-button[aria-label="Theme"]');
-    if (!trigger || trigger.dataset.themeControllerBound === 'true') return;
-    trigger.dataset.themeControllerBound = 'true';
-    trigger.setAttribute('aria-haspopup', 'true');
-    trigger.addEventListener('click', (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      if (menu) closeMenu();
-      else openMenu(trigger);
-    }, true);
+  function isThemeTrigger(target) {
+    return target instanceof Element && target.closest('.dashboard-screen .icon-button[aria-label="Theme"]');
   }
 
   document.addEventListener('click', (event) => {
-    if (menu && !event.target.closest('.theme-control-menu') && !event.target.closest('.dashboard-screen .icon-button[aria-label="Theme"]')) {
+    const themeTrigger = isThemeTrigger(event.target);
+    if (themeTrigger) {
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation();
+      if (menu) closeMenu();
+      else openMenu(themeTrigger);
+      return;
+    }
+
+    if (menu && !(event.target instanceof Element && event.target.closest('.theme-control-menu'))) {
       closeMenu();
     }
   }, true);
 
-  window.addEventListener('resize', () => {
-    if (menu) positionMenu(document.querySelector('.dashboard-screen .icon-button[aria-label="Theme"]'));
-  }, { passive: true });
+  document.addEventListener('click', (event) => {
+    const option = event.target instanceof Element ? event.target.closest('[data-theme-option]') : null;
+    if (!option || !menu || !menu.contains(option)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    activeTheme = option.dataset.themeOption === 'sea' ? 'sea' : 'midnight';
+    localStorage.setItem(THEME_KEY, activeTheme);
+    renderMenu();
+  }, true);
 
-  const observer = new MutationObserver(bind);
+  window.addEventListener('resize', positionMenu, { passive: true });
+  window.addEventListener('scroll', positionMenu, { passive: true });
+
+  const observer = new MutationObserver(positionMenu);
   observer.observe(document.body, { childList: true, subtree: true });
-  bind();
 })();
