@@ -1,0 +1,139 @@
+/* Final global glass-theme surface sync.
+   This file is imported last so Course cards and saved-note cards always use
+   the same selected Engine Settings recipe as the rest of the website. */
+
+html[data-glass-theme] .app-root-layer .course-dashboard-card,
+html[data-glass-theme] .app-root-layer .course-dashboard-card .course-open,
+html[data-glass-theme] .app-root-layer .collection-note-card{
+  box-sizing:border-box;
+}
+
+/* The Course dashboard card has one physical glass surface: the button.
+   Never add a second glass layer to the wrapper. */
+html[data-glass-theme] .app-root-layer .course-dashboard-card{
+  background:transparent!important;
+  background-image:none!important;
+  backdrop-filter:none!important;
+  -webkit-backdrop-filter:none!important;
+  border:0!important;
+  box-shadow:none!important;
+  overflow:visible!important;
+}
+
+/* Remove the saved-note card's old always-on fog/refraction stack first. */
+html[data-glass-theme] .app-root-layer .collection-note-card::before{
+  filter:none!important;
+  opacity:1!important;
+  background:var(--glass-theme-sheen)!important;
+  box-shadow:none!important;
+}
+html[data-glass-theme] .app-root-layer .collection-note-card::after{
+  opacity:0!important;
+  background:transparent!important;
+}
+
+/* Every selected theme owns the actual Course card surface. */
+html[data-glass-theme] .app-root-layer .course-dashboard-card .course-open,
+html[data-glass-theme] .app-root-layer .collection-note-card{
+  background-color:var(--glass-theme-bg)!important;
+  background-image:var(--glass-theme-sheen)!important;
+  backdrop-filter:blur(var(--glass-theme-blur)) saturate(var(--glass-theme-saturation)) contrast(105%)!important;
+  -webkit-backdrop-filter:blur(var(--glass-theme-blur)) saturate(var(--glass-theme-saturation)) contrast(105%)!important;
+  border:1px solid var(--glass-theme-border)!important;
+  border-top-color:var(--glass-theme-top-border)!important;
+  border-radius:var(--glass-theme-radius)!important;
+  box-shadow:var(--glass-theme-shadow)!important;
+}
+
+/* Course card accent lens is theme-controlled instead of hard-coded. */
+html[data-glass-theme="type-1"] .app-root-layer .course-dashboard-card .course-open::before,
+html[data-glass-theme="type-2"] .app-root-layer .course-dashboard-card .course-open::before,
+html[data-glass-theme="type-3"] .app-root-layer .course-dashboard-card .course-open::before,
+html[data-glass-theme="type-4"] .app-root-layer .course-dashboard-card .course-open::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  z-index:0;
+  pointer-events:none;
+  border-radius:inherit;
+  filter:none!important;
+  background:var(--glass-theme-sheen)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.16);
+  opacity:1;
+}
+
+html[data-glass-theme="type-1"] .app-root-layer .course-dashboard-card .course-open::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  z-index:0;
+  pointer-events:none;
+  border-radius:inherit;
+  background:radial-gradient(140% 100% at 0% 0%,color-mix(in oklab,var(--course-accent,#72d7ff) 22%,transparent),transparent 62%);
+  opacity:.72;
+}
+html[data-glass-theme="type-2"] .app-root-layer .course-dashboard-card .course-open::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  z-index:0;
+  pointer-events:none;
+  border-radius:inherit;
+  background:radial-gradient(140% 100% at 0% 0%,color-mix(in oklab,var(--course-accent,#72d7ff) 36%,transparent),transparent 60%);
+  opacity:.9;
+}
+html[data-glass-theme="type-3"] .app-root-layer .course-dashboard-card .course-open::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  z-index:0;
+  pointer-events:none;
+  border-radius:inherit;
+  background:transparent;
+  opacity:0;
+}
+html[data-glass-theme="type-4"] .app-root-layer .course-dashboard-card .course-open::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  z-index:0;
+  pointer-events:none;
+  border-radius:inherit;
+  background:radial-gradient(120% 140% at 0% 0%,rgba(255,255,255,.18),transparent 56%),linear-gradient(180deg,rgba(255,255,255,.05),rgba(7,12,45,.08));
+  opacity:.92;
+}
+
+/* Saved-note cards stay crisp in every theme; Type 4 adds a controlled inner highlight. */
+html[data-glass-theme="type-1"] .app-root-layer .collection-note-card::after,
+html[data-glass-theme="type-2"] .app-root-layer .collection-note-card::after,
+html[data-glass-theme="type-3"] .app-root-layer .collection-note-card::after{
+  content:"";
+  display:none!important;
+}
+html[data-glass-theme="type-4"] .app-root-layer .collection-note-card::after{
+  content:"";
+  display:block!important;
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  border-radius:inherit;
+  background:radial-gradient(120% 140% at 0% 0%,rgba(255,255,255,.16),transparent 56%),linear-gradient(180deg,rgba(255,255,255,.045),rgba(7,12,45,.07));
+  opacity:.72!important;
+}
+
+html[data-glass-theme] .app-root-layer .collection-note-card>* ,
+html[data-glass-theme] .app-root-layer .course-dashboard-card .course-open>*{
+  position:relative;
+  z-index:1;
+}
+
+/* Keep hover/active treatment from becoming a second visual recipe. */
+html[data-glass-theme] .app-root-layer .collection-note-card:hover,
+html[data-glass-theme] .app-root-layer .course-dashboard-card:hover{
+  filter:brightness(1.03);
+}
+
+@media(prefers-reduced-motion:reduce){
+  html[data-glass-theme] .app-root-layer .course-dashboard-card,
+  html[data-glass-theme] .app-root-layer .collection-note-card{transition:none!important}
+}
