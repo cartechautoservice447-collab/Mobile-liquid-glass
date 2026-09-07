@@ -44,18 +44,60 @@
   min-width:18px!important;
 }
 
+/* Layout anchor: header -> progress snapshot/quick actions -> course section -> cards. */
+@media(min-width:701px){
+  .dashboard-screen .dashboard-shell{
+    display:grid;
+    grid-template-columns:minmax(0,1fr);
+    grid-template-areas:
+      "header"
+      "quick"
+      "heading"
+      "add"
+      "courses"
+      "message";
+    align-content:start;
+  }
+  .dashboard-screen .dashboard-shell > .dashboard-header{grid-area:header;}
+  .dashboard-screen .dashboard-shell > .quick-actions{grid-area:quick;}
+  .dashboard-screen .dashboard-shell > .section-heading{
+    grid-area:heading;
+    margin-bottom:4px!important;
+  }
+  .dashboard-screen .dashboard-shell > .add-course-trigger{
+    grid-area:add;
+    justify-self:end;
+    align-self:start;
+    position:static!important;
+    width:max-content!important;
+    max-width:100%!important;
+    margin:0 0 6px auto!important;
+    z-index:4;
+  }
+  .dashboard-screen .dashboard-shell > .course-grid{
+    grid-area:courses;
+    margin-top:0!important;
+  }
+  .dashboard-screen .dashboard-shell > .message{grid-area:message;}
+}
+
 @media(max-width:700px){
-  .add-course-trigger{
+  .dashboard-screen .dashboard-shell{
+    display:block;
+  }
+  .dashboard-screen .dashboard-shell > .section-heading{
+    margin-bottom:4px!important;
+  }
+  .dashboard-screen .dashboard-shell > .add-course-trigger{
+    display:grid!important;
     width:176px!important;
     max-width:calc(100% - 8px)!important;
-    min-height:50px!important;
-    height:50px!important;
-    margin-left:auto!important;
-    margin-right:0!important;
-    margin-bottom:16px!important;
-    grid-template-columns:40px minmax(0,1fr) 18px!important;
-    padding:5px 7px 5px 5px!important;
-    border-radius:15px!important;
+    position:static!important;
+    margin:0 0 6px auto!important;
+    z-index:4;
+  }
+  .dashboard-screen .dashboard-shell > .course-grid{
+    margin-top:0!important;
   }
 }
 
@@ -71,6 +113,7 @@
   }
   .add-course-trigger .add-course-symbol{width:38px!important;height:38px!important}
   .add-course-trigger strong{font-size:12px!important}
+  .dashboard-screen .dashboard-shell > .add-course-trigger{width:168px!important}
 }
 
 @media(max-width:330px){
@@ -85,66 +128,5 @@
   .add-course-trigger .add-course-symbol{width:36px!important;height:36px!important}
   .add-course-trigger>span:last-child{width:16px!important;min-width:16px!important}
   .add-course-trigger strong{font-size:11.5px!important}
-}
-
-/* Keep Progress Snapshot / quick actions first. The Add button belongs in the
-   vertical gap immediately above the course-card grid, aligned to the right. */
-@media(min-width:701px){
-  .dashboard-screen .dashboard-shell{
-    display:grid;
-    grid-template-columns:minmax(0,1fr) auto;
-    grid-template-areas:
-      "header header"
-      "quick quick"
-      "heading add"
-      "courses courses"
-      "message message";
-    align-content:start;
-    column-gap:14px;
-  }
-
-  .dashboard-screen .dashboard-shell > .dashboard-header{grid-area:header;}
-  .dashboard-screen .dashboard-shell > .quick-actions{grid-area:quick;}
-  .dashboard-screen .dashboard-shell > .section-heading{
-    grid-area:heading;
-    align-self:center;
-  }
-  .dashboard-screen .dashboard-shell > .add-course-trigger{
-    grid-area:add;
-    position:relative;
-    top:24px;
-    align-self:start;
-    justify-self:end;
-    margin:0 0 0 auto!important;
-    z-index:4;
-  }
-  .dashboard-screen .dashboard-shell > .course-grid{
-    grid-area:courses;
-  }
-  .dashboard-screen .dashboard-shell > .message{
-    grid-area:message;
-  }
-}
-
-@media(max-width:700px){
-  .dashboard-screen .dashboard-shell{
-    display:block;
-  }
-  .dashboard-screen .dashboard-shell > .add-course-trigger{
-    display:grid!important;
-    width:176px!important;
-    max-width:calc(100% - 8px)!important;
-    position:relative;
-    top:24px;
-    margin:0 0 0 auto!important;
-    z-index:4;
-  }
-}
-
-@media(max-width:380px){
-  .dashboard-screen .dashboard-shell > .add-course-trigger{width:168px!important}
-}
-
-@media(max-width:330px){
   .dashboard-screen .dashboard-shell > .add-course-trigger{width:160px!important}
 }
