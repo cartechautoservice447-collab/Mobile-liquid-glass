@@ -1,0 +1,110 @@
+/* Phase 1 — Dashboard-only refinement. Scoped to dashboard selectors; other interfaces are untouched. */
+.dashboard-screen .dashboard-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* Make the course area the primary task without deleting any existing feature. */
+.dashboard-screen .section-heading { order: 2; }
+.dashboard-screen .course-grid { order: 3; }
+.dashboard-screen .add-course-trigger { order: 4; }
+.dashboard-screen .quick-actions { order: 5; }
+.dashboard-screen .message { order: 6; }
+
+.dashboard-screen .dashboard-header {
+  order: 1;
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 8% 0%, rgba(114,215,255,.14), transparent 38%),
+    radial-gradient(circle at 92% 100%, rgba(189,134,255,.12), transparent 42%),
+    linear-gradient(145deg, rgba(255,255,255,.17), rgba(255,255,255,.065));
+}
+
+.dashboard-screen .dashboard-header::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  box-shadow: inset 0 1px rgba(255,255,255,.18);
+}
+
+.dashboard-screen .course-grid {
+  margin-bottom: 14px;
+}
+
+.dashboard-screen .course-dashboard-card {
+  min-height: 224px;
+  transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+}
+
+.dashboard-screen .course-dashboard-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(255,255,255,.3);
+  box-shadow: 0 28px 75px rgba(0,0,0,.34), inset 0 1px rgba(255,255,255,.3);
+}
+
+.dashboard-screen .course-open {
+  min-height: 224px;
+}
+
+.dashboard-screen .course-copy h3 {
+  font-size: 19px;
+  letter-spacing: -.025em;
+}
+
+.dashboard-screen .course-footer span:first-child {
+  color: rgba(255,255,255,.7);
+  font-weight: 700;
+}
+
+.dashboard-screen .add-course-trigger {
+  margin-bottom: 18px;
+}
+
+.dashboard-screen .quick-actions {
+  margin-top: 4px;
+  opacity: .92;
+}
+
+.dashboard-screen .quick-actions .action-card {
+  min-height: 86px;
+}
+
+@media (max-width: 720px) {
+  .dashboard-screen .dashboard-header {
+    align-items: stretch;
+    padding: 16px;
+  }
+
+  .dashboard-screen .dashboard-controls {
+    justify-content: stretch;
+  }
+
+  .dashboard-screen .performance-control {
+    flex: 1 1 auto;
+  }
+
+  .dashboard-screen .course-dashboard-card,
+  .dashboard-screen .course-open {
+    min-height: 202px;
+  }
+
+  .dashboard-screen .quick-actions {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .dashboard-screen .quick-actions .action-card {
+    border-radius: 20px;
+    min-height: 72px;
+  }
+}
+
+@media (min-width: 721px) {
+  .dashboard-screen .course-grid {
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  }
+}
