@@ -7,6 +7,13 @@ const CLARITY_OPTIONS = [
   ['punchy', 'Punchy'],
 ];
 
+const GLASS_THEME_OPTIONS = [
+  ['type-1', 'Type 1', 'Dashboard glass'],
+  ['type-2', 'Type 2', 'Course card glass'],
+  ['type-3', 'Type 3', 'Progress box glass'],
+  ['type-4', 'Type 4', 'Saved notes glass'],
+];
+
 function Slider({ label, value, min, max, step = 1, display, onChange }) {
   return (
     <label className="engine-slider">
@@ -77,6 +84,24 @@ export default function EngineSettingsModal({ settings, setSetting, reset, close
                 <button className={settings.performance === 'high' ? 'active' : ''} onClick={() => setSetting('performance', 'high')} aria-pressed={settings.performance === 'high'}><Zap size={13} /> High</button>
                 <button className={settings.performance === 'ultra' ? 'active' : ''} onClick={() => setSetting('performance', 'ultra')} aria-pressed={settings.performance === 'ultra'}><Zap size={13} /> Ultra</button>
               </div>
+            </div>
+          </section>
+
+          <section className="engine-settings-section">
+            <div className="engine-section-heading"><span>Glass theme</span><small>Apply one of the four existing glass languages across the website.</small></div>
+            <div className="engine-glass-theme-grid" aria-label="Global glass theme">
+              {GLASS_THEME_OPTIONS.map(([value, label, description]) => (
+                <button
+                  key={value}
+                  type="button"
+                  className={settings.glassTheme === value ? 'engine-glass-theme active' : 'engine-glass-theme'}
+                  aria-pressed={settings.glassTheme === value}
+                  onClick={() => setSetting('glassTheme', value)}
+                >
+                  <span className="engine-glass-theme-sample" data-glass-preview={value} aria-hidden="true" />
+                  <span className="engine-glass-theme-copy"><strong>{label}</strong><small>{description}</small></span>
+                </button>
+              ))}
             </div>
           </section>
 
