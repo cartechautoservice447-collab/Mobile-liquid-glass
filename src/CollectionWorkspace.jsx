@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, Bold, Check, ChevronDown, Code2, Copy, Eye, Image as ImageIcon, Italic, Link, List, ListChecks, ListOrdered, MoreHorizontal, Pencil, Plus, Quote, Redo2, Strikethrough, Trash2, Type, Undo2, X } from 'lucide-react';
+import { ArrowLeft, Bold, ChevronDown, Code2, Copy, Eye, Image as ImageIcon, Italic, Link, List, ListChecks, ListOrdered, MoreHorizontal, Pencil, Plus, Quote, Redo2, Strikethrough, Trash2, Type, Undo2, X } from 'lucide-react';
 import './CollectionWorkspace.css';
 import './CollectionWorkspaceOverrides.css';
 
