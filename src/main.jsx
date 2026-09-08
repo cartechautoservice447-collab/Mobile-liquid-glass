@@ -12,6 +12,7 @@ import './DashboardResponsive.css';
 import './AddCourseCompactResponsive.css';
 import './CourseWorkspaceSpacing.css';
 import './NotesEditorResponsive.css';
+import './AndroidMobileHardening.css';
 import './GlassSurfaceRuntimeLock.js';
 
 void configureNativeAuth();
