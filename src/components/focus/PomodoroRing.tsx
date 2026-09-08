@@ -1,4 +1,3 @@
-
 import { useId } from 'react';
 import './PomodoroRing.css';
 
@@ -21,21 +20,37 @@ export function PomodoroRing({ remaining, total, label, running = false }: Props
   const safeTotal = Math.max(1, Number.isFinite(Number(total)) ? Number(total) : 1);
   const safeRemaining = Math.min(safeTotal, Math.max(0, Number.isFinite(Number(remaining)) ? Number(remaining) : 0));
   const progress = safeRemaining / safeTotal;
+
   const size = 320;
   const radius = 138;
   const circumference = 2 * Math.PI * radius;
-  const remainingArcLength = circumference * progress;
+
+  const maxArcFraction = 0.985;
+  const visibleFraction = progress * maxArcFraction;
+  const arcLength = circumference * visibleFraction;
+
+  const dotAngleDeg = visibleFraction * 360;
+  const dotAngleRad = (dotAngleDeg - 90) * (Math.PI / 180);
+  const dotX = size / 2 + radius * Math.cos(dotAngleRad);
+  const dotY = size / 2 + radius * Math.sin(dotAngleRad);
+
   const idBase = useId().replace(/:/g, '');
   const glowId = `${idBase}-glow`;
+  const dotGlowId = `${idBase}-dot-glow`;
 
   return (
-    <div className={`pomodoro-ring-new${running ? ' is-running' : ''}`}>
-      <span aria-hidden className="pomodoro-ring-sheen" />
-      <span aria-hidden className="pomodoro-ring-refraction" />
+    <div className={`pomodoro-ring${running ? ' is-running' : ''}`}>
       <svg viewBox={`0 0 ${size} ${size}`} aria-hidden="true">
         <defs>
-          <filter id={glowId} x="-60%" y="-60%" width="220%" height="220%">
-            <feGaussianBlur stdDeviation="6" />
+          <filter id={glowId} x="-80%" y="-80%" width="260%" height="260%">
+            <feGaussianBlur stdDeviation="5" result="blur" />
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+          <filter id={dotGlowId} x="-200%" y="-200%" width="500%" height="500%">
+            <feGaussianBlur stdDeviation="4" />
           </filter>
         </defs>
 
@@ -44,27 +59,29 @@ export function PomodoroRing({ remaining, total, label, running = false }: Props
           cy={size / 2}
           r={radius}
           fill="none"
-          className="pomodoro-ring-groove"
-          strokeWidth="16"
-        />
-
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          fill="none"
-          stroke="#ffffff"
-          strokeWidth="14"
+          stroke="#eaf6ff"
+          strokeWidth="7"
           strokeLinecap="round"
-          strokeDasharray={`${remainingArcLength} ${circumference}`}
+          strokeDasharray={`${arcLength} ${circumference}`}
           strokeDashoffset="0"
           filter={`url(#${glowId})`}
-          className="pomodoro-ring-fluid"
+          className="pomodoro-ring-arc"
         />
+
+        {visibleFraction > 0.003 && (
+          <circle
+            cx={dotX}
+            cy={dotY}
+            r="7"
+            fill="#ffffff"
+            filter={`url(#${dotGlowId})`}
+            className="pomodoro-ring-dot"
+          />
+        )}
       </svg>
-      <div className="pomodoro-ring-new-content">
-        {label && <span className="pomodoro-ring-new-label">{label}</span>}
-        <span className="pomodoro-ring-new-time">{formatTime(safeRemaining)}</span>
+      <div className="pomodoro-ring-content">
+        {label && <span className="pomodoro-ring-label">{label}</span>}
+        <span className="pomodoro-ring-time">{formatTime(safeRemaining)}</span>
       </div>
     </div>
   );
