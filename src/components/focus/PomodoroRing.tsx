@@ -34,14 +34,35 @@ export function PomodoroRing({ remaining, total, label, running = false }: Props
             <stop offset="0%" stopColor="rgba(255,255,255,0.9)" />
             <stop offset="100%" stopColor="rgba(255,255,255,0.35)" />
           </radialGradient>
+          <linearGradient id="mercuryFlow" x1="0" y1="0" x2={size} y2={size} gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stopColor="rgba(255,255,255,0.12)" />
+            <stop offset="18%" stopColor="rgba(255,255,255,0.75)" />
+            <stop offset="34%" stopColor="rgba(255,255,255,0.18)" />
+            <stop offset="56%" stopColor="rgba(255,255,255,0.58)" />
+            <stop offset="76%" stopColor="rgba(255,255,255,0.10)" />
+            <stop offset="100%" stopColor="rgba(255,255,255,0.12)" />
+            {running && (
+              <animateTransform
+                attributeName="gradientTransform"
+                type="rotate"
+                from={`0 ${size / 2} ${size / 2}`}
+                to={`360 ${size / 2} ${size / 2}`}
+                dur="7s"
+                repeatCount="indefinite"
+              />
+            )}
+          </linearGradient>
           <filter id="mercurySoftGlow" x="-60%" y="-60%" width="220%" height="220%">
             <feGaussianBlur stdDeviation="10" />
+          </filter>
+          <filter id="mercuryFluidGlow" x="-60%" y="-60%" width="220%" height="220%">
+            <feGaussianBlur stdDeviation="7" />
           </filter>
         </defs>
 
         <circle cx={size / 2} cy={size / 2} r={radius} fill="none" className="pomodoro-ring-groove" strokeWidth="16" />
 
-        {/* Ambient blurred glow, sits inside the groove */}
+        {/* Ambient blurred glow, synchronized to the remaining progress */}
         <circle
           cx={size / 2}
           cy={size / 2}
@@ -56,22 +77,25 @@ export function PomodoroRing({ remaining, total, label, running = false }: Props
           opacity="0.85"
         />
 
-        {/* Traveling ambient light, orbits inside the groove while running */}
+        {/* Soft flowing fluid light, locked to the same clockwise progress arc */}
         {running && (
           <circle
-            r="20"
-            fill="url(#mercuryPool)"
-            filter="url(#mercurySoftGlow)"
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
+            fill="none"
+            stroke="url(#mercuryFlow)"
+            strokeWidth="16"
+            strokeLinecap="round"
+            strokeDasharray={circumference}
+            strokeDashoffset={dashOffset}
+            filter="url(#mercuryFluidGlow)"
+            opacity="0.72"
           >
-            <animateMotion
-              dur="6s"
-              repeatCount="indefinite"
-              path={`M ${size / 2},${size / 2 - radius} A ${radius},${radius} 0 1,1 ${size / 2 - 0.01},${size / 2 - radius}`}
-            />
             <animate
               attributeName="opacity"
-              values="0.35;0.9;0.35"
-              dur="2.4s"
+              values="0.46;0.72;0.46"
+              dur="2.8s"
               repeatCount="indefinite"
             />
           </circle>
