@@ -22,7 +22,7 @@ export function PomodoroRing({ remaining, total, label, running = false }: Props
   const size = 320;
   const radius = 138;
   const circumference = 2 * Math.PI * radius;
-  const dashOffset = circumference * (1 - progress);
+  const dashLength = circumference * progress;
 
   return (
     <div className={`pomodoro-ring-new${running ? ' is-running' : ''}`}>
@@ -60,6 +60,7 @@ export function PomodoroRing({ remaining, total, label, running = false }: Props
           </filter>
         </defs>
 
+        {/* Static glass groove; the progress layers below shrink from 12 o'clock clockwise. */}
         <circle cx={size / 2} cy={size / 2} r={radius} fill="none" className="pomodoro-ring-groove" strokeWidth="16" />
 
         {/* Ambient blurred glow, synchronized to the remaining progress */}
@@ -71,8 +72,8 @@ export function PomodoroRing({ remaining, total, label, running = false }: Props
           stroke="url(#mercuryPool)"
           strokeWidth="14"
           strokeLinecap="round"
-          strokeDasharray={circumference}
-          strokeDashoffset={dashOffset}
+          strokeDasharray={`${dashLength} ${circumference}`}
+          strokeDashoffset="0"
           filter="url(#mercurySoftGlow)"
           opacity="0.85"
         />
@@ -87,8 +88,8 @@ export function PomodoroRing({ remaining, total, label, running = false }: Props
             stroke="url(#mercuryFlow)"
             strokeWidth="16"
             strokeLinecap="round"
-            strokeDasharray={circumference}
-            strokeDashoffset={dashOffset}
+            strokeDasharray={`${dashLength} ${circumference}`}
+            strokeDashoffset="0"
             filter="url(#mercuryFluidGlow)"
             opacity="0.72"
           >
@@ -101,7 +102,7 @@ export function PomodoroRing({ remaining, total, label, running = false }: Props
           </circle>
         )}
 
-        {/* Bright frosted progress core — exact same progress as the timer */}
+        {/* Bright frosted progress core — exact same remaining fraction as the timer */}
         <circle
           cx={size / 2}
           cy={size / 2}
@@ -110,8 +111,8 @@ export function PomodoroRing({ remaining, total, label, running = false }: Props
           className="pomodoro-ring-core-new"
           strokeWidth="5.5"
           strokeLinecap="round"
-          strokeDasharray={circumference}
-          strokeDashoffset={dashOffset}
+          strokeDasharray={`${dashLength} ${circumference}`}
+          strokeDashoffset="0"
         />
       </svg>
       <div className="pomodoro-ring-new-content">
