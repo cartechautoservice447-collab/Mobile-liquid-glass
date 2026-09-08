@@ -7,6 +7,120 @@ const ACCENT = {
 };
 const DURATIONS = { focus: 25 * 60, deep: 50 * 60, sprint: 15 * 60 };
 
+const STUDY_PLANS = {
+  deep: {
+    label: 'Deep Study',
+    description: 'Long focused blocks for coding, difficult problems, and uninterrupted learning.',
+    focus: 50,
+    rest: 10,
+    cycle: 60,
+    accent: '#72d7ff',
+  },
+  balanced: {
+    label: 'Balanced Study',
+    description: 'Shorter focus blocks with a consistent recovery rhythm between sessions.',
+    focus: 20,
+    rest: 10,
+    cycle: 30,
+    accent: '#bd86ff',
+  },
+  classic: {
+    label: 'Classic Study',
+    description: 'A familiar study rhythm using focused 25-minute blocks and short rests.',
+    focus: 25,
+    rest: 10,
+    cycle: 35,
+    accent: '#67e8b1',
+  },
+  pomodoro: {
+    label: 'Pomodoro Study',
+    description: '25-minute focus, 5-minute rest, four times, followed by a longer break.',
+    focus: 25,
+    rest: 5,
+    cycle: 30,
+    accent: '#ffd166',
+  },
+};
+
+function buildPlan(type, totalHours, longBreakMinutes) {
+  const plan = STUDY_PLANS[type];
+  const targetMinutes = Math.max(60, Math.min(300, Math.round(totalHours * 60)));
+  const blocks = [];
+  let elapsed = 0;
+  let focusMinutes = 0;
+  let restMinutes = 0;
+  let sequence = 0;
+  let pomodorosInSet = 0;
+  let setNumber = 1;
+
+  while (elapsed + plan.focus + plan.rest <= targetMinutes) {
+    sequence += 1;
+    pomodorosInSet += 1;
+    blocks.push({
+      id: `${type}-focus-${sequence}`,
+      kind: 'focus',
+      label: 'Focus',
+      minutes: plan.focus,
+      sequence,
+      setNumber,
+    });
+    focusMinutes += plan.focus;
+    elapsed += plan.focus;
+
+    blocks.push({
+      id: `${type}-rest-${sequence}`,
+      kind: 'rest',
+      label: 'Rest',
+      minutes: plan.rest,
+      sequence,
+      setNumber,
+    });
+    restMinutes += plan.rest;
+    elapsed += plan.rest;
+
+    if (type === 'pomodoro' && pomodorosInSet === 4) {
+      if (elapsed + longBreakMinutes <= targetMinutes || elapsed <= targetMinutes) {
+        blocks.push({
+          id: `${type}-long-break-${setNumber}`,
+          kind: 'long-break',
+          label: 'Long Break',
+          minutes: longBreakMinutes,
+          sequence: setNumber,
+          setNumber,
+        });
+        restMinutes += longBreakMinutes;
+        elapsed += longBreakMinutes;
+      }
+      pomodorosInSet = 0;
+      setNumber += 1;
+    }
+  }
+
+  if (!blocks.length) {
+    blocks.push({ id: `${type}-focus-1`, kind: 'focus', label: 'Focus', minutes: plan.focus, sequence: 1, setNumber: 1 });
+    blocks.push({ id: `${type}-rest-1`, kind: 'rest', label: 'Rest', minutes: plan.rest, sequence: 1, setNumber: 1 });
+    focusMinutes = plan.focus;
+    restMinutes = plan.rest;
+    elapsed = plan.focus + plan.rest;
+  }
+
+  const cycles = blocks.filter((block) => block.kind === 'focus').length;
+  const longBreaks = blocks.filter((block) => block.kind === 'long-break').length;
+  const leftoverMinutes = Math.max(0, targetMinutes - elapsed);
+
+  return {
+    blocks,
+    targetMinutes,
+    elapsedMinutes: elapsed,
+    leftoverMinutes,
+    focusMinutes,
+    restMinutes,
+    cycles,
+    longBreaks,
+    plan,
+  };
+}
+
 export default function StudySession({ course, onBack }) {
   const accent = ACCENT[course.color] || ACCENT.sky;
   const [mode, setMode] = useState('focus');
@@ -16,6 +130,10 @@ export default function StudySession({ course, onBack }) {
   const [sessionSeconds, setSessionSeconds] = useState(0);
   const [goal, setGoal] = useState('Review course notes');
   const [finished, setFinished] = useState(false);
+  const [studyPlanMode, setStudyPlanMode] = useState('deep');
+  const [studyHours, setStudyHours] = useState(2);
+  const [longBreakMinutes, setLongBreakMinutes] = useState(20);
+  const [selectedPlanBlock, setSelectedPlanBlock] = useState(0);
 
   useEffect(() => {
     if (!running) return undefined;
@@ -40,6 +158,13 @@ export default function StudySession({ course, onBack }) {
   const seconds = (remaining % 60).toString().padStart(2, '0');
   const sessionMinutes = Math.floor(sessionSeconds / 60);
 
+  const plan = useMemo(() => buildPlan(studyPlanMode, studyHours, longBreakMinutes), [studyPlanMode, studyHours, longBreakMinutes]);
+  const activePlanBlock = plan.blocks[Math.min(selectedPlanBlock, Math.max(0, plan.blocks.length - 1))];
+
+  useEffect(() => {
+    setSelectedPlanBlock(0);
+  }, [studyPlanMode, studyHours, longBreakMinutes]);
+
   const setSessionMode = (nextMode) => {
     setMode(nextMode);
     setRemaining(DURATIONS[nextMode]);
@@ -49,6 +174,12 @@ export default function StudySession({ course, onBack }) {
   const reset = () => { setRemaining(duration); setSessionSeconds(0); setRunning(false); setFinished(false); };
   const completeNow = () => { setRunning(false); setCompletedSessions((count) => count + 1); setFinished(true); };
   const status = useMemo(() => finished ? 'Session complete' : running ? 'Deep focus active' : remaining === duration ? 'Ready when you are' : 'Session paused', [finished, running, remaining, duration]);
+
+  const handleHoursInput = (value) => {
+    const next = Number(value);
+    if (!Number.isFinite(next)) return;
+    setStudyHours(Math.min(5, Math.max(1, Math.round(next * 4) / 4)));
+  };
 
   return (
     <main className="screen feature-screen study-session-screen">
@@ -84,6 +215,44 @@ export default function StudySession({ course, onBack }) {
           <article className="session-stat glass-card"><span><Clock3 size={15} /></span><strong>{sessionMinutes}m</strong><small>Active focus</small></article>
           <article className="session-stat glass-card"><span><Flame size={15} /></span><strong>{completedSessions}</strong><small>Sessions done</small></article>
           <article className="session-stat glass-card"><span><Coffee size={15} /></span><strong>{mode === 'deep' ? '10m' : '5m'}</strong><small>Break target</small></article>
+        </section>
+
+        <section className="study-plan-builder glass-card" aria-label="Automatic study plan builder">
+          <div className="study-plan-heading">
+            <div><span className="session-small-label">AUTOMATIC STUDY PLAN</span><h3>Build your study rhythm</h3><p>Select a study style and the schedule is generated automatically.</p></div>
+            <span className="study-plan-target"><Clock3 size={13} />{studyHours % 1 === 0 ? `${studyHours} hr` : `${studyHours.toFixed(2)} hr`} target</span>
+          </div>
+
+          <div className="study-plan-modes" role="tablist" aria-label="Study plan modes">
+            {Object.entries(STUDY_PLANS).map(([key, item]) => <button type="button" key={key} className={`study-plan-mode ${studyPlanMode === key ? 'is-selected' : ''}`} onClick={() => setStudyPlanMode(key)} style={{ '--plan-accent': item.accent }}>
+              <span className="study-plan-mode-top"><strong>{item.label}</strong>{studyPlanMode === key && <Check size={14} />}</span>
+              <span>{item.focus} min focus · {item.rest} min rest</span>
+            </button>)}
+          </div>
+
+          <div className="study-plan-duration-card">
+            <div className="study-plan-duration-heading"><div><span className="session-small-label">TOTAL STUDY TIME</span><strong>{studyHours % 1 === 0 ? `${studyHours} hr` : `${studyHours.toFixed(2)} hr`}</strong></div><label><span>Hours</span><input type="number" min="1" max="5" step="0.25" value={studyHours} onChange={(event) => handleHoursInput(event.target.value)} aria-label="Study duration in hours" /></label></div>
+            <input className="study-plan-range" type="range" min="1" max="5" step="0.25" value={studyHours} onChange={(event) => setStudyHours(Number(event.target.value))} aria-label="Study duration up to five hours" />
+            <div className="study-plan-range-meta"><span>1 hr</span><span>5 hr max</span></div>
+          </div>
+
+          {studyPlanMode === 'pomodoro' && <div className="study-plan-break-editor"><div><span className="session-small-label">LONG BREAK</span><strong>{longBreakMinutes} min</strong><small>After every 4 Pomodoros</small></div><input type="range" min="15" max="30" step="5" value={longBreakMinutes} onChange={(event) => setLongBreakMinutes(Number(event.target.value))} aria-label="Pomodoro long break from fifteen to thirty minutes" /><div className="study-plan-break-values"><span>15 min</span><span>30 min</span></div></div>}
+
+          <div className="study-plan-summary">
+            <div className="study-plan-summary-main"><span className="session-small-label">AUTO-GENERATED SCHEDULE</span><strong>{plan.cycles} {studyPlanMode === 'pomodoro' ? 'Pomodoros' : 'sessions'}</strong><span>{plan.focusMinutes} min focus · {plan.restMinutes} min recovery · {plan.leftoverMinutes ? `${plan.leftoverMinutes} min planning buffer` : 'matches target'}</span></div>
+            <div className="study-plan-summary-stats"><span><b>{Math.floor(plan.elapsedMinutes / 60)}h {plan.elapsedMinutes % 60}m</b><small>planned</small></span><span><b>{plan.longBreaks}</b><small>long breaks</small></span></div>
+          </div>
+
+          <div className="study-plan-schedule-heading"><span>Session sequence</span><span>{activePlanBlock ? `${activePlanBlock.label} selected` : 'Ready'}</span></div>
+          <div className="study-plan-schedule" role="list" aria-label="Generated study schedule">
+            {plan.blocks.map((block, index) => <button type="button" key={block.id} className={`study-plan-block ${block.kind} ${selectedPlanBlock === index ? 'is-selected' : ''}`} onClick={() => setSelectedPlanBlock(index)} role="listitem">
+              <span className="study-plan-block-index">{block.kind === 'long-break' ? 'LB' : index + 1}</span>
+              <span className="study-plan-block-copy"><strong>{block.label}</strong><small>{block.kind === 'long-break' ? `After set ${block.setNumber}` : `${block.kind === 'focus' ? 'Focus block' : 'Recovery block'} · Set ${block.setNumber}`}</small></span>
+              <span className="study-plan-block-time">{block.minutes}m</span>
+            </button>)}
+          </div>
+
+          {activePlanBlock && <div className="study-plan-next glass-inner"><span className="study-plan-next-icon">{activePlanBlock.kind === 'focus' ? <Play size={14} /> : <Coffee size={14} />}</span><div><span className="session-small-label">SELECTED BLOCK</span><strong>{activePlanBlock.label} · {activePlanBlock.minutes} min</strong><small>{activePlanBlock.kind === 'long-break' ? 'Take the longer recovery before starting a new Pomodoro set.' : activePlanBlock.kind === 'focus' ? 'Stay on one course goal until this focus block ends.' : 'Step away briefly, reset, then return to the next focus block.'}</small></div></div>}
         </section>
 
         <section className="session-rhythm glass-card">
