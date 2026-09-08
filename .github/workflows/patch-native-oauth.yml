@@ -1,13 +1,16 @@
 name: Patch native OAuth callback
 
 on:
-  workflow_dispatch:
+  push:
+    branches:
+      - main
 
 permissions:
   contents: write
 
 jobs:
   patch:
+    if: ${{ !contains(github.event.head_commit.message, 'Remove one-time OAuth patch workflow') && !contains(github.event.head_commit.message, 'Connect native Android OAuth callback') }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -24,20 +27,17 @@ jobs:
           from pathlib import Path
           path = Path('src/App.jsx')
           text = path.read_text()
-          old_import = "import { App as CapacitorApp } from '@capacitor/app';"
-          new_import = old_import
-          if old_import not in text:
-              raise SystemExit('Capacitor App import not found')
 
           marker = "const SKIP_AUTH_KEY = 'mobile-liquid-glass-skip-auth';"
-          replacement = marker + "\nconst NATIVE_AUTH_REDIRECT = 'com.liquidglass.studio://auth/callback';"
-          if "const NATIVE_AUTH_REDIRECT = 'com.liquidglass.studio://auth/callback';" not in text:
+          native_redirect = "const NATIVE_AUTH_REDIRECT = 'com.liquidglass.studio://auth/callback';"
+          if native_redirect not in text:
               if marker not in text:
                   raise SystemExit('auth key marker not found')
-              text = text.replace(marker, replacement, 1)
+              text = text.replace(marker, marker + "\n" + native_redirect, 1)
 
           effect_anchor = "  useEffect(() => {\n    if (!Capacitor.isNativePlatform()) return undefined;\n\n    const register = async () => CapacitorApp.addListener('backButton'"
-          oauth_effect = """  useEffect(() => {
+          if "CapacitorApp.addListener('appUrlOpen'" not in text:
+              oauth_effect = """  useEffect(() => {
     if (!Capacitor.isNativePlatform() || !supabase) return undefined;
 
     const handleAuthUrl = async (url) => {
@@ -89,7 +89,6 @@ jobs:
   }, []);
 
 """ + effect_anchor
-          if "event => {\n        if (active) void handleAuthUrl(url);" not in text:
               if effect_anchor not in text:
                   raise SystemExit('back-button effect anchor not found')
               text = text.replace(effect_anchor, oauth_effect, 1)
