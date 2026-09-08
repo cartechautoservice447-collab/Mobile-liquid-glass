@@ -29,14 +29,14 @@ export function PomodoroRing({ remaining, total, label, running = false }: Props
   const visibleFraction = progress * maxArcFraction;
   const arcLength = circumference * visibleFraction;
 
-  const dotAngleDeg = visibleFraction * 360;
-  const dotAngleRad = (dotAngleDeg - 90) * (Math.PI / 180);
-  const dotX = size / 2 + radius * Math.cos(dotAngleRad);
-  const dotY = size / 2 + radius * Math.sin(dotAngleRad);
-
   const idBase = useId().replace(/:/g, '');
   const glowId = `${idBase}-glow`;
   const dotGlowId = `${idBase}-dot-glow`;
+
+  // The SVG is rotated -90deg so the arc opens from the top as the countdown runs.
+  // Keep the white glow marker fixed at the bottom-center; it never follows the arc.
+  const fixedDotX = size / 2 - radius;
+  const fixedDotY = size / 2;
 
   return (
     <div className={`pomodoro-ring${running ? ' is-running' : ''}`}>
@@ -68,16 +68,14 @@ export function PomodoroRing({ remaining, total, label, running = false }: Props
           className="pomodoro-ring-arc"
         />
 
-        {visibleFraction > 0.003 && (
-          <circle
-            cx={dotX}
-            cy={dotY}
-            r="7"
-            fill="#ffffff"
-            filter={`url(#${dotGlowId})`}
-            className="pomodoro-ring-dot"
-          />
-        )}
+        <circle
+          cx={fixedDotX}
+          cy={fixedDotY}
+          r="7"
+          fill="#ffffff"
+          filter={`url(#${dotGlowId})`}
+          className="pomodoro-ring-dot"
+        />
       </svg>
       <div className="pomodoro-ring-content">
         {label && <span className="pomodoro-ring-label">{label}</span>}
