@@ -25,15 +25,24 @@ export function PomodoroRing({ remaining, total, label, running = false }: Props
   const radius = 138;
   const circumference = 2 * Math.PI * radius;
 
+  // Leave a small opening at the top so the countdown has a clear, visible front edge.
   const maxArcFraction = 0.985;
   const visibleFraction = progress * maxArcFraction;
   const arcLength = circumference * visibleFraction;
 
   const idBase = useId().replace(/:/g, '');
   const glowId = `${idBase}-glow`;
+  const headGlowId = `${idBase}-head-glow`;
 
-  // The SVG is rotated -90deg so the countdown starts at the top.
-  // The marker stays fixed at bottom-center and never follows the arc.
+  // The SVG is rotated -90deg so the countdown begins at 12 o'clock.
+  // Calculate the leading edge in the SVG's original coordinate system; the SVG rotation
+  // moves it to the actual visible edge without applying a second rotation.
+  const headAngleRad = visibleFraction * 2 * Math.PI;
+  const headX = size / 2 + radius * Math.cos(headAngleRad);
+  const headY = size / 2 + radius * Math.sin(headAngleRad);
+
+  // This marker intentionally stays fixed at the bottom center. It is independent of the
+  // moving countdown edge and provides the persistent liquid-glow anchor from the design.
   const fixedDotX = size / 2 - radius;
   const fixedDotY = size / 2;
 
@@ -43,6 +52,13 @@ export function PomodoroRing({ remaining, total, label, running = false }: Props
         <defs>
           <filter id={glowId} x="-80%" y="-80%" width="260%" height="260%">
             <feGaussianBlur stdDeviation="5" result="blur" />
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+          <filter id={headGlowId} x="-300%" y="-300%" width="700%" height="700%">
+            <feGaussianBlur stdDeviation="4" result="blur" />
             <feMerge>
               <feMergeNode in="blur" />
               <feMergeNode in="SourceGraphic" />
@@ -63,6 +79,17 @@ export function PomodoroRing({ remaining, total, label, running = false }: Props
           filter={`url(#${glowId})`}
           className="pomodoro-ring-arc"
         />
+
+        {visibleFraction > 0.003 && (
+          <circle
+            cx={headX}
+            cy={headY}
+            r="8"
+            fill="#ffffff"
+            filter={`url(#${headGlowId})`}
+            className="pomodoro-ring-head"
+          />
+        )}
 
         <circle
           cx={fixedDotX}
