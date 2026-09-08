@@ -60,7 +60,8 @@
         arc.setAttribute('stroke-dasharray', `${dash} ${circumference}`);
         arc.setAttribute('stroke-dashoffset', '0');
       });
-      const angle = (progress / 100) * Math.PI * 2 - Math.PI / 2;
+      // The SVG itself is rotated -90deg, so angle 0 is the 12 o'clock start.
+      const angle = (progress / 100) * Math.PI * 2;
       const x = 160 + 130 * Math.cos(angle);
       const y = 160 + 130 * Math.sin(angle);
       const bead = ring.querySelector('[data-pomodoro-ring-bead]');
