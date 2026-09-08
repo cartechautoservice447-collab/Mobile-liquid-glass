@@ -53,4 +53,29 @@
     setActive(button);
     openRealCourseTool(key);
   }, true);
+
+  // Collections and All Notes are opened from the Course Workspace. Their
+  // native Back handler returns to that workspace; immediately follow it with
+  // the workspace Back action so the user returns directly to Dashboard.
+  document.addEventListener('click', (event) => {
+    if (!(event.target instanceof Element)) return;
+    const button = event.target.closest('.feature-screen .back-button');
+    if (!button) return;
+
+    const label = button.getAttribute('aria-label');
+    if (label !== 'Back' && label !== 'Back to course') return;
+
+    requestAnimationFrame(() => {
+      const started = performance.now();
+      const seekDashboardBack = () => {
+        const dashboardButton = document.querySelector('.course-workspace-screen .course-workspace-header .back-button');
+        if (dashboardButton) {
+          dashboardButton.click();
+          return;
+        }
+        if (performance.now() - started < 1200) requestAnimationFrame(seekDashboardBack);
+      };
+      requestAnimationFrame(seekDashboardBack);
+    });
+  });
 })();
