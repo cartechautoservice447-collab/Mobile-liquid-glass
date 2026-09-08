@@ -11,38 +11,44 @@
   let mode = 'focus';
   let running = false;
 
-  const format = (seconds) => `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
+  const format = (seconds) => `${String(Math.floor(Math.max(0, seconds) / 60)).padStart(2, '0')}:${String(Math.floor(Math.max(0, seconds) % 60)).padStart(2, '0')}`;
   const setMode = (nextMode) => {
     mode = nextMode;
     remaining = modes[nextMode].minutes * 60;
     total = remaining;
     running = false;
-    if (timer) { clearInterval(timer); timer = null; }
+    if (timer) { cancelAnimationFrame(timer); timer = null; }
     render();
   };
   const start = () => {
     if (running) return;
     running = true;
-    if (timer) clearInterval(timer);
+    if (timer) cancelAnimationFrame(timer);
     const startedAt = performance.now();
     const initialRemaining = remaining;
-    timer = setInterval(() => {
-      const elapsed = (performance.now() - startedAt) / 1000;
-      remaining = Math.max(0, Math.ceil(initialRemaining - elapsed));
+    const tick = (now) => {
+      if (!running) return;
+      const elapsed = (now - startedAt) / 1000;
+      remaining = Math.max(0, initialRemaining - elapsed);
       render();
-      if (remaining <= 0) finish();
-    }, 100);
+      if (remaining <= 0) {
+        finish();
+        return;
+      }
+      timer = requestAnimationFrame(tick);
+    };
+    timer = requestAnimationFrame(tick);
     render();
   };
   const pause = () => {
     running = false;
-    if (timer) { clearInterval(timer); timer = null; }
+    if (timer) { cancelAnimationFrame(timer); timer = null; }
     render();
   };
   const reset = () => setMode(mode);
   const finish = () => {
     running = false;
-    if (timer) { clearInterval(timer); timer = null; }
+    if (timer) { cancelAnimationFrame(timer); timer = null; }
     remaining = 0;
     render();
     if (navigator.vibrate) navigator.vibrate([180, 90, 180]);
@@ -50,8 +56,8 @@
   const render = () => {
     if (!mountedModal) return;
     const progress = total ? (remaining / total) * 100 : 0;
-    mountedModal.style.setProperty('--progress', progress.toFixed(3));
-    mountedModal.style.setProperty('--fluid', `${progress.toFixed(3)}%`);
+    mountedModal.style.setProperty('--progress', progress.toFixed(4));
+    mountedModal.style.setProperty('--fluid', `${progress.toFixed(4)}%`);
     const ring = mountedModal.querySelector('[data-pomodoro-ring]');
     if (ring) {
       const circumference = 2 * Math.PI * 130;
@@ -82,7 +88,7 @@
   };
   const mount = (modal) => {
     if (mountedModal === modal) return;
-    if (timer) { clearInterval(timer); timer = null; }
+    if (timer) { cancelAnimationFrame(timer); timer = null; }
     running = false;
     mode = 'focus';
     remaining = modes.focus.minutes * 60;
@@ -134,7 +140,7 @@
     const close = () => {
       const backdrop = modal.closest('.modal-backdrop');
       mountedModal = null;
-      if (timer) { clearInterval(timer); timer = null; }
+      if (timer) { cancelAnimationFrame(timer); timer = null; }
       running = false;
 
       if (backdrop) {
@@ -163,7 +169,7 @@
     });
     if (mountedModal && !document.body.contains(mountedModal)) {
       mountedModal = null;
-      if (timer) clearInterval(timer);
+      if (timer) cancelAnimationFrame(timer);
       timer = null;
     }
   };
