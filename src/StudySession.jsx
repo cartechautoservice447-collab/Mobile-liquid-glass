@@ -264,10 +264,26 @@ export default function StudySession({ course, onBack }) {
     setStudyHours(Math.min(5, Math.max(1, Math.round(next * 4) / 4)));
   };
 
+  const handleStudyPlanModeChange = (nextMode) => {
+    if (nextMode === 'pomodoro') {
+      deadlineRef.current = null;
+      runStartedAtRef.current = null;
+      remainingRef.current = DURATIONS.focus;
+      accumulatedSessionSecondsRef.current = 0;
+      setRunning(false);
+      setRemaining(DURATIONS.focus);
+      setSessionSeconds(0);
+      setFinished(false);
+    }
+    setStudyPlanMode(nextMode);
+  };
+
   const handlePomodoroComplete = () => {
     setCompletedSessions((count) => count + 1);
     setFinished(true);
   };
+
+  const status = useMemo(() => finished ? 'Session complete' : running ? 'Deep focus active' : remaining >= duration ? 'Ready when you are' : 'Session paused', [finished, running, remaining, duration]);
 
   return (
     <main className="screen feature-screen study-session-screen">
@@ -279,7 +295,7 @@ export default function StudySession({ course, onBack }) {
         </header>
 
         <section className="study-session-hero glass-card" style={{ '--session-accent': accent }}>
-          <div className="session-context"><div><span className="session-kicker">STUDYING</span><h2>{course.name}</h2><p>{goal}</p></div>{studyPlanMode !== 'pomodoro' && <span className="session-live-pill"><span className={running ? 'live-dot is-live' : 'live-dot'} />{running ? 'LIVE' : (finished ? 'Session complete' : remaining >= duration ? 'Ready when you are' : 'Session paused')}</span>}</div>
+          <div className="session-context"><div><span className="session-kicker">STUDYING</span><h2>{course.name}</h2><p>{goal}</p></div>{studyPlanMode !== 'pomodoro' && <span className="session-live-pill"><span className={running ? 'live-dot is-live' : 'live-dot'} />{running ? 'LIVE' : status}</span>}</div>
 
           {studyPlanMode === 'pomodoro' ? (
             <PomodoroPanel onComplete={handlePomodoroComplete} />
@@ -319,7 +335,7 @@ export default function StudySession({ course, onBack }) {
           </div>
 
           <div className="study-plan-modes" role="tablist" aria-label="Study plan modes">
-            {Object.entries(STUDY_PLANS).map(([key, item]) => <button type="button" key={key} className={`study-plan-mode ${studyPlanMode === key ? 'is-selected' : ''}`} onClick={() => setStudyPlanMode(key)} style={{ '--plan-accent': item.accent }}>
+            {Object.entries(STUDY_PLANS).map(([key, item]) => <button type="button" key={key} className={`study-plan-mode ${studyPlanMode === key ? 'is-selected' : ''}`} onClick={() => handleStudyPlanModeChange(key)} style={{ '--plan-accent': item.accent }}>
               <span className="study-plan-mode-top"><strong>{item.label}</strong>{studyPlanMode === key && <Check size={14} />}</span>
               <span>{item.focus} min focus · {item.rest} min rest</span>
             </button>)}
