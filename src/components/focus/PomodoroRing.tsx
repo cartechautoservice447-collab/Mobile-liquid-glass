@@ -17,10 +17,12 @@ type Props = {
 
 export function PomodoroRing({ remaining, total, label, running = false }: Props) {
   const safeTotal = Math.max(1, Number.isFinite(Number(total)) ? Number(total) : 1);
-  const safeRemaining = Math.max(0, Number.isFinite(Number(remaining)) ? Number(remaining) : 0);
-  const progress = Math.min(1, safeRemaining / safeTotal);
+  const safeRemaining = Math.min(safeTotal, Math.max(0, Number.isFinite(Number(remaining)) ? Number(remaining) : 0));
+  const progress = safeRemaining / safeTotal;
   const size = 320;
   const radius = 138;
+  const circumference = 2 * Math.PI * radius;
+  const dashOffset = circumference * (1 - progress);
 
   return (
     <div className={`pomodoro-ring-new${running ? ' is-running' : ''}`}>
@@ -58,7 +60,7 @@ export function PomodoroRing({ remaining, total, label, running = false }: Props
           </filter>
         </defs>
 
-        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" className="pomodoro-ring-groove" strokeWidth="16" pathLength="1" />
+        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" className="pomodoro-ring-groove" strokeWidth="16" />
 
         {/* Ambient blurred glow, synchronized to the remaining progress */}
         <circle
@@ -69,9 +71,8 @@ export function PomodoroRing({ remaining, total, label, running = false }: Props
           stroke="url(#mercuryPool)"
           strokeWidth="14"
           strokeLinecap="round"
-          strokeDasharray="1"
-          strokeDashoffset={1 - progress}
-          pathLength="1"
+          strokeDasharray={circumference}
+          strokeDashoffset={dashOffset}
           filter="url(#mercurySoftGlow)"
           opacity="0.85"
         />
@@ -86,9 +87,8 @@ export function PomodoroRing({ remaining, total, label, running = false }: Props
             stroke="url(#mercuryFlow)"
             strokeWidth="16"
             strokeLinecap="round"
-            strokeDasharray="1"
-            strokeDashoffset={1 - progress}
-            pathLength="1"
+            strokeDasharray={circumference}
+            strokeDashoffset={dashOffset}
             filter="url(#mercuryFluidGlow)"
             opacity="0.72"
           >
@@ -110,9 +110,8 @@ export function PomodoroRing({ remaining, total, label, running = false }: Props
           className="pomodoro-ring-core-new"
           strokeWidth="5.5"
           strokeLinecap="round"
-          strokeDasharray="1"
-          strokeDashoffset={1 - progress}
-          pathLength="1"
+          strokeDasharray={circumference}
+          strokeDashoffset={dashOffset}
         />
       </svg>
       <div className="pomodoro-ring-new-content">
