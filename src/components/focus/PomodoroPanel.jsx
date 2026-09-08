@@ -22,6 +22,7 @@ export default function PomodoroPanel({ onComplete }) {
   const duration = MODES[mode].minutes * 60;
   const [remaining, setRemaining] = useState(duration);
   const [running, setRunning] = useState(false);
+
   const deadlineRef = useRef(null);
   const remainingRef = useRef(duration);
   const onCompleteRef = useRef(onComplete);
