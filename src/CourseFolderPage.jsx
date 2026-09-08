@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
-import { ArrowLeft, FileText, Folder, MoreHorizontal, Plus, Search, X } from 'lucide-react';
+import { ArrowLeft, FileText, Folder, FolderOpen, Home, LayoutGrid, MoreHorizontal, Plus, Search, X } from 'lucide-react';
+import './CourseFolderResponsive.css';
 
 const ACCENT = {
   sky: '#72d7ff', violet: '#bd86ff', amber: '#ffd166', emerald: '#67e8b1', rose: '#ff88a8', cyan: '#65e6ff',
@@ -18,17 +19,17 @@ export default function CourseFolderPage({ courses, onBack, onOpenCourse, onAddC
     <main className="screen feature-screen course-folder-screen">
       <section className="full-glass-panel course-folder-panel">
         <header className="feature-header course-folder-header">
-          <button className="back-button" onClick={onBack} aria-label="Back to dashboard"><ArrowLeft size={19} /></button>
+          <button type="button" className="back-button" onClick={onBack} aria-label="Back to dashboard"><ArrowLeft size={19} /></button>
           <div className="header-title">
             <span className="eyebrow">Course library</span>
             <h1>Course Folders</h1>
             <p>{courses.length} {courses.length === 1 ? 'course' : 'courses'} · {courses.reduce((sum, course) => sum + course.collections.reduce((inner, collection) => inner + collection.notes.length, 0), 0)} notes</p>
           </div>
-          <button className="folder-add-button" onClick={onAddCourse} aria-label="Add new course"><Plus size={20} /></button>
+          <button type="button" className="folder-add-button" onClick={onAddCourse} aria-label="Add new course"><Plus size={20} /></button>
         </header>
 
         <label className="course-search glass-inner">
-          <Search size={17} />
+          <Search size={17} aria-hidden="true" />
           <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search courses…" aria-label="Search courses" />
         </label>
 
@@ -37,7 +38,7 @@ export default function CourseFolderPage({ courses, onBack, onOpenCourse, onAddC
             const noteCount = course.collections.reduce((sum, collection) => sum + collection.notes.length, 0);
             const accent = ACCENT[course.color] || ACCENT.sky;
             return (
-              <button className="course-folder-card glass-card" key={course.id} onClick={() => onOpenCourse(course.id)}>
+              <button type="button" className="course-folder-card glass-card" key={course.id} onClick={() => onOpenCourse(course.id)}>
                 <span className="course-folder-icon" style={{ '--course-accent': accent }}><Folder size={22} /></span>
                 <span className="course-folder-copy">
                   <strong>{course.name}</strong>
@@ -54,7 +55,7 @@ export default function CourseFolderPage({ courses, onBack, onOpenCourse, onAddC
 
         <MobileCourseNav active="courses" onHome={onHome} onCourses={() => {}} onCollections={onCollections} onNotes={onNotes} onMore={() => setMoreOpen(true)} />
 
-        {moreOpen && <div className="modal-backdrop" onClick={() => setMoreOpen(false)}><section className="glass-modal course-more-menu" onClick={(event) => event.stopPropagation()}><button className="modal-close" onClick={() => setMoreOpen(false)} aria-label="Close"><X size={18} /></button><span className="modal-symbol"><MoreHorizontal size={21} /></span><h2>Course library</h2><p>Quick actions for your course library.</p><div className="course-menu-actions"><button onClick={() => { setMoreOpen(false); onAddCourse(); }}><Plus size={16} /> Add a course</button><button onClick={() => { setMoreOpen(false); onHome(); }}>⌂ Return home</button></div></section></div>}
+        {moreOpen && <div className="modal-backdrop" onClick={() => setMoreOpen(false)}><section className="glass-modal course-more-menu" onClick={(event) => event.stopPropagation()}><button type="button" className="modal-close" onClick={() => setMoreOpen(false)} aria-label="Close"><X size={18} /></button><span className="modal-symbol"><MoreHorizontal size={21} /></span><h2>Course library</h2><p>Quick actions for your course library.</p><div className="course-menu-actions"><button type="button" onClick={() => { setMoreOpen(false); onAddCourse(); }}><Plus size={16} /> Add a course</button><button type="button" onClick={() => { setMoreOpen(false); onHome(); }}><Home size={16} /> Return home</button></div></section></div>}
       </section>
     </main>
   );
@@ -62,7 +63,21 @@ export default function CourseFolderPage({ courses, onBack, onOpenCourse, onAddC
 
 function MobileCourseNav({ active, onHome, onCourses, onCollections, onNotes, onMore }) {
   const items = [
-    ['home', 'Home', onHome], ['courses', 'Courses', onCourses], ['collections', 'Collections', onCollections], ['notes', 'Notes', onNotes], ['more', 'More', onMore],
+    ['home', 'Home', onHome, Home],
+    ['courses', 'Courses', onCourses, LayoutGrid],
+    ['collections', 'Collections', onCollections, FolderOpen],
+    ['notes', 'Notes', onNotes, FileText],
+    ['more', 'More', onMore, MoreHorizontal],
   ];
-  return <nav className="course-mobile-nav" aria-label="Course navigation">{items.map(([key, label, handler]) => <button key={key} className={active === key ? 'nav-active' : ''} onClick={handler}><span>{key === 'home' ? '⌂' : key === 'courses' ? '▣' : key === 'collections' ? '▥' : key === 'notes' ? '▤' : '•••'}</span><small>{label}</small></button>)}</nav>;
+
+  return (
+    <nav className="course-mobile-nav" aria-label="Course navigation">
+      {items.map(([key, label, handler, Icon]) => (
+        <button type="button" key={key} className={active === key ? 'nav-active' : ''} onClick={handler} aria-label={label} title={label}>
+          <span className="course-mobile-nav-icon"><Icon size={21} strokeWidth={1.8} aria-hidden="true" /></span>
+          <small>{label}</small>
+        </button>
+      ))}
+    </nav>
+  );
 }
