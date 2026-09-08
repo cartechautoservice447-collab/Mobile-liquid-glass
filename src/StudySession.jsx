@@ -1,5 +1,5 @@
 import { ArrowLeft, Check, Clock3, Coffee, Flame, Pause, Play, RotateCcw, Sparkles, TimerReset, Zap } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import PomodoroRing from './components/focus/PomodoroRing.jsx';
 import './StudySession.css';
 
@@ -128,28 +128,55 @@ export default function StudySession({ course, onBack }) {
   const [studyHours, setStudyHours] = useState(2);
   const [longBreakMinutes, setLongBreakMinutes] = useState(20);
   const [selectedPlanBlock, setSelectedPlanBlock] = useState(0);
+  const deadlineRef = useRef(null);
+  const remainingRef = useRef(DURATIONS.focus);
+  const runStartedAtRef = useRef(null);
+  const accumulatedSessionSecondsRef = useRef(0);
+
+  useEffect(() => {
+    remainingRef.current = remaining;
+  }, [remaining]);
 
   useEffect(() => {
     if (!running) return undefined;
-    const interval = window.setInterval(() => {
-      setRemaining((value) => {
-        if (value <= 1) {
-          setRunning(false);
-          setCompletedSessions((count) => count + 1);
-          setFinished(true);
-          return 0;
-        }
-        return value - 1;
-      });
-      setSessionSeconds((value) => value + 1);
-    }, 1000);
-    return () => window.clearInterval(interval);
+    let frame = 0;
+
+    const tick = () => {
+      const now = performance.now();
+      const deadline = deadlineRef.current;
+      const startedAt = runStartedAtRef.current;
+      if (deadline == null || startedAt == null) return;
+
+      const next = Math.max(0, (deadline - now) / 1000);
+      const activeElapsed = Math.max(0, (now - startedAt) / 1000);
+      remainingRef.current = next;
+      setRemaining(next);
+      setSessionSeconds(accumulatedSessionSecondsRef.current + activeElapsed);
+
+      if (next <= 0) {
+        accumulatedSessionSecondsRef.current += activeElapsed;
+        setSessionSeconds(accumulatedSessionSecondsRef.current);
+        deadlineRef.current = null;
+        runStartedAtRef.current = null;
+        remainingRef.current = 0;
+        setRemaining(0);
+        setRunning(false);
+        setCompletedSessions((count) => count + 1);
+        setFinished(true);
+        return;
+      }
+
+      frame = requestAnimationFrame(tick);
+    };
+
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
   }, [running]);
 
   const duration = DURATIONS[mode];
   const progress = Math.min(100, Math.max(0, ((duration - remaining) / duration) * 100));
-  const minutes = Math.floor(remaining / 60).toString().padStart(2, '0');
-  const seconds = (remaining % 60).toString().padStart(2, '0');
+  const minutes = Math.floor(Math.max(0, remaining) / 60).toString().padStart(2, '0');
+  const seconds = (Math.max(0, remaining) % 60).toString().padStart(2, '0');
   const sessionMinutes = Math.floor(sessionSeconds / 60);
   const plan = useMemo(() => buildPlan(studyPlanMode, studyHours, longBreakMinutes), [studyPlanMode, studyHours, longBreakMinutes]);
   const activePlanBlock = plan.blocks[Math.min(selectedPlanBlock, Math.max(0, plan.blocks.length - 1))];
@@ -159,14 +186,79 @@ export default function StudySession({ course, onBack }) {
   }, [studyPlanMode, studyHours, longBreakMinutes]);
 
   const setSessionMode = (nextMode) => {
+    const nextDuration = DURATIONS[nextMode];
+    deadlineRef.current = null;
+    runStartedAtRef.current = null;
+    remainingRef.current = nextDuration;
+    accumulatedSessionSecondsRef.current = 0;
     setMode(nextMode);
-    setRemaining(DURATIONS[nextMode]);
+    setRemaining(nextDuration);
+    setSessionSeconds(0);
     setRunning(false);
     setFinished(false);
   };
-  const reset = () => { setRemaining(duration); setSessionSeconds(0); setRunning(false); setFinished(false); };
-  const completeNow = () => { setRunning(false); setCompletedSessions((count) => count + 1); setFinished(true); };
-  const status = useMemo(() => finished ? 'Session complete' : running ? 'Deep focus active' : remaining === duration ? 'Ready when you are' : 'Session paused', [finished, running, remaining, duration]);
+
+  const reset = () => {
+    deadlineRef.current = null;
+    runStartedAtRef.current = null;
+    remainingRef.current = duration;
+    accumulatedSessionSecondsRef.current = 0;
+    setRemaining(duration);
+    setSessionSeconds(0);
+    setRunning(false);
+    setFinished(false);
+  };
+
+  const toggleRunning = () => {
+    const now = performance.now();
+    if (running) {
+      const startedAt = runStartedAtRef.current;
+      if (startedAt != null) {
+        accumulatedSessionSecondsRef.current += Math.max(0, (now - startedAt) / 1000);
+      }
+      const deadline = deadlineRef.current;
+      const next = deadline == null ? remainingRef.current : Math.max(0, (deadline - now) / 1000);
+      deadlineRef.current = null;
+      runStartedAtRef.current = null;
+      remainingRef.current = next;
+      setRemaining(next);
+      setSessionSeconds(accumulatedSessionSecondsRef.current);
+      setRunning(false);
+      return;
+    }
+
+    const next = Math.max(0, remainingRef.current);
+    if (next <= 0) {
+      remainingRef.current = duration;
+      accumulatedSessionSecondsRef.current = 0;
+      setRemaining(duration);
+      setSessionSeconds(0);
+      setFinished(false);
+    }
+
+    const durationToRun = next <= 0 ? duration : next;
+    deadlineRef.current = now + durationToRun * 1000;
+    runStartedAtRef.current = now;
+    setRunning(true);
+    setFinished(false);
+  };
+
+  const completeNow = () => {
+    const now = performance.now();
+    if (running && runStartedAtRef.current != null) {
+      accumulatedSessionSecondsRef.current += Math.max(0, (now - runStartedAtRef.current) / 1000);
+      setSessionSeconds(accumulatedSessionSecondsRef.current);
+    }
+    deadlineRef.current = null;
+    runStartedAtRef.current = null;
+    remainingRef.current = 0;
+    setRemaining(0);
+    setRunning(false);
+    setCompletedSessions((count) => count + 1);
+    setFinished(true);
+  };
+
+  const status = useMemo(() => finished ? 'Session complete' : running ? 'Deep focus active' : remaining >= duration ? 'Ready when you are' : 'Session paused', [finished, running, remaining, duration]);
 
   const handleHoursInput = (value) => {
     const next = Number(value);
@@ -198,7 +290,7 @@ export default function StudySession({ course, onBack }) {
           <div className="session-progress-track"><span style={{ width: `${progress}%`, background: `linear-gradient(90deg, ${accent}, #bd86ff)` }} /></div>
           <div className="session-controls">
             <button type="button" className="session-reset-button" onClick={reset} aria-label="Reset session"><RotateCcw size={17} /></button>
-            <button type="button" className="session-main-button" onClick={() => setRunning((value) => !value)} style={{ background: `linear-gradient(145deg, ${accent}, #7b61ff)` }}>{running ? <Pause size={19} /> : <Play size={19} fill="currentColor" />}{running ? 'Pause focus' : 'Start focus'}</button>
+            <button type="button" className="session-main-button" onClick={toggleRunning} style={{ background: `linear-gradient(145deg, ${accent}, #7b61ff)` }}>{running ? <Pause size={19} /> : <Play size={19} fill="currentColor" />}{running ? 'Pause focus' : 'Start focus'}</button>
             <button type="button" className="session-finish-button" onClick={completeNow}><Check size={17} />Finish</button>
           </div>
         </section>
