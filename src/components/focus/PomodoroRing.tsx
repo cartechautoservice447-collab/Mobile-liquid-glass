@@ -41,8 +41,15 @@ export function PomodoroRing({ remaining, total, label, running = false }: Props
       return;
     }
 
+    // Enable the transition as soon as Start is pressed. The current
+    // dashOffset is still at the initial position, so the first real
+    // countdown update (25:00 -> 24:59) receives the full 1-second motion.
+    setHasTicked(true);
+  }, [running]);
+
+  useEffect(() => {
+    if (!running) return;
     if (displayRemaining !== previousSecond.current) {
-      setHasTicked(true);
       previousSecond.current = displayRemaining;
     }
   }, [displayRemaining, running]);
@@ -85,10 +92,8 @@ export function PomodoroRing({ remaining, total, label, running = false }: Props
           </filter>
         </defs>
 
-        {/* Static glass groove */}
         <circle cx={size / 2} cy={size / 2} r={radius} fill="none" className="pomodoro-ring-groove" strokeWidth="16" />
 
-        {/* Ambient blurred progress */}
         <circle
           cx={size / 2}
           cy={size / 2}
@@ -104,7 +109,6 @@ export function PomodoroRing({ remaining, total, label, running = false }: Props
           style={{ transition: progressTransition }}
         />
 
-        {/* Soft flowing fluid progress */}
         {running && (
           <circle
             cx={size / 2}
@@ -129,7 +133,6 @@ export function PomodoroRing({ remaining, total, label, running = false }: Props
           </circle>
         )}
 
-        {/* Bright frosted progress core */}
         <circle
           cx={size / 2}
           cy={size / 2}
