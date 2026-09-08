@@ -24,6 +24,11 @@ export default function PomodoroPanel({ onComplete }) {
   const [running, setRunning] = useState(false);
   const deadlineRef = useRef(null);
   const remainingRef = useRef(duration);
+  const onCompleteRef = useRef(onComplete);
+
+  useEffect(() => {
+    onCompleteRef.current = onComplete;
+  }, [onComplete]);
 
   useEffect(() => {
     remainingRef.current = remaining;
@@ -46,7 +51,7 @@ export default function PomodoroPanel({ onComplete }) {
         remainingRef.current = 0;
         setRemaining(0);
         setRunning(false);
-        onComplete?.(mode);
+        onCompleteRef.current?.(mode);
         return;
       }
 
@@ -55,7 +60,7 @@ export default function PomodoroPanel({ onComplete }) {
 
     tick();
     return () => cancelAnimationFrame(frame);
-  }, [running, mode, onComplete]);
+  }, [running, mode]);
 
   const status = useMemo(() => {
     if (remaining <= 0) return 'Complete';
