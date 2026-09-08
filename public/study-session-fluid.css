@@ -1,117 +1,112 @@
-/* Dedicated Pomodoro fluid progress ring.
-   The fluid motion is confined to the ring; the timer face and text stay still. */
-.session-clock-wrap.is-pomodoro-plan .pomodoro-fluid-ring {
+/* Dedicated PomodoroRing styles.
+   The ring is rendered by src/components/focus/PomodoroRing.jsx. */
+.pomodoro-ring {
   position: relative;
-  width: min(270px, 62vw);
+  width: min(320px, 100%);
+  height: min(320px, 100%);
   aspect-ratio: 1;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  isolation: isolate;
-  --ring-width: 10px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
   transform: translate3d(0, 0, 0);
   backface-visibility: hidden;
 }
 
-.session-clock-wrap.is-pomodoro-plan .pomodoro-fluid-ring::before {
-  content: "";
+.pomodoro-ring-svg {
   position: absolute;
   inset: 0;
-  border-radius: 50%;
-  background: conic-gradient(
-    from 90deg,
-    #ffd166 0deg,
-    #72d7ff var(--session-progress),
-    rgba(255,255,255,.075) var(--session-progress),
-    rgba(255,255,255,.045) 360deg
-  );
-  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - var(--ring-width)), #000 calc(100% - var(--ring-width) + 1px));
-  mask: radial-gradient(farthest-side, transparent calc(100% - var(--ring-width)), #000 calc(100% - var(--ring-width) + 1px));
-  box-shadow: 0 0 24px rgba(255,209,102,.16), 0 0 48px rgba(114,215,255,.08);
-}
-
-/* Edge-only fluid highlight. The visible leading edge starts at 3 o'clock
-   and travels around the circumference; the clock face never moves. */
-.session-clock-wrap.is-pomodoro-plan .pomodoro-fluid-ring-flow,
-.session-clock-wrap.is-pomodoro-plan .pomodoro-fluid-ring-glow {
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
+  width: 100%;
+  height: 100%;
+  display: block;
+  transform: rotate(-90deg);
+  overflow: visible;
   pointer-events: none;
-  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - var(--ring-width)), #000 calc(100% - var(--ring-width) + 1px));
-  mask: radial-gradient(farthest-side, transparent calc(100% - var(--ring-width)), #000 calc(100% - var(--ring-width) + 1px));
-  transform: rotate(0deg) translate3d(0,0,0);
-  transform-origin: center;
-  will-change: transform;
-  backface-visibility: hidden;
 }
 
-.session-clock-wrap.is-pomodoro-plan .pomodoro-fluid-ring-flow {
-  background: conic-gradient(
-    from 90deg,
-    rgba(255,245,196,0) 0deg 304deg,
-    rgba(255,245,196,.10) 304deg,
-    rgba(255,245,196,.66) 326deg,
-    rgba(114,215,255,.98) 339deg,
-    rgba(255,209,102,.92) 351deg,
-    rgba(255,209,102,0) 360deg
-  );
-  filter: blur(1.1px);
-  mix-blend-mode: screen;
-  animation: pomodoro-ring-fluid-flow 4.8s linear infinite;
+.pomodoro-ring-track {
+  color: rgba(255, 255, 255, .06);
 }
 
-.session-clock-wrap.is-pomodoro-plan .pomodoro-fluid-ring-glow {
-  background: conic-gradient(
-    from 90deg,
-    rgba(255,209,102,0) 0deg 306deg,
-    rgba(255,209,102,.10) 306deg,
-    rgba(255,209,102,.32) 326deg,
-    rgba(114,215,255,.60) 341deg,
-    rgba(123,97,255,.38) 353deg,
-    rgba(123,97,255,0) 360deg
-  );
-  filter: blur(10px);
-  opacity: .9;
-  mix-blend-mode: screen;
-  animation: pomodoro-ring-fluid-glow 6.5s ease-in-out infinite;
+.pomodoro-ring-ambient,
+.pomodoro-ring-glow,
+.pomodoro-ring-core,
+.pomodoro-ring-bead {
+  vector-effect: non-scaling-stroke;
 }
 
-.session-clock-wrap.is-pomodoro-plan .session-clock {
+.pomodoro-ring-ambient,
+.pomodoro-ring-glow,
+.pomodoro-ring-core {
+  transition: stroke-dashoffset .5s ease-out, opacity .3s ease-out;
+}
+
+.pomodoro-ring-bead {
+  transition: opacity .3s ease-out;
+}
+
+.pomodoro-ring-content {
   position: relative;
   z-index: 2;
-  overflow: hidden;
-  background: radial-gradient(circle at 50% 35%, rgba(255,255,255,.085), rgba(255,255,255,.025) 58%, rgba(7,19,48,.34));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  min-width: 0;
+  color: #f5fbff;
 }
 
-.session-clock-wrap.is-pomodoro-plan .session-clock::before,
-.session-clock-wrap.is-pomodoro-plan .session-clock::after {
-  content: none !important;
-  animation: none !important;
+.pomodoro-ring-label {
+  margin-bottom: 4px;
+  color: rgba(225, 243, 255, .48);
+  font-size: 10px;
+  line-height: 1;
+  font-weight: 650;
+  letter-spacing: .2em;
+  text-transform: uppercase;
 }
 
-@keyframes pomodoro-ring-fluid-flow {
-  0% { transform: rotate(0deg) translate3d(0,0,0); }
-  100% { transform: rotate(360deg) translate3d(0,0,0); }
+.pomodoro-ring-time {
+  color: #f7fbff;
+  font-size: clamp(42px, 7vw, 70px);
+  line-height: 1;
+  font-weight: 650;
+  letter-spacing: -.05em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  text-shadow: 0 0 22px rgba(159, 216, 255, .08);
 }
 
-@keyframes pomodoro-ring-fluid-glow {
-  0% { transform: rotate(0deg) translate3d(0,0,0) scale(1); opacity: .62; }
-  50% { transform: rotate(180deg) translate3d(0,0,0) scale(1.012); opacity: .94; }
-  100% { transform: rotate(360deg) translate3d(0,0,0) scale(1); opacity: .62; }
+@media (max-width: 620px) {
+  .pomodoro-ring {
+    width: min(280px, 100%);
+    height: min(280px, 100%);
+  }
+  .pomodoro-ring-time {
+    font-size: 54px;
+  }
 }
 
 @media (max-width: 430px) {
-  .session-clock-wrap.is-pomodoro-plan .pomodoro-fluid-ring {
-    width: min(230px, 66vw);
-    --ring-width: 9px;
+  .pomodoro-ring {
+    width: min(280px, 100%);
+    height: min(280px, 100%);
+  }
+  .pomodoro-ring-time {
+    font-size: 46px;
+  }
+  .pomodoro-ring-label {
+    font-size: 8px;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .session-clock-wrap.is-pomodoro-plan .pomodoro-fluid-ring-flow,
-  .session-clock-wrap.is-pomodoro-plan .pomodoro-fluid-ring-glow {
-    animation: none;
-    transform: rotate(0deg) translate3d(0,0,0);
+  .pomodoro-ring-ambient,
+  .pomodoro-ring-glow,
+  .pomodoro-ring-core,
+  .pomodoro-ring-bead {
+    transition: none;
   }
 }
