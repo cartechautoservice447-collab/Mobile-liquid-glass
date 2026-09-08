@@ -20,6 +20,7 @@
   height: 100% !important;
   display: block !important;
   transform: rotate(-90deg);
+  transform-origin: center;
   overflow: visible;
   pointer-events: none;
 }
@@ -29,9 +30,13 @@
 .pomodoro-ring-glow,
 .pomodoro-ring-core,
 .pomodoro-ring-bead { vector-effect: non-scaling-stroke; }
+
+/* Only the mercury fluid/glow arc changes length; the track stays fixed. */
 .pomodoro-ring-ambient,
 .pomodoro-ring-glow,
-.pomodoro-ring-core { transition: stroke-dashoffset .5s ease-out, opacity .3s ease-out; }
+.pomodoro-ring-core {
+  transition: stroke-dasharray 1s linear, opacity .3s ease-out;
+}
 .pomodoro-ring-bead { transition: opacity .3s ease-out; }
 
 .pomodoro-ring-content {
