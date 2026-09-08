@@ -25,10 +25,10 @@ export default function PomodoroRing({ remaining, total, running, label }) {
             <stop offset="100%" stopColor="#c9ecff" />
           </linearGradient>
           <filter id="pomodoroMercuryBlur" x="-50%" y="-50%" width="200%" height="200%">
-            <feGaussianBlur stdDeviation="6" result="blur" />
+            <feGaussianBlur stdDeviation="8" result="blur" />
           </filter>
           <filter id="pomodoroMercuryBlurSoft" x="-50%" y="-50%" width="200%" height="200%">
-            <feGaussianBlur stdDeviation="14" result="blur" />
+            <feGaussianBlur stdDeviation="16" result="blur" />
           </filter>
         </defs>
 
@@ -48,12 +48,12 @@ export default function PomodoroRing({ remaining, total, running, label }) {
           r={radius - 2}
           fill="none"
           stroke="url(#pomodoroMercuryGradient)"
-          strokeWidth="14"
+          strokeWidth="16"
           strokeLinecap="round"
           strokeDasharray={`${dashLength} ${circumference}`}
           strokeDashoffset="0"
           filter="url(#pomodoroMercuryBlurSoft)"
-          opacity={running ? 0.55 : 0.3}
+          opacity={running ? 0.34 : 0.22}
           className="pomodoro-ring-ambient"
         />
 
@@ -63,12 +63,12 @@ export default function PomodoroRing({ remaining, total, running, label }) {
           r={radius}
           fill="none"
           stroke="url(#pomodoroMercuryGradient)"
-          strokeWidth="6"
+          strokeWidth="9.5"
           strokeLinecap="round"
           strokeDasharray={`${dashLength} ${circumference}`}
           strokeDashoffset="0"
           filter="url(#pomodoroMercuryBlur)"
-          opacity={running ? 0.9 : 0.5}
+          opacity={running ? 0.56 : 0.36}
           className="pomodoro-ring-glow"
         />
 
@@ -78,10 +78,11 @@ export default function PomodoroRing({ remaining, total, running, label }) {
           r={radius}
           fill="none"
           stroke="url(#pomodoroMercuryGradient)"
-          strokeWidth="2.5"
+          strokeWidth="5.2"
           strokeLinecap="round"
           strokeDasharray={`${dashLength} ${circumference}`}
           strokeDashoffset="0"
+          opacity={running ? 0.78 : 0.6}
           className="pomodoro-ring-core"
         />
 
@@ -89,17 +90,17 @@ export default function PomodoroRing({ remaining, total, running, label }) {
           <circle
             cx={size / 2 + radius * Math.cos(tipAngle)}
             cy={size / 2 + radius * Math.sin(tipAngle)}
-            r={running ? 5 : 3}
-            fill="#ffffff"
+            r={running ? 4.5 : 3}
+            fill="#effaff"
             filter="url(#pomodoroMercuryBlur)"
             className="pomodoro-ring-bead"
-            opacity={running ? 1 : 0.6}
+            opacity={running ? 0.8 : 0.5}
           >
             {running && (
               <animate
                 attributeName="r"
-                values="4;6;4"
-                dur="2.2s"
+                values="4;5.5;4"
+                dur="2.6s"
                 repeatCount="indefinite"
               />
             )}
