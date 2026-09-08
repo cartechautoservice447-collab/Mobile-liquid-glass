@@ -71,7 +71,7 @@ export default function PomodoroModal({ close }) {
         </header>
 
         <div className="pomodoro-react-ring-area">
-          <PomodoroRing remaining={remaining} total={duration} label={label} />
+          <PomodoroRing remaining={remaining} total={duration} label={label} running={running} />
           <p>{status}</p>
         </div>
 
