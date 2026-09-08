@@ -10,7 +10,6 @@ permissions:
 
 jobs:
   generate:
-    if: ${{ hashFiles('android/**') == '' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -21,16 +20,31 @@ jobs:
         with:
           node-version: 22
 
+      - name: Check whether Android project already exists
+        id: android-check
+        shell: bash
+        run: |
+          if [ -f android/gradlew ] && [ -f android/settings.gradle ] && [ -f android/app/build.gradle ]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Install dependencies
+        if: steps.android-check.outputs.exists == 'false'
         run: npm install
 
       - name: Generate Android project
+        if: steps.android-check.outputs.exists == 'false'
         run: npx cap add android
 
       - name: Verify generated project
+        if: steps.android-check.outputs.exists == 'false'
         run: test -f android/gradlew && test -f android/settings.gradle && test -f android/app/build.gradle
 
       - name: Commit generated Android project
+        if: steps.android-check.outputs.exists == 'false'
+        shell: bash
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
