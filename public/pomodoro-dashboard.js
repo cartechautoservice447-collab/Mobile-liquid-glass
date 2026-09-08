@@ -52,6 +52,24 @@
     const progress = total ? (remaining / total) * 100 : 0;
     mountedModal.style.setProperty('--progress', progress.toFixed(3));
     mountedModal.style.setProperty('--fluid', `${progress.toFixed(3)}%`);
+    const ring = mountedModal.querySelector('[data-pomodoro-ring]');
+    if (ring) {
+      const circumference = 2 * Math.PI * 130;
+      const dash = circumference * Math.max(0, Math.min(100, progress)) / 100;
+      ring.querySelectorAll('[data-pomodoro-ring-arc]').forEach((arc) => {
+        arc.setAttribute('stroke-dasharray', `${dash} ${circumference}`);
+        arc.setAttribute('stroke-dashoffset', '0');
+      });
+      const angle = (progress / 100) * Math.PI * 2 - Math.PI / 2;
+      const x = 160 + 130 * Math.cos(angle);
+      const y = 160 + 130 * Math.sin(angle);
+      const bead = ring.querySelector('[data-pomodoro-ring-bead]');
+      if (bead) {
+        bead.setAttribute('cx', x.toFixed(2));
+        bead.setAttribute('cy', y.toFixed(2));
+        bead.setAttribute('r', running ? '5' : '3');
+      }
+    }
     const time = mountedModal.querySelector('[data-pomodoro-time]');
     const status = mountedModal.querySelector('[data-pomodoro-status]');
     const startButton = mountedModal.querySelector('[data-pomodoro-start]');
@@ -80,7 +98,25 @@
         </select>
       </div>
       <div class="pomodoro-ring-wrap" aria-label="Pomodoro remaining time">
-        <div class="pomodoro-ring"></div>
+        <div class="pomodoro-ring" data-pomodoro-ring>
+          <svg class="pomodoro-mercury-svg" viewBox="0 0 320 320" aria-hidden="true">
+            <defs>
+              <linearGradient id="pomodoroMercuryDashboardGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#e8f4ff" />
+                <stop offset="35%" stop-color="#9fd8ff" />
+                <stop offset="65%" stop-color="#6fb8ff" />
+                <stop offset="100%" stop-color="#c9ecff" />
+              </linearGradient>
+              <filter id="pomodoroDashboardBlur" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="6" /></filter>
+              <filter id="pomodoroDashboardBlurSoft" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="14" /></filter>
+            </defs>
+            <circle cx="160" cy="160" r="130" fill="none" stroke="rgba(255,255,255,.07)" stroke-width="8" />
+            <circle cx="160" cy="160" r="128" fill="none" stroke="url(#pomodoroMercuryDashboardGradient)" stroke-width="16" stroke-linecap="round" stroke-dasharray="816.81 816.81" stroke-dashoffset="0" filter="url(#pomodoroDashboardBlurSoft)" opacity=".42" data-pomodoro-ring-arc />
+            <circle cx="160" cy="160" r="130" fill="none" stroke="url(#pomodoroMercuryDashboardGradient)" stroke-width="7" stroke-linecap="round" stroke-dasharray="816.81 816.81" stroke-dashoffset="0" filter="url(#pomodoroDashboardBlur)" opacity=".82" data-pomodoro-ring-arc />
+            <circle cx="160" cy="160" r="130" fill="none" stroke="url(#pomodoroMercuryDashboardGradient)" stroke-width="2.7" stroke-linecap="round" stroke-dasharray="816.81 816.81" stroke-dashoffset="0" data-pomodoro-ring-arc />
+            <circle cx="290" cy="160" r="3.5" fill="#ffffff" filter="url(#pomodoroDashboardBlur)" opacity=".72" data-pomodoro-ring-bead />
+          </svg>
+        </div>
         <div class="pomodoro-fluid"><div class="pomodoro-fluid-level"></div></div>
         <div><div class="pomodoro-time" data-pomodoro-time>25:00</div><div class="pomodoro-status" data-pomodoro-status>Ready</div></div>
       </div>
@@ -102,14 +138,8 @@
       running = false;
 
       if (backdrop) {
-        backdrop.dispatchEvent(new MouseEvent('click', {
-          bubbles: true,
-          cancelable: true,
-          view: window,
-        }));
-        setTimeout(() => {
-          if (document.body.contains(backdrop)) backdrop.remove();
-        }, 0);
+        backdrop.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
+        setTimeout(() => { if (document.body.contains(backdrop)) backdrop.remove(); }, 0);
       }
     };
     modal.querySelector('.modal-close').addEventListener('click', close);
