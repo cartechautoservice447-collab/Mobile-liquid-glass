@@ -1,6 +1,5 @@
 import { ArrowLeft, Check, Clock3, Coffee, Flame, Pause, Play, RotateCcw, Sparkles, TimerReset, Zap } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import PomodoroPanel from './components/focus/PomodoroPanel.jsx';
 import './StudySession.css';
 
 const ACCENT = {
@@ -33,17 +32,9 @@ const STUDY_PLANS = {
     cycle: 35,
     accent: '#67e8b1',
   },
-  pomodoro: {
-    label: 'Pomodoro Study',
-    description: '25-minute focus, 5-minute rest, four times, followed by a longer break.',
-    focus: 25,
-    rest: 5,
-    cycle: 30,
-    accent: '#ffd166',
-  },
 };
 
-function buildPlan(type, totalHours, longBreakMinutes) {
+function buildPlan(type, totalHours) {
   const plan = STUDY_PLANS[type];
   const targetMinutes = Math.max(60, Math.min(300, Math.round(totalHours * 60)));
   const blocks = [];
@@ -52,39 +43,15 @@ function buildPlan(type, totalHours, longBreakMinutes) {
   let focusMinutes = 0;
   let restMinutes = 0;
   let sequence = 0;
-  let pomodorosInSet = 0;
-  let setNumber = 1;
 
-  if (type === 'pomodoro') {
-    const pomodoroCount = Math.max(1, Math.floor(targetMinutes / plan.cycle));
-    for (let index = 0; index < pomodoroCount; index += 1) {
-      sequence += 1;
-      pomodorosInSet += 1;
-      blocks.push({ id: `${type}-focus-${sequence}`, kind: 'focus', label: 'Focus', minutes: plan.focus, sequence, setNumber });
-      blocks.push({ id: `${type}-rest-${sequence}`, kind: 'rest', label: 'Rest', minutes: plan.rest, sequence, setNumber });
-      focusMinutes += plan.focus;
-      restMinutes += plan.rest;
-      coreElapsed += plan.cycle;
-      elapsed += plan.cycle;
-
-      if (pomodorosInSet === 4) {
-        blocks.push({ id: `${type}-long-break-${setNumber}`, kind: 'long-break', label: 'Long Break', minutes: longBreakMinutes, sequence: setNumber, setNumber });
-        restMinutes += longBreakMinutes;
-        elapsed += longBreakMinutes;
-        pomodorosInSet = 0;
-        setNumber += 1;
-      }
-    }
-  } else {
-    while (elapsed + plan.cycle <= targetMinutes) {
-      sequence += 1;
-      blocks.push({ id: `${type}-focus-${sequence}`, kind: 'focus', label: 'Focus', minutes: plan.focus, sequence, setNumber: 1 });
-      blocks.push({ id: `${type}-rest-${sequence}`, kind: 'rest', label: 'Rest', minutes: plan.rest, sequence, setNumber: 1 });
-      focusMinutes += plan.focus;
-      restMinutes += plan.rest;
-      elapsed += plan.cycle;
-      coreElapsed = elapsed;
-    }
+  while (elapsed + plan.cycle <= targetMinutes) {
+    sequence += 1;
+    blocks.push({ id: `${type}-focus-${sequence}`, kind: 'focus', label: 'Focus', minutes: plan.focus, sequence, setNumber: 1 });
+    blocks.push({ id: `${type}-rest-${sequence}`, kind: 'rest', label: 'Rest', minutes: plan.rest, sequence, setNumber: 1 });
+    focusMinutes += plan.focus;
+    restMinutes += plan.rest;
+    elapsed += plan.cycle;
+    coreElapsed = elapsed;
   }
 
   if (!blocks.length) {
@@ -97,20 +64,16 @@ function buildPlan(type, totalHours, longBreakMinutes) {
   }
 
   const cycles = blocks.filter((block) => block.kind === 'focus').length;
-  const longBreaks = blocks.filter((block) => block.kind === 'long-break').length;
-  const leftoverMinutes = type === 'pomodoro' ? 0 : Math.max(0, targetMinutes - coreElapsed);
-  const overTargetMinutes = type === 'pomodoro' ? Math.max(0, elapsed - targetMinutes) : 0;
+  const leftoverMinutes = Math.max(0, targetMinutes - coreElapsed);
 
   return {
     blocks,
     targetMinutes,
     elapsedMinutes: elapsed,
     leftoverMinutes,
-    overTargetMinutes,
     focusMinutes,
     restMinutes,
     cycles,
-    longBreaks,
     plan,
   };
 }
@@ -126,7 +89,6 @@ export default function StudySession({ course, onBack }) {
   const [finished, setFinished] = useState(false);
   const [studyPlanMode, setStudyPlanMode] = useState('deep');
   const [studyHours, setStudyHours] = useState(2);
-  const [longBreakMinutes, setLongBreakMinutes] = useState(20);
   const [selectedPlanBlock, setSelectedPlanBlock] = useState(0);
   const deadlineRef = useRef(null);
   const remainingRef = useRef(DURATIONS.focus);
@@ -178,12 +140,12 @@ export default function StudySession({ course, onBack }) {
   const minutes = Math.floor(Math.max(0, remaining) / 60).toString().padStart(2, '0');
   const seconds = (Math.max(0, remaining) % 60).toString().padStart(2, '0');
   const sessionMinutes = Math.floor(sessionSeconds / 60);
-  const plan = useMemo(() => buildPlan(studyPlanMode, studyHours, longBreakMinutes), [studyPlanMode, studyHours, longBreakMinutes]);
+  const plan = useMemo(() => buildPlan(studyPlanMode, studyHours), [studyPlanMode, studyHours]);
   const activePlanBlock = plan.blocks[Math.min(selectedPlanBlock, Math.max(0, plan.blocks.length - 1))];
 
   useEffect(() => {
     setSelectedPlanBlock(0);
-  }, [studyPlanMode, studyHours, longBreakMinutes]);
+  }, [studyPlanMode, studyHours]);
 
   const setSessionMode = (nextMode) => {
     const nextDuration = DURATIONS[nextMode];
@@ -264,25 +226,6 @@ export default function StudySession({ course, onBack }) {
     setStudyHours(Math.min(5, Math.max(1, Math.round(next * 4) / 4)));
   };
 
-  const handleStudyPlanModeChange = (nextMode) => {
-    if (nextMode === 'pomodoro') {
-      deadlineRef.current = null;
-      runStartedAtRef.current = null;
-      remainingRef.current = DURATIONS.focus;
-      accumulatedSessionSecondsRef.current = 0;
-      setRunning(false);
-      setRemaining(DURATIONS.focus);
-      setSessionSeconds(0);
-      setFinished(false);
-    }
-    setStudyPlanMode(nextMode);
-  };
-
-  const handlePomodoroComplete = () => {
-    setCompletedSessions((count) => count + 1);
-    setFinished(true);
-  };
-
   const status = useMemo(() => finished ? 'Session complete' : running ? 'Deep focus active' : remaining >= duration ? 'Ready when you are' : 'Session paused', [finished, running, remaining, duration]);
 
   return (
@@ -295,26 +238,20 @@ export default function StudySession({ course, onBack }) {
         </header>
 
         <section className="study-session-hero glass-card" style={{ '--session-accent': accent }}>
-          <div className="session-context"><div><span className="session-kicker">STUDYING</span><h2>{course.name}</h2><p>{goal}</p></div>{studyPlanMode !== 'pomodoro' && <span className="session-live-pill"><span className={running ? 'live-dot is-live' : 'live-dot'} />{running ? 'LIVE' : status}</span>}</div>
+          <div className="session-context"><div><span className="session-kicker">STUDYING</span><h2>{course.name}</h2><p>{goal}</p></div><span className="session-live-pill"><span className={running ? 'live-dot is-live' : 'live-dot'} />{running ? 'LIVE' : status}</span></div>
 
-          {studyPlanMode === 'pomodoro' ? (
-            <PomodoroPanel onComplete={handlePomodoroComplete} />
-          ) : (
-            <>
-              <div className="session-mode-tabs" role="tablist" aria-label="Study duration">
-                {Object.entries({ focus: 'Focus', deep: 'Deep', sprint: 'Sprint' }).map(([key, label]) => <button type="button" key={key} className={mode === key ? 'is-selected' : ''} onClick={() => setSessionMode(key)}>{label}<small>{DURATIONS[key] / 60}m</small></button>)}
-              </div>
-              <div className="session-clock-wrap">
-                <div className="session-orbit" style={{ '--session-progress': `${progress}%` }}><div className="session-clock"><span>{minutes}:{seconds}</span><small>{finished ? 'Complete' : running ? 'Focus time' : 'Remaining'}</small></div></div>
-              </div>
-              <div className="session-progress-track"><span style={{ width: `${progress}%`, background: `linear-gradient(90deg, ${accent}, #bd86ff)` }} /></div>
-              <div className="session-controls">
-                <button type="button" className="session-reset-button" onClick={reset} aria-label="Reset session"><RotateCcw size={17} /></button>
-                <button type="button" className="session-main-button" onClick={toggleRunning} style={{ background: `linear-gradient(145deg, ${accent}, #7b61ff)` }}>{running ? <Pause size={19} /> : <Play size={19} fill="currentColor" />}{running ? 'Pause focus' : 'Start focus'}</button>
-                <button type="button" className="session-finish-button" onClick={completeNow}><Check size={17} />Finish</button>
-              </div>
-            </>
-          )}
+          <div className="session-mode-tabs" role="tablist" aria-label="Study duration">
+            {Object.entries({ focus: 'Focus', deep: 'Deep', sprint: 'Sprint' }).map(([key, label]) => <button type="button" key={key} className={mode === key ? 'is-selected' : ''} onClick={() => setSessionMode(key)}>{label}<small>{DURATIONS[key] / 60}m</small></button>)}
+          </div>
+          <div className="session-clock-wrap">
+            <div className="session-orbit" style={{ '--session-progress': `${progress}%` }}><div className="session-clock"><span>{minutes}:{seconds}</span><small>{finished ? 'Complete' : running ? 'Focus time' : 'Remaining'}</small></div></div>
+          </div>
+          <div className="session-progress-track"><span style={{ width: `${progress}%`, background: `linear-gradient(90deg, ${accent}, #bd86ff)` }} /></div>
+          <div className="session-controls">
+            <button type="button" className="session-reset-button" onClick={reset} aria-label="Reset session"><RotateCcw size={17} /></button>
+            <button type="button" className="session-main-button" onClick={toggleRunning} style={{ background: `linear-gradient(145deg, ${accent}, #7b61ff)` }}>{running ? <Pause size={19} /> : <Play size={19} fill="currentColor" />}{running ? 'Pause focus' : 'Start focus'}</button>
+            <button type="button" className="session-finish-button" onClick={completeNow}><Check size={17} />Finish</button>
+          </div>
         </section>
 
         <section className="session-goal-row glass-inner">
@@ -335,7 +272,7 @@ export default function StudySession({ course, onBack }) {
           </div>
 
           <div className="study-plan-modes" role="tablist" aria-label="Study plan modes">
-            {Object.entries(STUDY_PLANS).map(([key, item]) => <button type="button" key={key} className={`study-plan-mode ${studyPlanMode === key ? 'is-selected' : ''}`} onClick={() => handleStudyPlanModeChange(key)} style={{ '--plan-accent': item.accent }}>
+            {Object.entries(STUDY_PLANS).map(([key, item]) => <button type="button" key={key} className={`study-plan-mode ${studyPlanMode === key ? 'is-selected' : ''}`} onClick={() => setStudyPlanMode(key)} style={{ '--plan-accent': item.accent }}>
               <span className="study-plan-mode-top"><strong>{item.label}</strong>{studyPlanMode === key && <Check size={14} />}</span>
               <span>{item.focus} min focus · {item.rest} min rest</span>
             </button>)}
@@ -347,23 +284,21 @@ export default function StudySession({ course, onBack }) {
             <div className="study-plan-range-meta"><span>1 hr</span><span>5 hr max</span></div>
           </div>
 
-          {studyPlanMode === 'pomodoro' && <div className="study-plan-break-editor"><div><span className="session-small-label">LONG BREAK</span><strong>{longBreakMinutes} min</strong><small>After every 4 Pomodoros</small></div><input type="range" min="15" max="30" step="5" value={longBreakMinutes} onChange={(event) => setLongBreakMinutes(Number(event.target.value))} aria-label="Pomodoro long break from fifteen to thirty minutes" /><div className="study-plan-break-values"><span>15 min</span><span>30 min</span></div></div>}
-
           <div className="study-plan-summary">
-            <div className="study-plan-summary-main"><span className="session-small-label">AUTO-GENERATED SCHEDULE</span><strong>{plan.cycles} {studyPlanMode === 'pomodoro' ? 'Pomodoros' : 'sessions'}</strong><span>{plan.focusMinutes} min focus · {plan.restMinutes} min recovery · {plan.overTargetMinutes ? `${plan.overTargetMinutes} min extra recovery` : plan.leftoverMinutes ? `${plan.leftoverMinutes} min planning buffer` : 'matches target'}</span></div>
-            <div className="study-plan-summary-stats"><span><b>{Math.floor(plan.elapsedMinutes / 60)}h {plan.elapsedMinutes % 60}m</b><small>planned</small></span><span><b>{plan.longBreaks}</b><small>long breaks</small></span></div>
+            <div className="study-plan-summary-main"><span className="session-small-label">AUTO-GENERATED SCHEDULE</span><strong>{plan.cycles} sessions</strong><span>{plan.focusMinutes} min focus · {plan.restMinutes} min recovery · {plan.leftoverMinutes ? `${plan.leftoverMinutes} min planning buffer` : 'matches target'}</span></div>
+            <div className="study-plan-summary-stats"><span><b>{Math.floor(plan.elapsedMinutes / 60)}h {plan.elapsedMinutes % 60}m</b><small>planned</small></span></div>
           </div>
 
           <div className="study-plan-schedule-heading"><span>Session sequence</span><span>{activePlanBlock ? `${activePlanBlock.label} selected` : 'Ready'}</span></div>
           <div className="study-plan-schedule" role="list" aria-label="Generated study schedule">
             {plan.blocks.map((block, index) => <button type="button" key={block.id} className={`study-plan-block ${block.kind} ${selectedPlanBlock === index ? 'is-selected' : ''}`} onClick={() => setSelectedPlanBlock(index)} role="listitem">
-              <span className="study-plan-block-index">{block.kind === 'long-break' ? 'LB' : index + 1}</span>
-              <span className="study-plan-block-copy"><strong>{block.label}</strong><small>{block.kind === 'long-break' ? `After set ${block.setNumber}` : `${block.kind === 'focus' ? 'Focus block' : 'Recovery block'} · Set ${block.setNumber}`}</small></span>
+              <span className="study-plan-block-index">{index + 1}</span>
+              <span className="study-plan-block-copy"><strong>{block.label}</strong><small>{`${block.kind === 'focus' ? 'Focus block' : 'Recovery block'} · Session ${block.sequence}`}</small></span>
               <span className="study-plan-block-time">{block.minutes}m</span>
             </button>)}
           </div>
 
-          {activePlanBlock && <div className="study-plan-next glass-inner"><span className="study-plan-next-icon">{activePlanBlock.kind === 'focus' ? <Play size={14} /> : <Coffee size={14} />}</span><div><span className="session-small-label">SELECTED BLOCK</span><strong>{activePlanBlock.label} · {activePlanBlock.minutes} min</strong><small>{activePlanBlock.kind === 'long-break' ? 'Take the longer recovery before starting a new Pomodoro set.' : activePlanBlock.kind === 'focus' ? 'Stay on one course goal until this focus block ends.' : 'Step away briefly, reset, then return to the next focus block.'}</small></div></div>}
+          {activePlanBlock && <div className="study-plan-next glass-inner"><span className="study-plan-next-icon">{activePlanBlock.kind === 'focus' ? <Play size={14} /> : <Coffee size={14} />}</span><div><span className="session-small-label">SELECTED BLOCK</span><strong>{activePlanBlock.label} · {activePlanBlock.minutes} min</strong><small>{activePlanBlock.kind === 'focus' ? 'Stay on one course goal until this focus block ends.' : 'Step away briefly, reset, then return to the next focus block.'}</small></div></div>}
         </section>
 
         <section className="session-rhythm glass-card">
