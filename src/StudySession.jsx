@@ -1,5 +1,6 @@
 import { ArrowLeft, Check, Clock3, Coffee, Flame, Pause, Play, RotateCcw, Sparkles, TimerReset, Zap } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+import PomodoroRing from './components/focus/PomodoroRing.jsx';
 import './StudySession.css';
 
 const ACCENT = {
@@ -152,7 +153,6 @@ export default function StudySession({ course, onBack }) {
   const sessionMinutes = Math.floor(sessionSeconds / 60);
   const plan = useMemo(() => buildPlan(studyPlanMode, studyHours, longBreakMinutes), [studyPlanMode, studyHours, longBreakMinutes]);
   const activePlanBlock = plan.blocks[Math.min(selectedPlanBlock, Math.max(0, plan.blocks.length - 1))];
-  const isPomodoroPlan = studyPlanMode === 'pomodoro';
 
   useEffect(() => {
     setSelectedPlanBlock(0);
@@ -188,13 +188,9 @@ export default function StudySession({ course, onBack }) {
           <div className="session-mode-tabs" role="tablist" aria-label="Study duration">
             {Object.entries({ focus: 'Focus', deep: 'Deep', sprint: 'Sprint' }).map(([key, label]) => <button type="button" key={key} className={mode === key ? 'is-selected' : ''} onClick={() => setSessionMode(key)}>{label}<small>{DURATIONS[key] / 60}m</small></button>)}
           </div>
-          <div className={`session-clock-wrap ${isPomodoroPlan ? 'is-pomodoro-plan' : ''}`}>
-            {isPomodoroPlan ? (
-              <div className="pomodoro-fluid-ring" style={{ '--session-progress': `${progress}%` }} aria-label="Pomodoro progress ring">
-                <span className="pomodoro-fluid-ring-glow" aria-hidden="true" />
-                <span className="pomodoro-fluid-ring-flow" aria-hidden="true" />
-                <div className="session-clock"><span>{minutes}:{seconds}</span><small>{finished ? 'Complete' : running ? 'Focus time' : 'Remaining'}</small></div>
-              </div>
+          <div className={`session-clock-wrap${studyPlanMode === 'pomodoro' ? ' is-pomodoro-plan' : ''}`}>
+            {studyPlanMode === 'pomodoro' ? (
+              <PomodoroRing remaining={remaining} total={duration} running={running} label={finished ? 'Complete' : running ? 'Focus time' : 'Remaining'} />
             ) : (
               <div className="session-orbit" style={{ '--session-progress': `${progress}%` }}><div className="session-clock"><span>{minutes}:{seconds}</span><small>{finished ? 'Complete' : running ? 'Focus time' : 'Remaining'}</small></div></div>
             )}
