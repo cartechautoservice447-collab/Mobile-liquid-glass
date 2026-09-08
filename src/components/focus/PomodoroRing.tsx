@@ -1,7 +1,9 @@
+import './PomodoroRing.css';
+
 function formatTime(totalSeconds: number) {
   const safe = Math.max(0, totalSeconds);
-  const minutes = Math.floor(safe / 60).toString().padStart(2, "0");
-  const seconds = (safe % 60).toString().padStart(2, "0");
+  const minutes = Math.floor(safe / 60).toString().padStart(2, '0');
+  const seconds = (safe % 60).toString().padStart(2, '0');
   return `${minutes}:${seconds}`;
 }
 
@@ -20,32 +22,10 @@ export function PomodoroRing({ remaining, total, label }: Props) {
   const dashOffset = circumference * (1 - progress);
 
   return (
-    <div
-      className="relative mx-auto flex size-[280px] max-w-full items-center justify-center rounded-full sm:size-[320px]"
-      style={{
-        backgroundColor: "var(--water-gel-bg)",
-        backdropFilter: "blur(var(--liquid-density, 12px)) saturate(200%) contrast(105%)",
-        border: "1px solid rgba(255, 255, 255, 0.22)",
-        borderTopColor: "rgba(255, 255, 255, 0.4)",
-        boxShadow:
-          "inset 0 2px 3px 0 rgba(255, 255, 255, 0.35), inset 0 -4px 8px 0 rgba(0, 0, 0, 0.2), 0 10px 40px 0 rgba(0, 0, 0, 0.28)",
-      }}
-    >
-      <span
-        aria-hidden
-        className="pointer-events-none absolute inset-0 -z-10 rounded-full"
-        style={{
-          background:
-            "linear-gradient(135deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.02) 55%, rgba(255, 255, 255, 0.09) 100%)",
-        }}
-      />
-      <span
-        aria-hidden
-        className="pointer-events-none absolute inset-0 -z-10 rounded-full border border-white/35 mix-blend-screen opacity-25"
-        style={{ filter: "url(#liquid-refraction)" }}
-      />
-
-      <svg viewBox={`0 0 ${size} ${size}`} className="absolute inset-0 size-full -rotate-90" aria-hidden="true">
+    <div className="pomodoro-ring-new">
+      <span aria-hidden className="pomodoro-ring-sheen" />
+      <span aria-hidden className="pomodoro-ring-refraction" />
+      <svg viewBox={`0 0 ${size} ${size}`} aria-hidden="true">
         <defs>
           <radialGradient id="mercuryPool" cx="50%" cy="50%" r="50%">
             <stop offset="0%" stopColor="rgba(255,255,255,0.9)" />
@@ -55,45 +35,13 @@ export function PomodoroRing({ remaining, total, label }: Props) {
             <feGaussianBlur stdDeviation="10" />
           </filter>
         </defs>
-
-        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="rgba(0,0,0,0.18)" strokeWidth="16" />
-
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          fill="none"
-          stroke="url(#mercuryPool)"
-          strokeWidth="14"
-          strokeLinecap="round"
-          strokeDasharray={circumference}
-          strokeDashoffset={dashOffset}
-          filter="url(#mercurySoftGlow)"
-          opacity="0.85"
-        />
-
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          fill="none"
-          stroke="rgba(255,255,255,0.75)"
-          strokeWidth="4"
-          strokeLinecap="round"
-          strokeDasharray={circumference}
-          strokeDashoffset={dashOffset}
-        />
+        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" className="pomodoro-ring-groove" strokeWidth="16" />
+        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" className="pomodoro-ring-ambient" strokeWidth="14" strokeLinecap="round" strokeDasharray={circumference} strokeDashoffset={dashOffset} />
+        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" className="pomodoro-ring-core-new" strokeWidth="4" strokeLinecap="round" strokeDasharray={circumference} strokeDashoffset={dashOffset} />
       </svg>
-
-      <div className="relative z-10 flex flex-col items-center justify-center text-center">
-        {label && (
-          <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-            {label}
-          </span>
-        )}
-        <span className="mt-1 text-6xl font-semibold tabular-nums tracking-[-0.05em] text-foreground sm:text-7xl">
-          {formatTime(remaining)}
-        </span>
+      <div className="pomodoro-ring-new-content">
+        {label && <span className="pomodoro-ring-new-label">{label}</span>}
+        <span className="pomodoro-ring-new-time">{formatTime(remaining)}</span>
       </div>
     </div>
   );
