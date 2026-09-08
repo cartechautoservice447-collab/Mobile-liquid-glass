@@ -24,9 +24,11 @@ export default function PomodoroModal({ close }) {
   const [running, setRunning] = useState(false);
   const deadlineRef = useRef(null);
   const remainingRef = useRef(duration);
+  const lastWholeSecondRef = useRef(duration);
 
   useEffect(() => {
     remainingRef.current = remaining;
+    lastWholeSecondRef.current = Math.ceil(Math.max(0, remaining));
   }, [remaining]);
 
   useEffect(() => {
@@ -39,11 +41,19 @@ export default function PomodoroModal({ close }) {
 
       const next = Math.max(0, (deadline - performance.now()) / 1000);
       remainingRef.current = next;
-      setRemaining(next);
+
+      // Keep the visible countdown locked to exact elapsed whole seconds.
+      // This removes the apparent delay on the first 25:00 -> 24:59 transition.
+      const wholeSecond = Math.ceil(next);
+      if (wholeSecond !== lastWholeSecondRef.current || next <= 0) {
+        lastWholeSecondRef.current = wholeSecond;
+        setRemaining(next);
+      }
 
       if (next <= 0) {
         deadlineRef.current = null;
         remainingRef.current = 0;
+        lastWholeSecondRef.current = 0;
         setRemaining(0);
         setRunning(false);
         return;
@@ -52,7 +62,9 @@ export default function PomodoroModal({ close }) {
       frame = requestAnimationFrame(tick);
     };
 
-    frame = requestAnimationFrame(tick);
+    // Run once immediately so Start has an active timer frame without waiting
+    // for a later render cycle.
+    tick();
     return () => cancelAnimationFrame(frame);
   }, [running]);
 
@@ -67,6 +79,7 @@ export default function PomodoroModal({ close }) {
     const nextDuration = MODES[nextMode].minutes * 60;
     deadlineRef.current = null;
     remainingRef.current = nextDuration;
+    lastWholeSecondRef.current = nextDuration;
     setMode(nextMode);
     setRemaining(nextDuration);
     setRunning(false);
@@ -75,6 +88,7 @@ export default function PomodoroModal({ close }) {
   const reset = () => {
     deadlineRef.current = null;
     remainingRef.current = duration;
+    lastWholeSecondRef.current = duration;
     setRemaining(duration);
     setRunning(false);
   };
@@ -87,6 +101,7 @@ export default function PomodoroModal({ close }) {
         : Math.max(0, (deadline - performance.now()) / 1000);
       deadlineRef.current = null;
       remainingRef.current = next;
+      lastWholeSecondRef.current = Math.ceil(next);
       setRemaining(next);
       setRunning(false);
       return;
@@ -95,12 +110,14 @@ export default function PomodoroModal({ close }) {
     const next = Math.max(0, remainingRef.current);
     if (next <= 0) {
       remainingRef.current = duration;
+      lastWholeSecondRef.current = duration;
       setRemaining(duration);
       deadlineRef.current = performance.now() + duration * 1000;
       setRunning(true);
       return;
     }
 
+    lastWholeSecondRef.current = Math.ceil(next);
     deadlineRef.current = performance.now() + next * 1000;
     setRunning(true);
   };
