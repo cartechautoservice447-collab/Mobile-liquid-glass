@@ -60,7 +60,6 @@
         arc.setAttribute('stroke-dasharray', `${dash} ${circumference}`);
         arc.setAttribute('stroke-dashoffset', '0');
       });
-      // The SVG itself is rotated -90deg, so angle 0 is the 12 o'clock start.
       const angle = (progress / 100) * Math.PI * 2;
       const x = 160 + 130 * Math.cos(angle);
       const y = 160 + 130 * Math.sin(angle);
@@ -112,10 +111,10 @@
               <filter id="pomodoroDashboardBlurSoft" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="14" /></filter>
             </defs>
             <circle cx="160" cy="160" r="130" fill="none" stroke="rgba(255,255,255,.07)" stroke-width="8" />
-            <circle cx="160" cy="160" r="128" fill="none" stroke="url(#pomodoroMercuryDashboardGradient)" stroke-width="16" stroke-linecap="round" stroke-dasharray="816.81 816.81" stroke-dashoffset="0" filter="url(#pomodoroDashboardBlurSoft)" opacity=".42" data-pomodoro-ring-arc />
-            <circle cx="160" cy="160" r="130" fill="none" stroke="url(#pomodoroMercuryDashboardGradient)" stroke-width="7" stroke-linecap="round" stroke-dasharray="816.81 816.81" stroke-dashoffset="0" filter="url(#pomodoroDashboardBlur)" opacity=".82" data-pomodoro-ring-arc />
-            <circle cx="160" cy="160" r="130" fill="none" stroke="url(#pomodoroMercuryDashboardGradient)" stroke-width="2.7" stroke-linecap="round" stroke-dasharray="816.81 816.81" stroke-dashoffset="0" data-pomodoro-ring-arc />
-            <circle cx="290" cy="160" r="3.5" fill="#ffffff" filter="url(#pomodoroDashboardBlur)" opacity=".72" data-pomodoro-ring-bead />
+            <circle cx="160" cy="160" r="128" fill="none" stroke="url(#pomodoroMercuryDashboardGradient)" stroke-width="16" stroke-linecap="round" stroke-dasharray="816.81 816.81" stroke-dashoffset="0" filter="url(#pomodoroDashboardBlurSoft)" opacity=".30" data-pomodoro-ring-arc />
+            <circle cx="160" cy="160" r="130" fill="none" stroke="url(#pomodoroMercuryDashboardGradient)" stroke-width="9.5" stroke-linecap="round" stroke-dasharray="816.81 816.81" stroke-dashoffset="0" filter="url(#pomodoroDashboardBlur)" opacity=".52" data-pomodoro-ring-arc />
+            <circle cx="160" cy="160" r="130" fill="none" stroke="url(#pomodoroMercuryDashboardGradient)" stroke-width="5.2" stroke-linecap="round" stroke-dasharray="816.81 816.81" stroke-dashoffset="0" opacity=".78" data-pomodoro-ring-arc />
+            <circle cx="290" cy="160" r="3.5" fill="#eefaff" filter="url(#pomodoroDashboardBlur)" opacity=".72" data-pomodoro-ring-bead />
           </svg>
         </div>
         <div class="pomodoro-fluid"><div class="pomodoro-fluid-level"></div></div>
