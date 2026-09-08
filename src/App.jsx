@@ -63,9 +63,7 @@ export default function App() {
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return undefined;
 
-    let handle;
-    const register = async () => {
-      handle = await CapacitorApp.addListener('backButton', async () => {
+    const register = async () => CapacitorApp.addListener('backButton', async () => {
         if (courseCreateOpen) {
           setCourseCreateOpen(false);
           return;
@@ -102,10 +100,9 @@ export default function App() {
             await CapacitorApp.exitApp();
         }
       });
-    };
 
-    register();
-    return () => { handle?.remove(); };
+    const registration = register();
+    return () => { registration.then((handle) => handle.remove()); };
   }, [action, courseCreateOpen, page]);
 
   const { settings, setSetting, reset: resetEngineSettings } = useEngineSettings(session?.user?.id || null);
