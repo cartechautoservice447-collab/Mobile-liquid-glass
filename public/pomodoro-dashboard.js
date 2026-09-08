@@ -67,7 +67,7 @@
       if (bead) {
         bead.setAttribute('cx', x.toFixed(2));
         bead.setAttribute('cy', y.toFixed(2));
-        bead.setAttribute('r', running ? '5' : '3');
+        bead.setAttribute('r', running ? '4' : '2.5');
       }
     }
     const time = mountedModal.querySelector('[data-pomodoro-time]');
@@ -102,19 +102,19 @@
           <svg class="pomodoro-mercury-svg" viewBox="0 0 320 320" aria-hidden="true">
             <defs>
               <linearGradient id="pomodoroMercuryDashboardGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stop-color="#e8f4ff" />
-                <stop offset="35%" stop-color="#9fd8ff" />
-                <stop offset="65%" stop-color="#6fb8ff" />
-                <stop offset="100%" stop-color="#c9ecff" />
+                <stop offset="0%" stop-color="#dff7ff" />
+                <stop offset="32%" stop-color="#8ad8ff" />
+                <stop offset="68%" stop-color="#72baff" />
+                <stop offset="100%" stop-color="#bfeaff" />
               </linearGradient>
-              <filter id="pomodoroDashboardBlur" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="6" /></filter>
-              <filter id="pomodoroDashboardBlurSoft" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="14" /></filter>
+              <filter id="pomodoroDashboardBlur" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="7" /></filter>
+              <filter id="pomodoroDashboardBlurSoft" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="15" /></filter>
             </defs>
             <circle cx="160" cy="160" r="130" fill="none" stroke="rgba(255,255,255,.07)" stroke-width="8" />
-            <circle cx="160" cy="160" r="128" fill="none" stroke="url(#pomodoroMercuryDashboardGradient)" stroke-width="16" stroke-linecap="round" stroke-dasharray="816.81 816.81" stroke-dashoffset="0" filter="url(#pomodoroDashboardBlurSoft)" opacity=".30" data-pomodoro-ring-arc />
-            <circle cx="160" cy="160" r="130" fill="none" stroke="url(#pomodoroMercuryDashboardGradient)" stroke-width="9.5" stroke-linecap="round" stroke-dasharray="816.81 816.81" stroke-dashoffset="0" filter="url(#pomodoroDashboardBlur)" opacity=".52" data-pomodoro-ring-arc />
-            <circle cx="160" cy="160" r="130" fill="none" stroke="url(#pomodoroMercuryDashboardGradient)" stroke-width="5.2" stroke-linecap="round" stroke-dasharray="816.81 816.81" stroke-dashoffset="0" opacity=".78" data-pomodoro-ring-arc />
-            <circle cx="290" cy="160" r="3.5" fill="#eefaff" filter="url(#pomodoroDashboardBlur)" opacity=".72" data-pomodoro-ring-bead />
+            <circle cx="160" cy="160" r="129" fill="none" stroke="url(#pomodoroMercuryDashboardGradient)" stroke-width="14" stroke-linecap="round" stroke-dasharray="816.81 816.81" stroke-dashoffset="0" filter="url(#pomodoroDashboardBlurSoft)" opacity=".26" data-pomodoro-ring-arc class="pomodoro-fluid-arc-ambient" />
+            <circle cx="160" cy="160" r="129" fill="none" stroke="url(#pomodoroMercuryDashboardGradient)" stroke-width="10" stroke-linecap="round" stroke-dasharray="816.81 816.81" stroke-dashoffset="0" filter="url(#pomodoroDashboardBlur)" opacity=".46" data-pomodoro-ring-arc class="pomodoro-fluid-arc-glow" />
+            <circle cx="160" cy="160" r="129" fill="none" stroke="rgba(176,229,255,.72)" stroke-width="5.5" stroke-linecap="round" stroke-dasharray="816.81 816.81" stroke-dashoffset="0" opacity=".52" data-pomodoro-ring-arc class="pomodoro-fluid-arc" />
+            <circle cx="290" cy="160" r="3" fill="#dff8ff" filter="url(#pomodoroDashboardBlur)" opacity=".60" data-pomodoro-ring-bead />
           </svg>
         </div>
         <div class="pomodoro-fluid"><div class="pomodoro-fluid-level"></div></div>
