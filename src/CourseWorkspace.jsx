@@ -1,21 +1,28 @@
+import { useState } from 'react';
 import { BookOpen, FileText, FolderOpen, History, Play, ArrowLeft } from 'lucide-react';
+import CourseOverview from './CourseOverview.jsx';
+import StudySession from './StudySession.jsx';
 import './CourseWorkspace.css';
 
 const ACCENT = {
   sky: '#72d7ff', violet: '#bd86ff', amber: '#ffd166', emerald: '#67e8b1', rose: '#ff88a8', cyan: '#65e6ff',
 };
 
-export default function CourseWorkspace({ course, onBack, onCourses, onCollections, onNotes, onStudySession, onOverview }) {
+export default function CourseWorkspace({ course, onBack, onCourses, onCollections, onNotes }) {
+  const [toolView, setToolView] = useState(null);
   const accent = ACCENT[course.color] || ACCENT.sky;
   const noteCount = course.collections.reduce((sum, collection) => sum + collection.notes.length, 0);
   const collections = course.collections.length;
   const progress = Math.min(100, Math.max(0, course.progress || 0));
 
+  if (toolView === 'study') return <StudySession course={course} onBack={() => setToolView(null)} />;
+  if (toolView === 'overview') return <CourseOverview course={course} onBack={() => setToolView(null)} />;
+
   const tools = [
-    { title: 'Study Session', text: 'Start a focused study session for this course.', icon: <Play size={21} />, onClick: onStudySession },
+    { title: 'Study Session', text: 'Start a focused study session for this course.', icon: <Play size={21} />, onClick: () => setToolView('study') },
     { title: 'Collections', text: 'Organize notes into focused study groups.', icon: <FolderOpen size={21} />, onClick: onCollections },
     { title: 'All Notes', text: 'Open every note stored in this course.', icon: <FileText size={21} />, onClick: onNotes },
-    { title: 'Course Overview', text: 'See this course progress, notes and activity.', icon: <BookOpen size={21} />, onClick: onOverview },
+    { title: 'Course Overview', text: 'See this course progress, notes and activity.', icon: <BookOpen size={21} />, onClick: () => setToolView('overview') },
   ];
 
   return (
