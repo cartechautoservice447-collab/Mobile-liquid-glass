@@ -23,6 +23,8 @@ export function PomodoroRing({ remaining, total, label, running = false }: Props
   const radius = 138;
   const circumference = 2 * Math.PI * radius;
   const dashLength = circumference * progress;
+  const dashGap = Math.max(0, circumference - dashLength);
+  const dashPattern = `${dashLength} ${dashGap}`;
 
   return (
     <div className={`pomodoro-ring-new${running ? ' is-running' : ''}`}>
@@ -72,7 +74,7 @@ export function PomodoroRing({ remaining, total, label, running = false }: Props
           stroke="url(#mercuryPool)"
           strokeWidth="14"
           strokeLinecap="round"
-          strokeDasharray={`${dashLength} ${circumference}`}
+          strokeDasharray={dashPattern}
           strokeDashoffset="0"
           filter="url(#mercurySoftGlow)"
           opacity="0.85"
@@ -88,7 +90,7 @@ export function PomodoroRing({ remaining, total, label, running = false }: Props
             stroke="url(#mercuryFlow)"
             strokeWidth="16"
             strokeLinecap="round"
-            strokeDasharray={`${dashLength} ${circumference}`}
+            strokeDasharray={dashPattern}
             strokeDashoffset="0"
             filter="url(#mercuryFluidGlow)"
             opacity="0.72"
@@ -111,7 +113,7 @@ export function PomodoroRing({ remaining, total, label, running = false }: Props
           className="pomodoro-ring-core-new"
           strokeWidth="5.5"
           strokeLinecap="round"
-          strokeDasharray={`${dashLength} ${circumference}`}
+          strokeDasharray={dashPattern}
           strokeDashoffset="0"
         />
       </svg>
