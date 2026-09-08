@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import './PomodoroRing.css';
 
 function formatTime(totalSeconds: number) {
@@ -18,13 +19,30 @@ type Props = {
 export function PomodoroRing({ remaining, total, label, running = false }: Props) {
   const safeTotal = Math.max(1, Number.isFinite(Number(total)) ? Number(total) : 1);
   const safeRemaining = Math.min(safeTotal, Math.max(0, Number.isFinite(Number(remaining)) ? Number(remaining) : 0));
-  const progress = safeRemaining / safeTotal;
+  const displayRemaining = Math.min(safeTotal, Math.max(0, Math.ceil(safeRemaining)));
+  const progress = displayRemaining / safeTotal;
   const size = 320;
   const radius = 138;
   const circumference = 2 * Math.PI * radius;
-  const dashLength = circumference * progress;
-  const dashGap = Math.max(0, circumference - dashLength);
-  const dashPattern = `${dashLength} ${dashGap}`;
+  const dashOffset = circumference * (1 - progress);
+  const dashArray = circumference;
+  const [hasTicked, setHasTicked] = useState(false);
+  const previousSecond = useRef(displayRemaining);
+
+  useEffect(() => {
+    if (!running) {
+      setHasTicked(false);
+      previousSecond.current = displayRemaining;
+      return;
+    }
+
+    if (displayRemaining !== previousSecond.current) {
+      setHasTicked(true);
+      previousSecond.current = displayRemaining;
+    }
+  }, [displayRemaining, running]);
+
+  const progressTransition = hasTicked ? 'stroke-dashoffset 1s linear' : 'none';
 
   return (
     <div className={`pomodoro-ring-new${running ? ' is-running' : ''}`}>
@@ -62,10 +80,10 @@ export function PomodoroRing({ remaining, total, label, running = false }: Props
           </filter>
         </defs>
 
-        {/* Static glass groove; the progress layers below shrink from 12 o'clock clockwise. */}
+        {/* Static glass groove */}
         <circle cx={size / 2} cy={size / 2} r={radius} fill="none" className="pomodoro-ring-groove" strokeWidth="16" />
 
-        {/* Ambient blurred glow, synchronized to the remaining progress */}
+        {/* Ambient blurred progress */}
         <circle
           cx={size / 2}
           cy={size / 2}
@@ -74,13 +92,14 @@ export function PomodoroRing({ remaining, total, label, running = false }: Props
           stroke="url(#mercuryPool)"
           strokeWidth="14"
           strokeLinecap="round"
-          strokeDasharray={dashPattern}
-          strokeDashoffset="0"
+          strokeDasharray={dashArray}
+          strokeDashoffset={dashOffset}
           filter="url(#mercurySoftGlow)"
           opacity="0.85"
+          style={{ transition: progressTransition }}
         />
 
-        {/* Soft flowing ambient fluid locked to the exact progress arc */}
+        {/* Soft flowing fluid progress */}
         {running && (
           <circle
             cx={size / 2}
@@ -90,10 +109,11 @@ export function PomodoroRing({ remaining, total, label, running = false }: Props
             stroke="url(#mercuryFlow)"
             strokeWidth="16"
             strokeLinecap="round"
-            strokeDasharray={dashPattern}
-            strokeDashoffset="0"
+            strokeDasharray={dashArray}
+            strokeDashoffset={dashOffset}
             filter="url(#mercuryFluidGlow)"
             opacity="0.72"
+            style={{ transition: progressTransition }}
           >
             <animate
               attributeName="opacity"
@@ -104,7 +124,7 @@ export function PomodoroRing({ remaining, total, label, running = false }: Props
           </circle>
         )}
 
-        {/* Bright frosted progress core — exact same remaining fraction as the timer */}
+        {/* Bright frosted progress core */}
         <circle
           cx={size / 2}
           cy={size / 2}
@@ -113,13 +133,14 @@ export function PomodoroRing({ remaining, total, label, running = false }: Props
           className="pomodoro-ring-core-new"
           strokeWidth="5.5"
           strokeLinecap="round"
-          strokeDasharray={dashPattern}
-          strokeDashoffset="0"
+          strokeDasharray={dashArray}
+          strokeDashoffset={dashOffset}
+          style={{ transition: progressTransition }}
         />
       </svg>
       <div className="pomodoro-ring-new-content">
         {label && <span className="pomodoro-ring-new-label">{label}</span>}
-        <span className="pomodoro-ring-new-time">{formatTime(safeRemaining)}</span>
+        <span className="pomodoro-ring-new-time">{formatTime(displayRemaining)}</span>
       </div>
     </div>
   );
