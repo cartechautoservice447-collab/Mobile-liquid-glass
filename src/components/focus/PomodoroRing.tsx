@@ -38,8 +38,45 @@ export function PomodoroRing({ remaining, total, label, running = false }: Props
             <feGaussianBlur stdDeviation="10" />
           </filter>
         </defs>
+
         <circle cx={size / 2} cy={size / 2} r={radius} fill="none" className="pomodoro-ring-groove" strokeWidth="16" />
-        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" className="pomodoro-ring-ambient" strokeWidth="14" strokeLinecap="round" strokeDasharray={circumference} strokeDashoffset={dashOffset} />
+
+        {/* Ambient blurred glow, sits inside the groove */}
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke="url(#mercuryPool)"
+          strokeWidth="14"
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          strokeDashoffset={dashOffset}
+          filter="url(#mercurySoftGlow)"
+          opacity="0.85"
+        />
+
+        {/* Traveling ambient light, orbits inside the groove while running */}
+        {running && (
+          <circle
+            r="20"
+            fill="url(#mercuryPool)"
+            filter="url(#mercurySoftGlow)"
+          >
+            <animateMotion
+              dur="6s"
+              repeatCount="indefinite"
+              path={`M ${size / 2},${size / 2 - radius} A ${radius},${radius} 0 1,1 ${size / 2 - 0.01},${size / 2 - radius}`}
+            />
+            <animate
+              attributeName="opacity"
+              values="0.35;0.9;0.35"
+              dur="2.4s"
+              repeatCount="indefinite"
+            />
+          </circle>
+        )}
+
         <circle cx={size / 2} cy={size / 2} r={radius} fill="none" className="pomodoro-ring-core-new" strokeWidth="5.5" strokeLinecap="round" strokeDasharray={circumference} strokeDashoffset={dashOffset} />
       </svg>
       <div className="pomodoro-ring-new-content">
