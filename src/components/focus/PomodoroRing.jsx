@@ -19,41 +19,33 @@ export default function PomodoroRing({ remaining, total, running, label }) {
       <svg viewBox={`0 0 ${size} ${size}`} className="pomodoro-ring-svg" aria-hidden="true">
         <defs>
           <linearGradient id="pomodoroMercuryGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#e8f4ff" />
-            <stop offset="35%" stopColor="#9fd8ff" />
-            <stop offset="65%" stopColor="#6fb8ff" />
-            <stop offset="100%" stopColor="#c9ecff" />
+            <stop offset="0%" stopColor="#dff7ff" />
+            <stop offset="32%" stopColor="#8ad8ff" />
+            <stop offset="68%" stopColor="#72baff" />
+            <stop offset="100%" stopColor="#bfeaff" />
           </linearGradient>
           <filter id="pomodoroMercuryBlur" x="-50%" y="-50%" width="200%" height="200%">
-            <feGaussianBlur stdDeviation="8" result="blur" />
+            <feGaussianBlur stdDeviation="7" result="blur" />
           </filter>
           <filter id="pomodoroMercuryBlurSoft" x="-50%" y="-50%" width="200%" height="200%">
-            <feGaussianBlur stdDeviation="16" result="blur" />
+            <feGaussianBlur stdDeviation="15" result="blur" />
           </filter>
         </defs>
 
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="8"
-          className="pomodoro-ring-track"
-        />
+        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="currentColor" strokeWidth="8" className="pomodoro-ring-track" />
 
         <circle
           cx={size / 2}
           cy={size / 2}
-          r={radius - 2}
+          r={radius - 1}
           fill="none"
           stroke="url(#pomodoroMercuryGradient)"
-          strokeWidth="16"
+          strokeWidth="18"
           strokeLinecap="round"
           strokeDasharray={`${dashLength} ${circumference}`}
           strokeDashoffset="0"
           filter="url(#pomodoroMercuryBlurSoft)"
-          opacity={running ? 0.34 : 0.22}
+          opacity={running ? 0.30 : 0.20}
           className="pomodoro-ring-ambient"
         />
 
@@ -63,12 +55,12 @@ export default function PomodoroRing({ remaining, total, running, label }) {
           r={radius}
           fill="none"
           stroke="url(#pomodoroMercuryGradient)"
-          strokeWidth="9.5"
+          strokeWidth="11"
           strokeLinecap="round"
           strokeDasharray={`${dashLength} ${circumference}`}
           strokeDashoffset="0"
           filter="url(#pomodoroMercuryBlur)"
-          opacity={running ? 0.56 : 0.36}
+          opacity={running ? 0.44 : 0.30}
           className="pomodoro-ring-glow"
         />
 
@@ -77,12 +69,12 @@ export default function PomodoroRing({ remaining, total, running, label }) {
           cy={size / 2}
           r={radius}
           fill="none"
-          stroke="url(#pomodoroMercuryGradient)"
-          strokeWidth="5.2"
+          stroke="rgba(176,229,255,.68)"
+          strokeWidth="7"
           strokeLinecap="round"
           strokeDasharray={`${dashLength} ${circumference}`}
           strokeDashoffset="0"
-          opacity={running ? 0.78 : 0.6}
+          opacity={running ? 0.52 : 0.42}
           className="pomodoro-ring-core"
         />
 
@@ -90,20 +82,13 @@ export default function PomodoroRing({ remaining, total, running, label }) {
           <circle
             cx={size / 2 + radius * Math.cos(tipAngle)}
             cy={size / 2 + radius * Math.sin(tipAngle)}
-            r={running ? 4.5 : 3}
-            fill="#effaff"
+            r={running ? 4 : 2.5}
+            fill="#dff8ff"
             filter="url(#pomodoroMercuryBlur)"
             className="pomodoro-ring-bead"
-            opacity={running ? 0.8 : 0.5}
+            opacity={running ? 0.60 : 0.42}
           >
-            {running && (
-              <animate
-                attributeName="r"
-                values="4;5.5;4"
-                dur="2.6s"
-                repeatCount="indefinite"
-              />
-            )}
+            {running && <animate attributeName="r" values="3.5;4.5;3.5" dur="2.8s" repeatCount="indefinite" />}
           </circle>
         )}
       </svg>
