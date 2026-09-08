@@ -31,10 +31,9 @@ export function PomodoroRing({ remaining, total, label, running = false }: Props
 
   const idBase = useId().replace(/:/g, '');
   const glowId = `${idBase}-glow`;
-  const dotGlowId = `${idBase}-dot-glow`;
 
-  // The SVG is rotated -90deg so the arc opens from the top as the countdown runs.
-  // Keep the white glow marker fixed at the bottom-center; it never follows the arc.
+  // The SVG is rotated -90deg so the countdown starts at the top.
+  // The marker stays fixed at bottom-center and never follows the arc.
   const fixedDotX = size / 2 - radius;
   const fixedDotY = size / 2;
 
@@ -48,9 +47,6 @@ export function PomodoroRing({ remaining, total, label, running = false }: Props
               <feMergeNode in="blur" />
               <feMergeNode in="SourceGraphic" />
             </feMerge>
-          </filter>
-          <filter id={dotGlowId} x="-200%" y="-200%" width="500%" height="500%">
-            <feGaussianBlur stdDeviation="4" />
           </filter>
         </defs>
 
@@ -73,7 +69,6 @@ export function PomodoroRing({ remaining, total, label, running = false }: Props
           cy={fixedDotY}
           r="7"
           fill="#ffffff"
-          filter={`url(#${dotGlowId})`}
           className="pomodoro-ring-dot"
         />
       </svg>
