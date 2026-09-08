@@ -3,15 +3,18 @@
 .pomodoro-ring-svg{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;display:block!important;transform:rotate(-90deg);transform-origin:center;overflow:visible;pointer-events:none}
 .pomodoro-ring-track{color:rgba(255,255,255,.07)}
 .pomodoro-ring-ambient,.pomodoro-ring-glow,.pomodoro-ring-core,.pomodoro-ring-bead{vector-effect:non-scaling-stroke}
-.pomodoro-ring-ambient,.pomodoro-ring-glow,.pomodoro-ring-core{transition:stroke-dasharray 1s linear,opacity .35s ease-out}
-.pomodoro-ring-ambient{stroke-width:19!important;opacity:.42;filter:drop-shadow(0 0 10px rgba(159,216,255,.20))}
-.pomodoro-ring-glow{stroke-width:10!important;opacity:.72;filter:drop-shadow(0 0 6px rgba(159,216,255,.20))}
-.pomodoro-ring-core{stroke-width:5.2!important;opacity:.94;filter:drop-shadow(0 0 2px rgba(200,235,255,.24))}
-.pomodoro-ring-bead{transition:opacity .3s ease-out;filter:drop-shadow(0 0 5px rgba(190,235,255,.30))}
+.pomodoro-ring-ambient,.pomodoro-ring-glow,.pomodoro-ring-core{transition:stroke-dasharray .12s linear,opacity .25s ease-out;will-change:stroke-dasharray}
+.pomodoro-ring-ambient{stroke-width:19!important;opacity:.20;filter:drop-shadow(0 0 12px rgba(159,216,255,.14))}
+.pomodoro-ring-glow{stroke-width:10!important;opacity:.30;filter:drop-shadow(0 0 7px rgba(159,216,255,.18))}
+.pomodoro-ring-core{stroke-width:7!important;opacity:.42;filter:none}
+.pomodoro-ring-is-running .pomodoro-ring-ambient{opacity:.34!important}
+.pomodoro-ring-is-running .pomodoro-ring-glow{opacity:.50!important}
+.pomodoro-ring-is-running .pomodoro-ring-core{opacity:.60!important}
+.pomodoro-ring-bead{transition:opacity .25s ease-out;filter:drop-shadow(0 0 4px rgba(190,235,255,.20))}
 .pomodoro-ring-content{position:absolute!important;inset:0!important;z-index:2!important;width:100%!important;height:100%!important;display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;text-align:center!important;min-width:0;color:#f5fbff;pointer-events:none;box-sizing:border-box}
-.pomodoro-ring-label{display:block;margin:0 0 4px;color:rgba(225,243,255,.50);font-size:10px;line-height:1;font-weight:650;letter-spacing:.2em;text-transform:uppercase}
-.pomodoro-ring-time{display:block;margin:0;color:#f7fbff;font-size:clamp(42px,7vw,70px);line-height:1!important;font-weight:650;letter-spacing:-.05em;font-variant-numeric:tabular-nums;white-space:nowrap;text-shadow:0 0 12px rgba(159,216,255,.08)}
-@media(max-width:620px){.pomodoro-ring{width:min(280px,100%)!important;height:min(280px,100%)!important}.pomodoro-ring-time{font-size:54px}.pomodoro-ring-ambient{stroke-width:18!important}.pomodoro-ring-glow{stroke-width:9!important}.pomodoro-ring-core{stroke-width:4.6!important}}
+.pomodoro-ring-label{display:block;margin:0 0 4px;color:rgba(225,243,255,.48);font-size:10px;line-height:1;font-weight:650;letter-spacing:.2em;text-transform:uppercase}
+.pomodoro-ring-time{display:block;margin:0;color:#f7fbff;font-size:clamp(42px,7vw,70px);line-height:1!important;font-weight:650;letter-spacing:-.05em;font-variant-numeric:tabular-nums;white-space:nowrap;text-shadow:0 0 12px rgba(159,216,255,.07)}
+@media(max-width:620px){.pomodoro-ring{width:min(280px,100%)!important;height:min(280px,100%)!important}.pomodoro-ring-time{font-size:54px}.pomodoro-ring-ambient{stroke-width:18!important}.pomodoro-ring-glow{stroke-width:10!important}.pomodoro-ring-core{stroke-width:6.5!important}}
 @media(max-width:430px){.pomodoro-ring{width:min(280px,100%)!important;height:min(280px,100%)!important}.pomodoro-ring-time{font-size:46px}.pomodoro-ring-label{font-size:8px}}
 @media(prefers-reduced-motion:reduce){.pomodoro-ring-ambient,.pomodoro-ring-glow,.pomodoro-ring-core,.pomodoro-ring-bead{transition:none}}
 .pomodoro-modal .pomodoro-ring{position:absolute!important;inset:0!important;width:auto!important;height:auto!important;min-width:0!important;min-height:0!important;aspect-ratio:auto!important;margin:0!important;display:block!important;flex:none!important;transform:none!important;overflow:visible!important}
