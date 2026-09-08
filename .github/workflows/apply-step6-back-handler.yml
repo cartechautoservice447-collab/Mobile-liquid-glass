@@ -1,6 +1,9 @@
 name: Apply Step 6 back handler
 
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
