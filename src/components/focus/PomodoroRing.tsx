@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { useId } from 'react';
 import './PomodoroRing.css';
 
 function formatTime(totalSeconds: number) {
@@ -19,42 +19,17 @@ type Props = {
 export function PomodoroRing({ remaining, total, label, running = false }: Props) {
   const safeTotal = Math.max(1, Number.isFinite(Number(total)) ? Number(total) : 1);
   const safeRemaining = Math.min(safeTotal, Math.max(0, Number.isFinite(Number(remaining)) ? Number(remaining) : 0));
-  const displayRemaining = Math.min(safeTotal, Math.max(0, Math.ceil(safeRemaining)));
-  const progress = displayRemaining / safeTotal;
+  const progress = safeRemaining / safeTotal;
   const size = 320;
   const radius = 138;
   const circumference = 2 * Math.PI * radius;
   const dashOffset = circumference * (1 - progress);
   const dashArray = circumference;
-  const [hasTicked, setHasTicked] = useState(false);
-  const previousSecond = useRef(displayRemaining);
   const idBase = useId().replace(/:/g, '');
   const mercuryPoolId = `${idBase}-mercury-pool`;
   const mercuryFlowId = `${idBase}-mercury-flow`;
   const mercurySoftGlowId = `${idBase}-mercury-soft-glow`;
   const mercuryFluidGlowId = `${idBase}-mercury-fluid-glow`;
-
-  useEffect(() => {
-    if (!running) {
-      setHasTicked(false);
-      previousSecond.current = displayRemaining;
-      return;
-    }
-
-    // Enable the transition as soon as Start is pressed. The current
-    // dashOffset is still at the initial position, so the first real
-    // countdown update (25:00 -> 24:59) receives the full 1-second motion.
-    setHasTicked(true);
-  }, [running]);
-
-  useEffect(() => {
-    if (!running) return;
-    if (displayRemaining !== previousSecond.current) {
-      previousSecond.current = displayRemaining;
-    }
-  }, [displayRemaining, running]);
-
-  const progressTransition = hasTicked ? 'stroke-dashoffset 1s linear' : 'none';
 
   return (
     <div className={`pomodoro-ring-new${running ? ' is-running' : ''}`}>
@@ -106,7 +81,6 @@ export function PomodoroRing({ remaining, total, label, running = false }: Props
           strokeDashoffset={dashOffset}
           filter={`url(#${mercurySoftGlowId})`}
           opacity="0.85"
-          style={{ transition: progressTransition }}
         />
 
         {running && (
@@ -122,7 +96,6 @@ export function PomodoroRing({ remaining, total, label, running = false }: Props
             strokeDashoffset={dashOffset}
             filter={`url(#${mercuryFluidGlowId})`}
             opacity="0.72"
-            style={{ transition: progressTransition }}
           >
             <animate
               attributeName="opacity"
@@ -143,12 +116,11 @@ export function PomodoroRing({ remaining, total, label, running = false }: Props
           strokeLinecap="round"
           strokeDasharray={dashArray}
           strokeDashoffset={dashOffset}
-          style={{ transition: progressTransition }}
         />
       </svg>
       <div className="pomodoro-ring-new-content">
         {label && <span className="pomodoro-ring-new-label">{label}</span>}
-        <span className="pomodoro-ring-new-time">{formatTime(displayRemaining)}</span>
+        <span className="pomodoro-ring-new-time">{formatTime(safeRemaining)}</span>
       </div>
     </div>
   );
