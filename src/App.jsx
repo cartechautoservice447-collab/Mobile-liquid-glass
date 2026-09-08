@@ -1,5 +1,7 @@
 import { motion } from 'motion/react';
 import { useEffect, useMemo, useState } from 'react';
+import { Capacitor } from '@capacitor/core';
+import { App as CapacitorApp } from '@capacitor/app';
 import { BookOpen, FileText, Folder, History, Moon, Plus, Settings2, Sparkles, Sun, Trash2, User, X, Zap } from 'lucide-react';
 import { isSupabaseConfigured, supabase } from './lib/supabase.js';
 import { DEFAULT_COURSE } from './courseDefaults.js';
@@ -57,6 +59,54 @@ export default function App() {
     const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => setSession(nextSession));
     return () => { active = false; listener.subscription.unsubscribe(); };
   }, []);
+
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return undefined;
+
+    let handle;
+    const register = async () => {
+      handle = await CapacitorApp.addListener('backButton', async () => {
+        if (courseCreateOpen) {
+          setCourseCreateOpen(false);
+          return;
+        }
+
+        if (action) {
+          setAction(null);
+          return;
+        }
+
+        switch (page) {
+          case 'editor':
+            setSelectedNoteId(null);
+            setPage('notes');
+            break;
+          case 'notes':
+            setPage('collections');
+            break;
+          case 'collections':
+            setPage('course-workspace');
+            break;
+          case 'course-notes':
+            setPage('course-workspace');
+            break;
+          case 'course-workspace':
+            setSelectedCollectionId(null);
+            setSelectedNoteId(null);
+            setPage('workspace');
+            break;
+          case 'courses':
+            setPage('workspace');
+            break;
+          default:
+            await CapacitorApp.exitApp();
+        }
+      });
+    };
+
+    register();
+    return () => { handle?.remove(); };
+  }, [action, courseCreateOpen, page]);
 
   const { settings, setSetting, reset: resetEngineSettings } = useEngineSettings(session?.user?.id || null);
   const performance = settings.performance;
