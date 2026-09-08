@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "cap:sync": "cap sync",
+    "cap:sync": "npm run build && cap sync android",
     "cap:android": "cap open android"
   },
   "dependencies": {
@@ -22,7 +22,7 @@
   "devDependencies": {
     "@capacitor/cli": "^8.0.0",
     "@vitejs/plugin-react": "^5.2.0",
-    "typescript": "^5.9.3",
+    "typescript": "^5.9.2",
     "vite": "^8.2.0"
   }
 }
