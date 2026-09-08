@@ -46,6 +46,7 @@ function buildPlan(type, totalHours, longBreakMinutes) {
   const plan = STUDY_PLANS[type];
   const targetMinutes = Math.max(60, Math.min(300, Math.round(totalHours * 60)));
   const blocks = [];
+  let coreElapsed = 0;
   let elapsed = 0;
   let focusMinutes = 0;
   let restMinutes = 0;
@@ -53,46 +54,35 @@ function buildPlan(type, totalHours, longBreakMinutes) {
   let pomodorosInSet = 0;
   let setNumber = 1;
 
-  while (elapsed + plan.focus + plan.rest <= targetMinutes) {
-    sequence += 1;
-    pomodorosInSet += 1;
-    blocks.push({
-      id: `${type}-focus-${sequence}`,
-      kind: 'focus',
-      label: 'Focus',
-      minutes: plan.focus,
-      sequence,
-      setNumber,
-    });
-    focusMinutes += plan.focus;
-    elapsed += plan.focus;
+  if (type === 'pomodoro') {
+    const pomodoroCount = Math.max(1, Math.floor(targetMinutes / plan.cycle));
+    for (let index = 0; index < pomodoroCount; index += 1) {
+      sequence += 1;
+      pomodorosInSet += 1;
+      blocks.push({ id: `${type}-focus-${sequence}`, kind: 'focus', label: 'Focus', minutes: plan.focus, sequence, setNumber });
+      blocks.push({ id: `${type}-rest-${sequence}`, kind: 'rest', label: 'Rest', minutes: plan.rest, sequence, setNumber });
+      focusMinutes += plan.focus;
+      restMinutes += plan.rest;
+      coreElapsed += plan.cycle;
+      elapsed += plan.cycle;
 
-    blocks.push({
-      id: `${type}-rest-${sequence}`,
-      kind: 'rest',
-      label: 'Rest',
-      minutes: plan.rest,
-      sequence,
-      setNumber,
-    });
-    restMinutes += plan.rest;
-    elapsed += plan.rest;
-
-    if (type === 'pomodoro' && pomodorosInSet === 4) {
-      if (elapsed + longBreakMinutes <= targetMinutes || elapsed <= targetMinutes) {
-        blocks.push({
-          id: `${type}-long-break-${setNumber}`,
-          kind: 'long-break',
-          label: 'Long Break',
-          minutes: longBreakMinutes,
-          sequence: setNumber,
-          setNumber,
-        });
+      if (pomodorosInSet === 4) {
+        blocks.push({ id: `${type}-long-break-${setNumber}`, kind: 'long-break', label: 'Long Break', minutes: longBreakMinutes, sequence: setNumber, setNumber });
         restMinutes += longBreakMinutes;
         elapsed += longBreakMinutes;
+        pomodorosInSet = 0;
+        setNumber += 1;
       }
-      pomodorosInSet = 0;
-      setNumber += 1;
+    }
+  } else {
+    while (elapsed + plan.cycle <= targetMinutes) {
+      sequence += 1;
+      blocks.push({ id: `${type}-focus-${sequence}`, kind: 'focus', label: 'Focus', minutes: plan.focus, sequence, setNumber: 1 });
+      blocks.push({ id: `${type}-rest-${sequence}`, kind: 'rest', label: 'Rest', minutes: plan.rest, sequence, setNumber: 1 });
+      focusMinutes += plan.focus;
+      restMinutes += plan.rest;
+      elapsed += plan.cycle;
+      coreElapsed = elapsed;
     }
   }
 
@@ -101,18 +91,21 @@ function buildPlan(type, totalHours, longBreakMinutes) {
     blocks.push({ id: `${type}-rest-1`, kind: 'rest', label: 'Rest', minutes: plan.rest, sequence: 1, setNumber: 1 });
     focusMinutes = plan.focus;
     restMinutes = plan.rest;
-    elapsed = plan.focus + plan.rest;
+    coreElapsed = plan.cycle;
+    elapsed = plan.cycle;
   }
 
   const cycles = blocks.filter((block) => block.kind === 'focus').length;
   const longBreaks = blocks.filter((block) => block.kind === 'long-break').length;
-  const leftoverMinutes = Math.max(0, targetMinutes - elapsed);
+  const leftoverMinutes = type === 'pomodoro' ? 0 : Math.max(0, targetMinutes - coreElapsed);
+  const overTargetMinutes = type === 'pomodoro' ? Math.max(0, elapsed - targetMinutes) : 0;
 
   return {
     blocks,
     targetMinutes,
     elapsedMinutes: elapsed,
     leftoverMinutes,
+    overTargetMinutes,
     focusMinutes,
     restMinutes,
     cycles,
@@ -157,7 +150,6 @@ export default function StudySession({ course, onBack }) {
   const minutes = Math.floor(remaining / 60).toString().padStart(2, '0');
   const seconds = (remaining % 60).toString().padStart(2, '0');
   const sessionMinutes = Math.floor(sessionSeconds / 60);
-
   const plan = useMemo(() => buildPlan(studyPlanMode, studyHours, longBreakMinutes), [studyPlanMode, studyHours, longBreakMinutes]);
   const activePlanBlock = plan.blocks[Math.min(selectedPlanBlock, Math.max(0, plan.blocks.length - 1))];
 
@@ -239,7 +231,7 @@ export default function StudySession({ course, onBack }) {
           {studyPlanMode === 'pomodoro' && <div className="study-plan-break-editor"><div><span className="session-small-label">LONG BREAK</span><strong>{longBreakMinutes} min</strong><small>After every 4 Pomodoros</small></div><input type="range" min="15" max="30" step="5" value={longBreakMinutes} onChange={(event) => setLongBreakMinutes(Number(event.target.value))} aria-label="Pomodoro long break from fifteen to thirty minutes" /><div className="study-plan-break-values"><span>15 min</span><span>30 min</span></div></div>}
 
           <div className="study-plan-summary">
-            <div className="study-plan-summary-main"><span className="session-small-label">AUTO-GENERATED SCHEDULE</span><strong>{plan.cycles} {studyPlanMode === 'pomodoro' ? 'Pomodoros' : 'sessions'}</strong><span>{plan.focusMinutes} min focus · {plan.restMinutes} min recovery · {plan.leftoverMinutes ? `${plan.leftoverMinutes} min planning buffer` : 'matches target'}</span></div>
+            <div className="study-plan-summary-main"><span className="session-small-label">AUTO-GENERATED SCHEDULE</span><strong>{plan.cycles} {studyPlanMode === 'pomodoro' ? 'Pomodoros' : 'sessions'}</strong><span>{plan.focusMinutes} min focus · {plan.restMinutes} min recovery · {plan.overTargetMinutes ? `${plan.overTargetMinutes} min extra recovery` : plan.leftoverMinutes ? `${plan.leftoverMinutes} min planning buffer` : 'matches target'}</span></div>
             <div className="study-plan-summary-stats"><span><b>{Math.floor(plan.elapsedMinutes / 60)}h {plan.elapsedMinutes % 60}m</b><small>planned</small></span><span><b>{plan.longBreaks}</b><small>long breaks</small></span></div>
           </div>
 
