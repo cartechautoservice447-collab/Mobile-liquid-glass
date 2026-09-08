@@ -11,8 +11,8 @@ export default function PomodoroRing({ remaining, total, running, label }) {
   const size = 320;
   const radius = 130;
   const circumference = 2 * Math.PI * radius;
-  const dashOffset = circumference * (1 - progress);
-  const tipAngle = 2 * Math.PI * progress - Math.PI / 2;
+  const dashLength = circumference * progress;
+  const tipAngle = 2 * Math.PI * progress;
 
   return (
     <div className="pomodoro-ring">
@@ -50,8 +50,8 @@ export default function PomodoroRing({ remaining, total, running, label }) {
           stroke="url(#pomodoroMercuryGradient)"
           strokeWidth="14"
           strokeLinecap="round"
-          strokeDasharray={circumference}
-          strokeDashoffset={dashOffset}
+          strokeDasharray={`${dashLength} ${circumference}`}
+          strokeDashoffset="0"
           filter="url(#pomodoroMercuryBlurSoft)"
           opacity={running ? 0.55 : 0.3}
           className="pomodoro-ring-ambient"
@@ -65,8 +65,8 @@ export default function PomodoroRing({ remaining, total, running, label }) {
           stroke="url(#pomodoroMercuryGradient)"
           strokeWidth="6"
           strokeLinecap="round"
-          strokeDasharray={circumference}
-          strokeDashoffset={dashOffset}
+          strokeDasharray={`${dashLength} ${circumference}`}
+          strokeDashoffset="0"
           filter="url(#pomodoroMercuryBlur)"
           opacity={running ? 0.9 : 0.5}
           className="pomodoro-ring-glow"
@@ -80,8 +80,8 @@ export default function PomodoroRing({ remaining, total, running, label }) {
           stroke="url(#pomodoroMercuryGradient)"
           strokeWidth="2.5"
           strokeLinecap="round"
-          strokeDasharray={circumference}
-          strokeDashoffset={dashOffset}
+          strokeDasharray={`${dashLength} ${circumference}`}
+          strokeDashoffset="0"
           className="pomodoro-ring-core"
         />
 
