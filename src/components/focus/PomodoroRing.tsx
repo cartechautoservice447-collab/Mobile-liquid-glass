@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import './PomodoroRing.css';
 
 function formatTime(totalSeconds: number) {
@@ -28,6 +28,11 @@ export function PomodoroRing({ remaining, total, label, running = false }: Props
   const dashArray = circumference;
   const [hasTicked, setHasTicked] = useState(false);
   const previousSecond = useRef(displayRemaining);
+  const idBase = useId().replace(/:/g, '');
+  const mercuryPoolId = `${idBase}-mercury-pool`;
+  const mercuryFlowId = `${idBase}-mercury-flow`;
+  const mercurySoftGlowId = `${idBase}-mercury-soft-glow`;
+  const mercuryFluidGlowId = `${idBase}-mercury-fluid-glow`;
 
   useEffect(() => {
     if (!running) {
@@ -50,11 +55,11 @@ export function PomodoroRing({ remaining, total, label, running = false }: Props
       <span aria-hidden className="pomodoro-ring-refraction" />
       <svg viewBox={`0 0 ${size} ${size}`} aria-hidden="true">
         <defs>
-          <radialGradient id="mercuryPool" cx="50%" cy="50%" r="50%">
+          <radialGradient id={mercuryPoolId} cx="50%" cy="50%" r="50%">
             <stop offset="0%" stopColor="rgba(255,255,255,0.9)" />
             <stop offset="100%" stopColor="rgba(255,255,255,0.35)" />
           </radialGradient>
-          <linearGradient id="mercuryFlow" x1="0" y1="0" x2={size} y2={size} gradientUnits="userSpaceOnUse">
+          <linearGradient id={mercuryFlowId} x1="0" y1="0" x2={size} y2={size} gradientUnits="userSpaceOnUse">
             <stop offset="0%" stopColor="rgba(255,255,255,0.12)" />
             <stop offset="18%" stopColor="rgba(255,255,255,0.75)" />
             <stop offset="34%" stopColor="rgba(255,255,255,0.18)" />
@@ -72,10 +77,10 @@ export function PomodoroRing({ remaining, total, label, running = false }: Props
               />
             )}
           </linearGradient>
-          <filter id="mercurySoftGlow" x="-60%" y="-60%" width="220%" height="220%">
+          <filter id={mercurySoftGlowId} x="-60%" y="-60%" width="220%" height="220%">
             <feGaussianBlur stdDeviation="10" />
           </filter>
-          <filter id="mercuryFluidGlow" x="-60%" y="-60%" width="220%" height="220%">
+          <filter id={mercuryFluidGlowId} x="-60%" y="-60%" width="220%" height="220%">
             <feGaussianBlur stdDeviation="7" />
           </filter>
         </defs>
@@ -89,12 +94,12 @@ export function PomodoroRing({ remaining, total, label, running = false }: Props
           cy={size / 2}
           r={radius}
           fill="none"
-          stroke="url(#mercuryPool)"
+          stroke={`url(#${mercuryPoolId})`}
           strokeWidth="14"
           strokeLinecap="round"
           strokeDasharray={dashArray}
           strokeDashoffset={dashOffset}
-          filter="url(#mercurySoftGlow)"
+          filter={`url(#${mercurySoftGlowId})`}
           opacity="0.85"
           style={{ transition: progressTransition }}
         />
@@ -106,12 +111,12 @@ export function PomodoroRing({ remaining, total, label, running = false }: Props
             cy={size / 2}
             r={radius}
             fill="none"
-            stroke="url(#mercuryFlow)"
+            stroke={`url(#${mercuryFlowId})`}
             strokeWidth="16"
             strokeLinecap="round"
             strokeDasharray={dashArray}
             strokeDashoffset={dashOffset}
-            filter="url(#mercuryFluidGlow)"
+            filter={`url(#${mercuryFluidGlowId})`}
             opacity="0.72"
             style={{ transition: progressTransition }}
           >
