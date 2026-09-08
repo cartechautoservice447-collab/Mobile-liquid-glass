@@ -1,6 +1,6 @@
 import { ArrowLeft, Check, Clock3, Coffee, Flame, Pause, Play, RotateCcw, Sparkles, TimerReset, Zap } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import PomodoroRing from './components/focus/PomodoroRing.jsx';
+import PomodoroPanel from './components/focus/PomodoroPanel.jsx';
 import './StudySession.css';
 
 const ACCENT = {
@@ -258,12 +258,15 @@ export default function StudySession({ course, onBack }) {
     setFinished(true);
   };
 
-  const status = useMemo(() => finished ? 'Session complete' : running ? 'Deep focus active' : remaining >= duration ? 'Ready when you are' : 'Session paused', [finished, running, remaining, duration]);
-
   const handleHoursInput = (value) => {
     const next = Number(value);
     if (!Number.isFinite(next)) return;
     setStudyHours(Math.min(5, Math.max(1, Math.round(next * 4) / 4)));
+  };
+
+  const handlePomodoroComplete = () => {
+    setCompletedSessions((count) => count + 1);
+    setFinished(true);
   };
 
   return (
@@ -276,23 +279,26 @@ export default function StudySession({ course, onBack }) {
         </header>
 
         <section className="study-session-hero glass-card" style={{ '--session-accent': accent }}>
-          <div className="session-context"><div><span className="session-kicker">STUDYING</span><h2>{course.name}</h2><p>{goal}</p></div><span className="session-live-pill"><span className={running ? 'live-dot is-live' : 'live-dot'} />{running ? 'LIVE' : status}</span></div>
-          <div className="session-mode-tabs" role="tablist" aria-label="Study duration">
-            {Object.entries({ focus: 'Focus', deep: 'Deep', sprint: 'Sprint' }).map(([key, label]) => <button type="button" key={key} className={mode === key ? 'is-selected' : ''} onClick={() => setSessionMode(key)}>{label}<small>{DURATIONS[key] / 60}m</small></button>)}
-          </div>
-          <div className={`session-clock-wrap${studyPlanMode === 'pomodoro' ? ' is-pomodoro-plan' : ''}`}>
-            {studyPlanMode === 'pomodoro' ? (
-              <PomodoroRing remaining={remaining} total={duration} running={running} label={finished ? 'Complete' : running ? 'Focus time' : 'Remaining'} />
-            ) : (
-              <div className="session-orbit" style={{ '--session-progress': `${progress}%` }}><div className="session-clock"><span>{minutes}:{seconds}</span><small>{finished ? 'Complete' : running ? 'Focus time' : 'Remaining'}</small></div></div>
-            )}
-          </div>
-          <div className="session-progress-track"><span style={{ width: `${progress}%`, background: `linear-gradient(90deg, ${accent}, #bd86ff)` }} /></div>
-          <div className="session-controls">
-            <button type="button" className="session-reset-button" onClick={reset} aria-label="Reset session"><RotateCcw size={17} /></button>
-            <button type="button" className="session-main-button" onClick={toggleRunning} style={{ background: `linear-gradient(145deg, ${accent}, #7b61ff)` }}>{running ? <Pause size={19} /> : <Play size={19} fill="currentColor" />}{running ? 'Pause focus' : 'Start focus'}</button>
-            <button type="button" className="session-finish-button" onClick={completeNow}><Check size={17} />Finish</button>
-          </div>
+          <div className="session-context"><div><span className="session-kicker">STUDYING</span><h2>{course.name}</h2><p>{goal}</p></div>{studyPlanMode !== 'pomodoro' && <span className="session-live-pill"><span className={running ? 'live-dot is-live' : 'live-dot'} />{running ? 'LIVE' : (finished ? 'Session complete' : remaining >= duration ? 'Ready when you are' : 'Session paused')}</span>}</div>
+
+          {studyPlanMode === 'pomodoro' ? (
+            <PomodoroPanel onComplete={handlePomodoroComplete} />
+          ) : (
+            <>
+              <div className="session-mode-tabs" role="tablist" aria-label="Study duration">
+                {Object.entries({ focus: 'Focus', deep: 'Deep', sprint: 'Sprint' }).map(([key, label]) => <button type="button" key={key} className={mode === key ? 'is-selected' : ''} onClick={() => setSessionMode(key)}>{label}<small>{DURATIONS[key] / 60}m</small></button>)}
+              </div>
+              <div className="session-clock-wrap">
+                <div className="session-orbit" style={{ '--session-progress': `${progress}%` }}><div className="session-clock"><span>{minutes}:{seconds}</span><small>{finished ? 'Complete' : running ? 'Focus time' : 'Remaining'}</small></div></div>
+              </div>
+              <div className="session-progress-track"><span style={{ width: `${progress}%`, background: `linear-gradient(90deg, ${accent}, #bd86ff)` }} /></div>
+              <div className="session-controls">
+                <button type="button" className="session-reset-button" onClick={reset} aria-label="Reset session"><RotateCcw size={17} /></button>
+                <button type="button" className="session-main-button" onClick={toggleRunning} style={{ background: `linear-gradient(145deg, ${accent}, #7b61ff)` }}>{running ? <Pause size={19} /> : <Play size={19} fill="currentColor" />}{running ? 'Pause focus' : 'Start focus'}</button>
+                <button type="button" className="session-finish-button" onClick={completeNow}><Check size={17} />Finish</button>
+              </div>
+            </>
+          )}
         </section>
 
         <section className="session-goal-row glass-inner">
