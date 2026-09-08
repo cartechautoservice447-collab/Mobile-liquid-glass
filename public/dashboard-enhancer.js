@@ -16,8 +16,8 @@
     const shell = qs(dashboard, '.dashboard-shell');
     if (!shell) return;
     addNotificationControl(dashboard);
-    addProgressSnapshot(shell);
     addRecentNotes(shell);
+    addProgressSnapshot(shell);
     addBottomNavigation(dashboard, shell);
     enhanceInteractions(shell);
   }
@@ -53,8 +53,14 @@
     const section = document.createElement('section');
     section.className = 'dashboard-progress-snapshot glass-card';
     section.innerHTML = `<div class="dashboard-snapshot-heading"><div><span class="eyebrow">Progress snapshot</span><h2>Your learning at a glance</h2></div><span class="dashboard-snapshot-live">Live</span></div><div class="dashboard-snapshot-grid"><div class="dashboard-snapshot-stat"><span>Courses</span><strong>${totalCourses}</strong><small>in your workspace</small></div><div class="dashboard-snapshot-stat"><span>Notes</span><strong>${totalNotes}</strong><small>captured so far</small></div><div class="dashboard-snapshot-stat dashboard-progress-stat"><span>Current course</span><strong>${activeProgress}%</strong><small>${escapeHtml(activeCourse)}</small><div class="dashboard-progress-track"><i style="width:${Math.max(0, Math.min(activeProgress, 100))}%"></i></div></div></div>`;
-    const firstCard = qs(shell, '.course-dashboard-card:first-child');
-    if (firstCard) firstCard.insertAdjacentElement('beforebegin', section); else shell.appendChild(section);
+    const firstCard = qs(shell, '.course-dashboard-card:first-of-type');
+    if (!firstCard) {
+      shell.appendChild(section);
+      return;
+    }
+    firstCard.insertAdjacentElement('beforebegin', section);
+    const addCard = qs(shell, '.add-course-trigger');
+    if (addCard) firstCard.insertAdjacentElement('beforebegin', addCard);
   }
 
   function addRecentNotes(shell) {
@@ -92,7 +98,7 @@
     qsa(nav, '.dashboard-nav-item').forEach((item) => item.classList.toggle('active', item.dataset.dashboardNav === key));
     if (key === 'home') { window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
     if (key === 'courses') { qs(shell, '[data-dashboard-courses]')?.click(); return; }
-    const firstCourse = qs(shell, '.course-dashboard-card:first-child .course-open');
+    const firstCourse = qs(shell, '.course-dashboard-card:first-of-type .course-open');
     if (key === 'collections' || key === 'notes') {
       if (!firstCourse) return;
       firstCourse.click();
