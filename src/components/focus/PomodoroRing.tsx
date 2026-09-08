@@ -23,13 +23,9 @@ export function PomodoroRing({ remaining, total, label, running = false }: Props
   const size = 320;
   const radius = 138;
   const circumference = 2 * Math.PI * radius;
-  const dashOffset = circumference * (1 - progress);
-  const dashArray = circumference;
+  const remainingArcLength = circumference * progress;
   const idBase = useId().replace(/:/g, '');
-  const mercuryPoolId = `${idBase}-mercury-pool`;
-  const mercuryFlowId = `${idBase}-mercury-flow`;
-  const mercurySoftGlowId = `${idBase}-mercury-soft-glow`;
-  const mercuryFluidGlowId = `${idBase}-mercury-fluid-glow`;
+  const glowId = `${idBase}-glow`;
 
   return (
     <div className={`pomodoro-ring-new${running ? ' is-running' : ''}`}>
@@ -37,85 +33,32 @@ export function PomodoroRing({ remaining, total, label, running = false }: Props
       <span aria-hidden className="pomodoro-ring-refraction" />
       <svg viewBox={`0 0 ${size} ${size}`} aria-hidden="true">
         <defs>
-          <radialGradient id={mercuryPoolId} cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stopColor="rgba(255,255,255,0.9)" />
-            <stop offset="100%" stopColor="rgba(255,255,255,0.35)" />
-          </radialGradient>
-          <linearGradient id={mercuryFlowId} x1="0" y1="0" x2={size} y2={size} gradientUnits="userSpaceOnUse">
-            <stop offset="0%" stopColor="rgba(255,255,255,0.12)" />
-            <stop offset="18%" stopColor="rgba(255,255,255,0.75)" />
-            <stop offset="34%" stopColor="rgba(255,255,255,0.18)" />
-            <stop offset="56%" stopColor="rgba(255,255,255,0.58)" />
-            <stop offset="76%" stopColor="rgba(255,255,255,0.10)" />
-            <stop offset="100%" stopColor="rgba(255,255,255,0.12)" />
-            {running && (
-              <animateTransform
-                attributeName="gradientTransform"
-                type="rotate"
-                from={`0 ${size / 2} ${size / 2}`}
-                to={`360 ${size / 2} ${size / 2}`}
-                dur="7s"
-                repeatCount="indefinite"
-              />
-            )}
-          </linearGradient>
-          <filter id={mercurySoftGlowId} x="-60%" y="-60%" width="220%" height="220%">
-            <feGaussianBlur stdDeviation="10" />
-          </filter>
-          <filter id={mercuryFluidGlowId} x="-60%" y="-60%" width="220%" height="220%">
-            <feGaussianBlur stdDeviation="7" />
+          <filter id={glowId} x="-60%" y="-60%" width="220%" height="220%">
+            <feGaussianBlur stdDeviation="6" />
           </filter>
         </defs>
 
-        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" className="pomodoro-ring-groove" strokeWidth="16" />
-
         <circle
           cx={size / 2}
           cy={size / 2}
           r={radius}
           fill="none"
-          stroke={`url(#${mercuryPoolId})`}
-          strokeWidth="14"
-          strokeLinecap="round"
-          strokeDasharray={dashArray}
-          strokeDashoffset={dashOffset}
-          filter={`url(#${mercurySoftGlowId})`}
-          opacity="0.85"
+          className="pomodoro-ring-groove"
+          strokeWidth="16"
         />
 
-        {running && (
-          <circle
-            cx={size / 2}
-            cy={size / 2}
-            r={radius}
-            fill="none"
-            stroke={`url(#${mercuryFlowId})`}
-            strokeWidth="16"
-            strokeLinecap="round"
-            strokeDasharray={dashArray}
-            strokeDashoffset={dashOffset}
-            filter={`url(#${mercuryFluidGlowId})`}
-            opacity="0.72"
-          >
-            <animate
-              attributeName="opacity"
-              values="0.46;0.72;0.46"
-              dur="2.8s"
-              repeatCount="indefinite"
-            />
-          </circle>
-        )}
-
         <circle
           cx={size / 2}
           cy={size / 2}
           r={radius}
           fill="none"
-          className="pomodoro-ring-core-new"
-          strokeWidth="5.5"
+          stroke="#ffffff"
+          strokeWidth="14"
           strokeLinecap="round"
-          strokeDasharray={dashArray}
-          strokeDashoffset={dashOffset}
+          strokeDasharray={`${remainingArcLength} ${circumference}`}
+          strokeDashoffset="0"
+          filter={`url(#${glowId})`}
+          className="pomodoro-ring-fluid"
         />
       </svg>
       <div className="pomodoro-ring-new-content">
