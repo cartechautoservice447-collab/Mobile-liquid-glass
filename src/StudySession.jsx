@@ -1,5 +1,6 @@
 import { ArrowLeft, Check, Clock3, Coffee, Flame, Pause, Play, RotateCcw, Sparkles, TimerReset, Zap } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import PomodoroPanel from './components/focus/PomodoroPanel.jsx';
 import './StudySession.css';
 
 const ACCENT = {
@@ -264,6 +265,8 @@ export default function StudySession({ course, onBack }) {
           <article className="session-stat glass-card"><span><Flame size={15} /></span><strong>{completedSessions}</strong><small>Sessions done</small></article>
           <article className="session-stat glass-card"><span><Coffee size={15} /></span><strong>{mode === 'deep' ? '10m' : '5m'}</strong><small>Break target</small></article>
         </section>
+
+        <PomodoroPanel onComplete={() => setCompletedSessions((count) => count + 1)} />
 
         <section className="study-plan-builder glass-card" aria-label="Automatic study plan builder">
           <div className="study-plan-heading">
