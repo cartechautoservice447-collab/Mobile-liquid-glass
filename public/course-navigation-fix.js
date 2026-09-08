@@ -3,6 +3,7 @@
   const ROUTED_KEYS = new Set(['collections', 'notes']);
   const LABELS = { collections: 'Collections', notes: 'All Notes' };
   const RETURNING_CLASS = 'course-nav-direct-dashboard-return';
+  let syntheticBack = false;
 
   function setActive(button) {
     const nav = button.closest('nav');
@@ -55,44 +56,45 @@
     document.head.appendChild(style);
   }
 
-  function returnDirectlyToDashboard() {
+  function finishReturn() {
+    if (document.querySelector('.dashboard-screen')) {
+      document.documentElement.classList.remove(RETURNING_CLASS);
+      return true;
+    }
+    return false;
+  }
+
+  function clickWorkspaceBack() {
+    const dashboardButton = document.querySelector('.course-workspace-screen .course-workspace-header .back-button');
+    if (!dashboardButton) return false;
+    syntheticBack = true;
+    dashboardButton.click();
+    syntheticBack = false;
+    return true;
+  }
+
+  function returnDirectlyToDashboard(button) {
     installReturnTransitionStyle();
     document.documentElement.classList.add(RETURNING_CLASS);
 
-    const finish = () => {
-      if (document.querySelector('.dashboard-screen')) {
-        document.documentElement.classList.remove(RETURNING_CLASS);
-        return true;
-      }
-      return false;
-    };
-
-    const clickWorkspaceBack = () => {
-      const dashboardButton = document.querySelector('.course-workspace-screen .course-workspace-header .back-button');
-      if (!dashboardButton) return false;
-      dashboardButton.click();
-      return true;
-    };
+    if (clickWorkspaceBack()) {
+      requestAnimationFrame(() => {
+        finishReturn();
+      });
+      return;
+    }
 
     const observer = new MutationObserver(() => {
-      if (finish()) observer.disconnect();
-      else if (clickWorkspaceBack()) observer.disconnect();
+      if (finishReturn()) {
+        observer.disconnect();
+        return;
+      }
+      if (clickWorkspaceBack()) observer.disconnect();
     });
     observer.observe(document.body, { childList: true, subtree: true });
 
     requestAnimationFrame(() => {
-      if (!clickWorkspaceBack()) {
-        requestAnimationFrame(() => {
-          if (!clickWorkspaceBack()) {
-            setTimeout(() => {
-              if (!finish()) {
-                document.documentElement.classList.remove(RETURNING_CLASS);
-                observer.disconnect();
-              }
-            }, 1800);
-          }
-        });
-      }
+      if (finishReturn()) observer.disconnect();
     });
   }
 
@@ -110,18 +112,35 @@
     openRealCourseTool(key);
   }, true);
 
-  // Collections and All Notes are opened from the Course Workspace. Their
-  // native Back handler normally renders Course Workspace first; keep that
-  // intermediate screen invisible and immediately follow its Back action so
-  // the user lands on Dashboard without seeing the Course Workspace flash.
+  // Only intercept the Back controls on the actual Collections and All Notes
+  // interfaces. Prevent the original React Back event from running twice;
+  // invoke it once under the hidden transition, then immediately return to
+  // Dashboard when the Course Workspace is mounted.
   document.addEventListener('click', (event) => {
+    if (syntheticBack) return;
     if (!(event.target instanceof Element)) return;
     const button = event.target.closest('.feature-screen .back-button');
     if (!button) return;
 
+    const screen = button.closest('.feature-screen');
+    const heading = screen?.querySelector('h1')?.textContent?.trim();
     const label = button.getAttribute('aria-label');
-    if (label !== 'Back' && label !== 'Back to course') return;
+    const isCollectionsBack = heading === 'Collections' && label === 'Back';
+    const isAllNotesBack = heading === 'All Notes' && label === 'Back to course';
+    if (!isCollectionsBack && !isAllNotesBack) return;
 
-    returnDirectlyToDashboard();
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    document.documentElement.classList.add(RETURNING_CLASS);
+
+    syntheticBack = true;
+    button.click();
+    syntheticBack = false;
+
+    const settle = () => {
+      if (finishReturn()) return;
+      if (!clickWorkspaceBack()) requestAnimationFrame(settle);
+    };
+    requestAnimationFrame(settle);
   }, true);
 })();
