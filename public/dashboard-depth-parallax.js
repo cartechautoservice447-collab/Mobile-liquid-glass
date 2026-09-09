@@ -1,109 +1,98 @@
 (() => {
   'use strict';
 
+  // Parallax never transforms the glass container itself. Existing Motion/hover
+  // physics keep ownership of the card transform; this layer only moves content
+  // inside the existing glass surface by a few pixels.
   const TARGETS = [
     '.dashboard-screen .course-dashboard-card .course-open',
     '.dashboard-screen .action-card',
     '.dashboard-screen .dashboard-header',
   ];
-  const LAYERS = [
-    '.course-top',
-    '.course-copy',
-    '.course-footer',
-    '.action-icon',
-    '.dashboard-copy',
-    '.dashboard-controls',
-  ];
-  const MAX_CARD_SHIFT = 1.8;
-  const MAX_LAYER_SHIFT = 3.2;
-  const MAX_ROTATE = 0.35;
-  const MAX_SCALE = 0.008;
-  const EASE = 0.12;
+  const LAYER_SELECTORS = {
+    course: ['.course-top', '.course-copy', '.course-footer'],
+    action: ['.action-icon', '> span:nth-child(2)', '.action-arrow'],
+    header: ['.dashboard-copy', '.dashboard-controls'],
+  };
+  const MAX_X = 2.2;
+  const MAX_Y = 1.6;
+  const EASE = 0.16;
   const state = new WeakMap();
   let raf = 0;
 
   const reducedMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
   const coarsePointer = () => window.matchMedia?.('(pointer: coarse)').matches;
 
-  function clearElement(el) {
-    if (!el) return;
-    el.style.removeProperty('--depth-x');
-    el.style.removeProperty('--depth-y');
-    el.style.removeProperty('--depth-scale');
-    el.style.transform = '';
-    el.style.removeProperty('will-change');
-  }
-
-  function reset(root = document) {
-    TARGETS.forEach((selector) => root.querySelectorAll(selector).forEach((el) => {
-      clearElement(el);
-      el.querySelectorAll('.depth-parallax-layer').forEach(clearElement);
-      el.classList.remove('depth-parallax-target');
-    }));
+  function selectorGroup(target) {
+    if (target.matches('.course-open')) return LAYER_SELECTORS.course;
+    if (target.matches('.action-card')) return LAYER_SELECTORS.action;
+    return LAYER_SELECTORS.header;
   }
 
   function prepareTarget(target) {
     if (!target || state.has(target) || reducedMotion()) return;
-    target.classList.add('depth-parallax-target');
-    const layers = LAYERS.filter((selector) => target.matches(selector) || target.querySelector(selector));
-    const layerEls = [];
-    layers.forEach((selector) => {
-      const candidates = target.matches(selector) ? [target] : [...target.querySelectorAll(selector)];
-      candidates.forEach((el, index) => {
-        if (layerEls.includes(el)) return;
-        el.classList.add('depth-parallax-layer');
-        el.dataset.depthFactor = String(Math.min(1.45, 0.75 + (index + 1) * 0.08));
-        layerEls.push(el);
+    const layers = [];
+    selectorGroup(target).forEach((selector) => {
+      const candidates = selector.startsWith('>')
+        ? [...target.children].filter((el) => {
+            const nth = selector.match(/nth-child\((\d+)\)/)?.[1];
+            return nth ? String([...target.children].indexOf(el) + 1) === nth : false;
+          })
+        : [...target.querySelectorAll(selector)];
+      candidates.forEach((el) => {
+        if (!layers.includes(el)) layers.push(el);
       });
     });
-    state.set(target, { layers: layerEls, tx: 0, ty: 0, rot: 0, scale: 0, active: false });
+    if (!layers.length) return;
+    layers.forEach((layer, index) => {
+      layer.classList.add('depth-parallax-layer');
+      layer.dataset.depthFactor = String(0.62 + index * 0.22);
+    });
+    state.set(target, { layers, goalX: 0, goalY: 0, x: 0, y: 0 });
 
-    if (!coarsePointer()) {
-      target.addEventListener('pointermove', onPointerMove, { passive: true });
-      target.addEventListener('pointerenter', onPointerEnter, { passive: true });
-      target.addEventListener('pointerleave', onPointerLeave, { passive: true });
-    } else {
+    if (coarsePointer()) {
       target.addEventListener('touchstart', onTouchStart, { passive: true });
       target.addEventListener('touchmove', onTouchMove, { passive: true });
       target.addEventListener('touchend', onTouchEnd, { passive: true });
       target.addEventListener('touchcancel', onTouchEnd, { passive: true });
+    } else {
+      target.addEventListener('pointerenter', onPointerEnter, { passive: true });
+      target.addEventListener('pointermove', onPointerMove, { passive: true });
+      target.addEventListener('pointerleave', onPointerLeave, { passive: true });
     }
   }
 
-  function pointerPoint(event, target) {
+  function point(clientX, clientY, target) {
     const rect = target.getBoundingClientRect();
     return {
-      x: Math.max(-1, Math.min(1, ((event.clientX - rect.left) / Math.max(1, rect.width) - 0.5) * 2)),
-      y: Math.max(-1, Math.min(1, ((event.clientY - rect.top) / Math.max(1, rect.height) - 0.5) * 2)),
+      x: Math.max(-1, Math.min(1, ((clientX - rect.left) / Math.max(1, rect.width) - 0.5) * 2)),
+      y: Math.max(-1, Math.min(1, ((clientY - rect.top) / Math.max(1, rect.height) - 0.5) * 2)),
     };
   }
 
-  function apply(target, x, y, active = true) {
+  function setGoal(target, x, y) {
     const data = state.get(target);
     if (!data) return;
     data.goalX = x;
     data.goalY = y;
-    data.active = active;
     schedule();
+  }
+
+  function onPointerEnter(event) {
+    const target = event.currentTarget;
+    const p = point(event.clientX, event.clientY, target);
+    setGoal(target, p.x * 0.7, p.y * 0.7);
   }
 
   function onPointerMove(event) {
     if (reducedMotion()) return;
     const target = event.currentTarget;
-    const p = pointerPoint(event, target);
-    apply(target, p.x, p.y, true);
-  }
-
-  function onPointerEnter(event) {
-    if (reducedMotion()) return;
-    const target = event.currentTarget;
-    const p = pointerPoint(event, target);
-    apply(target, p.x * 0.65, p.y * 0.65, true);
+    const p = point(event.clientX, event.clientY, target);
+    setGoal(target, p.x, p.y);
   }
 
   function onPointerLeave(event) {
-    const target = event.currentTarget;
-    apply(target, 0, 0, false);
+    setGoal(event.currentTarget, 0, 0);
   }
 
   function onTouchStart(event) {
@@ -111,8 +100,8 @@
     const touch = event.touches?.[0];
     if (!touch) return;
     const target = event.currentTarget;
-    const p = pointerPoint({ clientX: touch.clientX, clientY: touch.clientY }, target);
-    apply(target, p.x * 0.7, p.y * 0.7, true);
+    const p = point(touch.clientX, touch.clientY, target);
+    setGoal(target, p.x * 0.6, p.y * 0.6);
   }
 
   function onTouchMove(event) {
@@ -120,53 +109,36 @@
     const touch = event.touches?.[0];
     if (!touch) return;
     const target = event.currentTarget;
-    const p = pointerPoint({ clientX: touch.clientX, clientY: touch.clientY }, target);
-    apply(target, p.x * 0.7, p.y * 0.7, true);
+    const p = point(touch.clientX, touch.clientY, target);
+    setGoal(target, p.x * 0.6, p.y * 0.6);
   }
 
   function onTouchEnd(event) {
-    apply(event.currentTarget, 0, 0, false);
+    setGoal(event.currentTarget, 0, 0);
   }
 
   function schedule() {
-    if (raf) return;
-    raf = requestAnimationFrame(frame);
+    if (!raf) raf = requestAnimationFrame(frame);
   }
 
   function frame() {
     raf = 0;
-    let needsNext = false;
+    let again = false;
     document.querySelectorAll(TARGETS.join(',')).forEach((target) => {
       prepareTarget(target);
       const data = state.get(target);
       if (!data) return;
-      const gx = data.goalX || 0;
-      const gy = data.goalY || 0;
-      data.tx += ((gx * MAX_CARD_SHIFT) - data.tx) * EASE;
-      data.ty += ((gy * MAX_CARD_SHIFT) - data.ty) * EASE;
-      data.rot += ((gx * MAX_ROTATE) - data.rot) * EASE;
-      data.scale += (((Math.abs(gx) + Math.abs(gy)) * 0.5 * MAX_SCALE) - data.scale) * EASE;
-
-      target.style.setProperty('--depth-x', `${data.tx.toFixed(3)}px`);
-      target.style.setProperty('--depth-y', `${data.ty.toFixed(3)}px`);
-      target.style.setProperty('--depth-scale', `${(1 + data.scale).toFixed(5)}`);
-      target.style.setProperty('transform', `translate3d(var(--depth-x),var(--depth-y),0) scale(var(--depth-scale)) rotateZ(${data.rot.toFixed(3)}deg)`);
-
+      data.x += (data.goalX - data.x) * EASE;
+      data.y += (data.goalY - data.y) * EASE;
+      const px = data.x * MAX_X;
+      const py = data.y * MAX_Y;
       data.layers.forEach((layer) => {
         const factor = Number(layer.dataset.depthFactor) || 1;
-        const lx = (gx * MAX_LAYER_SHIFT * factor);
-        const ly = (gy * MAX_LAYER_SHIFT * factor);
-        layer.style.setProperty('--depth-x', `${lx.toFixed(3)}px`);
-        layer.style.setProperty('--depth-y', `${ly.toFixed(3)}px`);
-        layer.style.setProperty('transform', `translate3d(var(--depth-x),var(--depth-y),0)`);
+        layer.style.transform = `translate3d(${(px * factor).toFixed(2)}px,${(py * factor).toFixed(2)}px,0)`;
       });
-
-      if (Math.abs(data.tx - gx * MAX_CARD_SHIFT) > 0.01 || Math.abs(data.ty - gy * MAX_CARD_SHIFT) > 0.01 || Math.abs(data.rot - gx * MAX_ROTATE) > 0.01 || Math.abs(data.scale - ((Math.abs(gx) + Math.abs(gy)) * 0.5 * MAX_SCALE)) > 0.0003) {
-        needsNext = true;
-      }
+      if (Math.abs(data.x - data.goalX) > 0.008 || Math.abs(data.y - data.goalY) > 0.008) again = true;
     });
-
-    if (needsNext) schedule();
+    if (again) schedule();
   }
 
   function boot() {
