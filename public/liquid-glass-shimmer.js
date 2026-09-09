@@ -1,12 +1,7 @@
 (() => {
   'use strict';
 
-  /*
-   * Build 3 — Shimmer Progress.
-   *
-   * Only existing progress-fill elements are enhanced. Width, color, layout,
-   * glass material, and interaction behavior remain untouched.
-   */
+  /* Build 3 — Shimmer Progress. Only existing progress fills are enhanced. */
   const PROGRESS_FILLS = [
     '.dashboard-progress-track > i',
     '.course-workspace-progress-track > span',
@@ -21,14 +16,12 @@
 
   function prepare(fill, index) {
     if (!fill || !(fill instanceof HTMLElement)) return;
-
     if (prefersReducedMotion()) {
       fill.classList.remove('glass-shimmer-progress');
       fill.style.removeProperty('--shimmer-delay');
       return;
     }
-
-    fill.classList.add('glass-shimmer-progress');
+    if (!fill.classList.contains('glass-shimmer-progress')) fill.classList.add('glass-shimmer-progress');
     fill.style.setProperty('--shimmer-delay', `${-((index % 5) * 0.38)}s`);
   }
 
@@ -38,14 +31,20 @@
 
   function boot() {
     refresh();
-    const observer = new MutationObserver(() => refresh());
+    let queued = false;
+    const observer = new MutationObserver((mutations) => {
+      const relevant = mutations.some((mutation) => [...mutation.addedNodes].some((node) => {
+        if (!(node instanceof Element)) return false;
+        return node.matches(PROGRESS_FILLS) || Boolean(node.querySelector(PROGRESS_FILLS));
+      }));
+      if (!relevant || queued) return;
+      queued = true;
+      requestAnimationFrame(() => { queued = false; refresh(); });
+    });
     observer.observe(document.body, { childList: true, subtree: true });
     reducedMotionQuery?.addEventListener?.('change', refresh);
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', boot, { once: true });
-  } else {
-    boot();
-  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot, { once: true });
+  else boot();
 })();
