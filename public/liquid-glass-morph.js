@@ -85,8 +85,7 @@
   ].join(', ');
 
   const VIEW_NAME = 'liquid-glass-course';
-  const STAGGER_PENDING = 'liquid-stagger-pending';
-  const STAGGER_READY = 'liquid-stagger-ready';
+  const STAGGER_PENDING_CLASS = 'liquid-stagger-pending';
   const reducedMotionQuery = window.matchMedia?.('(prefers-reduced-motion: reduce)');
   let replaying = false;
 
@@ -143,7 +142,7 @@
     delete document.documentElement.dataset.liquidTransition;
     delete document.documentElement.dataset.liquidTransitionActive;
     delete document.documentElement.dataset.liquidCourseMorph;
-    delete document.documentElement.dataset[STAGGER_PENDING];
+    document.documentElement.classList.remove(STAGGER_PENDING_CLASS);
   }
 
   function runNormal(element) {
@@ -156,6 +155,8 @@
     clearCourseName(source.element);
     delete source.element.dataset.morphSource;
     setPressCoordination(source.element, false);
+    delete source.element.dataset.liquidTransitionSource;
+    delete source.element.dataset.liquidStaggerSource;
     clearGlobalState();
   }
 
@@ -180,27 +181,20 @@
       element.style.setProperty('--liquid-stagger-index', String(index));
       element.classList.add('liquid-stagger-enter');
     });
-
-    requestAnimationFrame(() => {
-      document.documentElement.classList.remove(STAGGER_READY);
-    });
   }
 
   function finishTransition(source) {
+    /* Keep the destination handoff hidden until the old Build 2 snapshot is gone. */
     cleanupSource(source);
     requestAnimationFrame(() => {
-      document.documentElement.classList.remove(STAGGER_PENDING);
-      if (!prefersReducedMotion()) {
-        document.documentElement.classList.add(STAGGER_READY);
-        applyStaggeredEntrance({ excludeCourseHero: source.type === 'course' });
-      }
+      document.documentElement.classList.remove(STAGGER_PENDING_CLASS);
+      applyStaggeredEntrance({ excludeCourseHero: source.type === 'course' });
     });
   }
 
   function startTransition(source) {
     setPressCoordination(source.element, true);
-
-    document.documentElement.classList.add(STAGGER_PENDING);
+    document.documentElement.classList.add(STAGGER_PENDING_CLASS);
 
     if (source.type === 'course') {
       source.element.style.viewTransitionName = VIEW_NAME;
@@ -220,7 +214,7 @@
       cleanupSource(source);
       runNormal(source.element);
       requestAnimationFrame(() => {
-        document.documentElement.classList.remove(STAGGER_PENDING);
+        document.documentElement.classList.remove(STAGGER_PENDING_CLASS);
         applyStaggeredEntrance({ excludeCourseHero: source.type === 'course' });
       });
       return;
