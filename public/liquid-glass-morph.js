@@ -30,6 +30,7 @@
     '.course-workspace-screen .course-mini-action',
     '.course-workspace-screen .back-button',
     '.course-workspace-screen .premium-back-button',
+    '.course-folder-screen .back-button',
     '.course-folder-screen .course-back-button',
     '.course-folder-screen .premium-back-button',
   ].join(', ');
@@ -38,7 +39,7 @@
   const reducedMotionQuery = window.matchMedia?.('(prefers-reduced-motion: reduce)');
   let replaying = false;
 
-  const prefersReducedMotion = () => Boolean(reducedMotionQuery?.matches);
+  const prefersReducedMotion = () => reducedMotionQuery?.matches === true;
   const supportsViewTransition = () => typeof document.startViewTransition === 'function';
 
   function isExcludedTarget(target) {
