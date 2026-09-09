@@ -9,16 +9,12 @@
    * controls and the five bottom navigation items.
    *
    * Build 2 entrance layer:
-   * - after the existing Build 2 transition completes, meaningful interface
-   *   sections enter in a controlled staggered sequence
-   * - course cards/tools are sequenced individually
-   * - bottom navigation is deliberately excluded
+   * - destination surfaces are prepared inside the View Transition update
+   *   callback so the new snapshot is captured with the stagger already active
+   * - meaningful Dashboard/Course sections enter in a controlled sequence
+   * - five-icon bottom navigation is deliberately excluded
+   * - the course hero remains owned by the shared-element morph
    * - existing glass material and normal interaction physics are untouched
-   *
-   * Spring-press coordination:
-   * - pause the element's press transition while View Transition snapshots are active
-   * - restore it only after the View Transition finishes
-   * - do not change the normal press behavior when Build 2 is unavailable
    */
 
   const COURSE_SOURCES = [
@@ -41,16 +37,27 @@
   ].join(', ');
 
   const STAGGER_SOURCES = [
-    /* Dashboard */
+    /* Full Dashboard */
     '.dashboard-screen .dashboard-header',
+    '.dashboard-screen .dashboard-copy',
+    '.dashboard-screen .dashboard-controls',
+    '.dashboard-screen .quick-actions',
+    '.dashboard-screen .quick-actions > *',
     '.dashboard-screen .section-heading',
-    '.dashboard-screen .course-dashboard-card',
+    '.dashboard-screen .section-heading > *',
     '.dashboard-screen .add-course-trigger',
-    '.dashboard-screen .action-card:not(.dashboard-pomodoro-action)',
-    '.dashboard-screen .dashboard-recent-item',
+    '.dashboard-screen .course-grid > *',
+    '.dashboard-screen .message',
+    /* Dashboard learning / generated feature surfaces */
+    '.dashboard-screen .learning-suite',
+    '.dashboard-screen .learning-suite > *',
     '.dashboard-screen .learning-suite-card',
     '.dashboard-screen .study-planner-card',
     '.dashboard-screen .spaced-repetition-card',
+    /* Dashboard recent / feature surfaces */
+    '.dashboard-screen .dashboard-recent',
+    '.dashboard-screen .dashboard-recent-item',
+    '.dashboard-screen .action-card:not(.dashboard-pomodoro-action)',
     /* Course library */
     '.course-folder-screen .course-folder-header',
     '.course-folder-screen .course-search',
@@ -153,7 +160,7 @@
     clearGlobalState();
   }
 
-  function prepareStaggeredEntrance() {
+  function prepareStaggeredEntrance({ excludeCourseHero = false } = {}) {
     if (prefersReducedMotion()) return;
 
     const screen = document.querySelector('.dashboard-screen, .course-folder-screen, .course-workspace-screen');
@@ -162,8 +169,9 @@
     const elements = [...screen.querySelectorAll(STAGGER_SOURCES)]
       .filter((element, index, list) => list.indexOf(element) === index)
       .filter((element) => !element.closest(STAGGER_EXCLUDED))
+      .filter((element) => !excludeCourseHero || !element.closest('.course-workspace-hero'))
       .filter((element) => element.isConnected)
-      .slice(0, 28);
+      .slice(0, 40);
 
     elements.forEach((element, index) => {
       element.classList.remove('liquid-stagger-enter');
@@ -188,18 +196,22 @@
     try {
       transition = document.startViewTransition(() => {
         runNormal(source.element);
+        /*
+         * Prepare before the new snapshot is captured. This removes the
+         * visible gap where the destination used to appear in its old state
+         * before the stagger classes were attached.
+         */
+        prepareStaggeredEntrance({ excludeCourseHero: source.type === 'course' });
       });
     } catch (_error) {
       cleanupSource(source);
       runNormal(source.element);
+      queueMicrotask(() => prepareStaggeredEntrance({ excludeCourseHero: source.type === 'course' }));
       return;
     }
 
     const cleanup = () => cleanupSource(source);
-    transition.finished.then(() => {
-      cleanup();
-      prepareStaggeredEntrance();
-    }, cleanup);
+    transition.finished.then(cleanup, cleanup);
   }
 
   function onClickCapture(event) {
