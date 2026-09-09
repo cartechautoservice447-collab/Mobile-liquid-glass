@@ -5,19 +5,14 @@
   // The glass containers themselves are never transformed; only their internal
   // content layers receive tiny, GPU-friendly translations.
   const TARGETS = [
-    // Dashboard
     '.dashboard-screen .course-dashboard-card .course-open',
     '.dashboard-screen .action-card',
     '.dashboard-screen .dashboard-header',
-
-    // Course library / workspace
     '.course-folder-screen .course-folder-card',
     '.course-folder-screen .course-search',
     '.course-workspace-screen .course-workspace-hero',
     '.course-workspace-screen .course-workspace-progress',
     '.course-workspace-screen .course-tool-folder',
-
-    // Course intelligence / study session
     '.course-overview-screen .overview-hero',
     '.course-overview-screen .overview-stat',
     '.course-overview-screen .overview-card',
@@ -25,12 +20,11 @@
     '.study-session-screen .session-goal-row',
     '.study-session-screen .session-stat',
     '.study-session-screen .study-plan-builder',
-
-    // Collection / note workspace
     '.collection-workspace-screen .collection-note-card',
     '.collection-workspace-screen .generated-editor-glass',
   ];
 
+  const TARGET_SELECTOR = TARGETS.join(',');
   const LAYER_SELECTORS = {
     course: ['.course-top', '.course-copy', '.course-footer'],
     action: ['.action-icon', '> span:nth-child(2)', '.action-arrow'],
@@ -55,8 +49,10 @@
   const MAX_Y = 1.35;
   const EASE = 0.16;
   const state = new WeakMap();
+  const activeTargets = new Set();
   let raf = 0;
   let observer = null;
+  let refreshQueued = false;
 
   const reducedMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
   const coarsePointer = () => window.matchMedia?.('(pointer: coarse)').matches;
@@ -112,7 +108,9 @@
       layer.classList.add('depth-parallax-layer');
       layer.dataset.depthFactor = String(0.58 + index * 0.18);
     });
-    state.set(target, { layers, goalX: 0, goalY: 0, x: 0, y: 0 });
+    const data = { layers, goalX: 0, goalY: 0, x: 0, y: 0 };
+    state.set(target, data);
+    activeTargets.add(target);
 
     if (coarsePointer()) {
       target.addEventListener('touchstart', onTouchStart, { passive: true });
@@ -124,6 +122,21 @@
       target.addEventListener('pointermove', onPointerMove, { passive: true });
       target.addEventListener('pointerleave', onPointerLeave, { passive: true });
     }
+  }
+
+  function refreshTargets() {
+    refreshQueued = false;
+    if (reducedMotion()) return;
+    document.querySelectorAll(TARGET_SELECTOR).forEach(prepareTarget);
+    for (const target of activeTargets) {
+      if (!target.isConnected) activeTargets.delete(target);
+    }
+  }
+
+  function queueRefresh() {
+    if (refreshQueued) return;
+    refreshQueued = true;
+    requestAnimationFrame(refreshTargets);
   }
 
   function point(clientX, clientY, target) {
@@ -188,10 +201,15 @@
   function frame() {
     raf = 0;
     let again = false;
-    document.querySelectorAll(TARGETS.join(',')).forEach((target) => {
-      prepareTarget(target);
+    for (const target of activeTargets) {
+      if (!target.isConnected) {
+        activeTargets.delete(target);
+        continue;
+      }
       const data = state.get(target);
-      if (!data) return;
+      if (!data) continue;
+      const moving = Math.abs(data.x - data.goalX) > 0.008 || Math.abs(data.y - data.goalY) > 0.008;
+      if (!moving) continue;
       data.x += (data.goalX - data.x) * EASE;
       data.y += (data.goalY - data.y) * EASE;
       const px = data.x * MAX_X;
@@ -200,21 +218,17 @@
         const factor = Number(layer.dataset.depthFactor) || 1;
         layer.style.transform = `translate3d(${(px * factor).toFixed(2)}px,${(py * factor).toFixed(2)}px,0)`;
       });
-      if (Math.abs(data.x - data.goalX) > 0.008 || Math.abs(data.y - data.goalY) > 0.008) again = true;
-    });
+      again = true;
+    }
     if (again) schedule();
   }
 
   function boot() {
     if (reducedMotion()) return;
     observer?.disconnect();
-    observer = new MutationObserver(() => {
-      document.querySelectorAll(TARGETS.join(',')).forEach(prepareTarget);
-      schedule();
-    });
+    observer = new MutationObserver(() => queueRefresh());
     observer.observe(document.body, { childList: true, subtree: true });
-    document.querySelectorAll(TARGETS.join(',')).forEach(prepareTarget);
-    schedule();
+    refreshTargets();
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot, { once: true });
