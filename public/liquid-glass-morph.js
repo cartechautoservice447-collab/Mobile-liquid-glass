@@ -8,7 +8,12 @@
    * The restrained page transition is used only by approved Dashboard/Course
    * controls and the five bottom navigation items.
    *
-   * Everything else deliberately stays on the normal navigation path.
+   * Build 2 entrance layer:
+   * - after the existing Build 2 transition completes, meaningful interface
+   *   sections enter in a controlled staggered sequence
+   * - course cards/tools are sequenced individually
+   * - bottom navigation is deliberately excluded
+   * - existing glass material and normal interaction physics are untouched
    *
    * Spring-press coordination:
    * - pause the element's press transition while View Transition snapshots are active
@@ -33,6 +38,46 @@
     '.course-folder-screen .back-button',
     '.course-folder-screen .course-back-button',
     '.course-folder-screen .premium-back-button',
+  ].join(', ');
+
+  const STAGGER_SOURCES = [
+    /* Dashboard */
+    '.dashboard-screen .dashboard-header',
+    '.dashboard-screen .section-heading',
+    '.dashboard-screen .course-dashboard-card',
+    '.dashboard-screen .add-course-trigger',
+    '.dashboard-screen .action-card:not(.dashboard-pomodoro-action)',
+    '.dashboard-screen .dashboard-recent-item',
+    '.dashboard-screen .learning-suite-card',
+    '.dashboard-screen .study-planner-card',
+    '.dashboard-screen .spaced-repetition-card',
+    /* Course library */
+    '.course-folder-screen .course-folder-header',
+    '.course-folder-screen .course-search',
+    '.course-folder-screen .course-folder-card',
+    '.course-folder-screen .course-subview-header',
+    '.course-folder-screen .course-section-heading',
+    '.course-folder-screen .course-subview-list > *',
+    /* Course workspace */
+    '.course-workspace-screen .course-workspace-header',
+    '.course-workspace-screen .course-workspace-hero',
+    '.course-workspace-screen .course-workspace-progress',
+    '.course-workspace-screen .course-workspace-section-heading',
+    '.course-workspace-screen .course-tool-folder',
+  ].join(', ');
+
+  const STAGGER_EXCLUDED = [
+    '.dashboard-bottom-nav',
+    '.dashboard-nav-item',
+    '.course-mobile-nav',
+    '.modal-backdrop',
+    '.glass-modal',
+    '.modal-close',
+    'form',
+    'input',
+    'textarea',
+    'select',
+    '[contenteditable="true"]',
   ].join(', ');
 
   const VIEW_NAME = 'liquid-glass-course';
@@ -108,6 +153,25 @@
     clearGlobalState();
   }
 
+  function prepareStaggeredEntrance() {
+    if (prefersReducedMotion()) return;
+
+    const screen = document.querySelector('.dashboard-screen, .course-folder-screen, .course-workspace-screen');
+    if (!screen) return;
+
+    const elements = [...screen.querySelectorAll(STAGGER_SOURCES)]
+      .filter((element, index, list) => list.indexOf(element) === index)
+      .filter((element) => !element.closest(STAGGER_EXCLUDED))
+      .filter((element) => element.isConnected)
+      .slice(0, 28);
+
+    elements.forEach((element, index) => {
+      element.classList.remove('liquid-stagger-enter');
+      element.style.setProperty('--liquid-stagger-index', String(index));
+      element.classList.add('liquid-stagger-enter');
+    });
+  }
+
   function startTransition(source) {
     setPressCoordination(source.element, true);
 
@@ -132,7 +196,10 @@
     }
 
     const cleanup = () => cleanupSource(source);
-    transition.finished.then(cleanup, cleanup);
+    transition.finished.then(() => {
+      cleanup();
+      prepareStaggeredEntrance();
+    }, cleanup);
   }
 
   function onClickCapture(event) {
