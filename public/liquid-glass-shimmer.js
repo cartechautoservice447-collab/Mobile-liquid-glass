@@ -19,26 +19,16 @@
   const reducedMotionQuery = window.matchMedia?.('(prefers-reduced-motion: reduce)');
   const prefersReducedMotion = () => Boolean(reducedMotionQuery?.matches);
 
-  function isMeaningfulProgress(fill) {
-    if (!fill?.isConnected) return false;
-    const styleWidth = fill.style?.width || '';
-    const computedWidth = window.getComputedStyle(fill).width;
-    const width = parseFloat(styleWidth || computedWidth || '0');
-    return Number.isFinite(width) && width > 0.5;
-  }
-
   function prepare(fill, index) {
     if (!fill || !(fill instanceof HTMLElement)) return;
+
     if (prefersReducedMotion()) {
       fill.classList.remove('glass-shimmer-progress');
-      delete fill.dataset.shimmerEmpty;
-      delete fill.dataset.shimmerIndex;
+      fill.style.removeProperty('--shimmer-delay');
       return;
     }
 
     fill.classList.add('glass-shimmer-progress');
-    fill.dataset.shimmerEmpty = isMeaningfulProgress(fill) ? 'false' : 'true';
-    fill.dataset.shimmerIndex = String(index % 5);
     fill.style.setProperty('--shimmer-delay', `${-((index % 5) * 0.38)}s`);
   }
 
@@ -48,9 +38,8 @@
 
   function boot() {
     refresh();
-    const observer = new MutationObserver(refresh);
-    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['style', 'class'] });
-
+    const observer = new MutationObserver(() => refresh());
+    observer.observe(document.body, { childList: true, subtree: true });
     reducedMotionQuery?.addEventListener?.('change', refresh);
   }
 
