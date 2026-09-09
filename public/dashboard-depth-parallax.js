@@ -1,51 +1,116 @@
 (() => {
   'use strict';
 
-  // Final audited version. The parallax layer never transforms or replaces the
-  // existing glass surface; it only applies tiny transforms to content inside it.
+  // Shared depth interaction for the existing Liquid Glass surfaces across the site.
+  // The glass containers themselves are never transformed; only their internal
+  // content layers receive tiny, GPU-friendly translations.
   const TARGETS = [
+    // Dashboard
     '.dashboard-screen .course-dashboard-card .course-open',
     '.dashboard-screen .action-card',
     '.dashboard-screen .dashboard-header',
+
+    // Course library / workspace
+    '.course-folder-screen .course-folder-card',
+    '.course-folder-screen .course-search',
+    '.course-workspace-screen .course-workspace-hero',
+    '.course-workspace-screen .course-workspace-progress',
+    '.course-workspace-screen .course-tool-folder',
+
+    // Course intelligence / study session
+    '.course-overview-screen .overview-hero',
+    '.course-overview-screen .overview-stat',
+    '.course-overview-screen .overview-card',
+    '.study-session-screen .study-session-hero',
+    '.study-session-screen .session-goal-row',
+    '.study-session-screen .session-stat',
+    '.study-session-screen .study-plan-builder',
+
+    // Collection / note workspace
+    '.collection-workspace-screen .collection-note-card',
+    '.collection-workspace-screen .generated-editor-glass',
   ];
+
   const LAYER_SELECTORS = {
     course: ['.course-top', '.course-copy', '.course-footer'],
     action: ['.action-icon', '> span:nth-child(2)', '.action-arrow'],
     header: ['.dashboard-copy', '.dashboard-controls'],
+    folder: ['.course-folder-icon', '.course-folder-copy', '.course-folder-note-count', '.course-folder-arrow'],
+    search: ['svg', 'input'],
+    workspaceHero: ['.course-workspace-icon', '.course-workspace-copy'],
+    workspaceProgress: ['.course-workspace-progress-heading', '.course-workspace-progress-track', '.course-workspace-progress-meta'],
+    workspaceTool: ['.course-tool-index', '.course-tool-icon', '.course-tool-copy', '.course-tool-arrow'],
+    overviewHero: ['.overview-hero-top', '.overview-progress-track', '.overview-progress-meta'],
+    overviewStat: ['> span', '> strong', '> small'],
+    overviewCard: ['.overview-card-heading', '.milestone-list', '.health-meter', '.health-points', '.insight-grid'],
+    sessionHero: ['.session-context', '.session-mode-tabs', '.session-clock-wrap', '.session-progress-track', '.session-controls'],
+    sessionGoal: ['> div', '> button'],
+    sessionStat: ['> span', '> strong', '> small'],
+    studyPlan: ['.study-plan-heading', '.study-plan-modes', '.study-plan-duration-card', '.study-plan-summary', '.study-plan-schedule-heading', '.study-plan-schedule'],
+    collectionNote: ['> span:first-child', '> div', '> button'],
+    editorGlass: ['.collection-mobile-header', '.generated-editor-topbar', '.generated-format-toolbar', '.generated-controls', '.generated-workarea'],
   };
-  const MAX_X = 2.2;
-  const MAX_Y = 1.6;
+
+  const MAX_X = 1.8;
+  const MAX_Y = 1.35;
   const EASE = 0.16;
   const state = new WeakMap();
   let raf = 0;
+  let observer = null;
 
   const reducedMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
   const coarsePointer = () => window.matchMedia?.('(pointer: coarse)').matches;
 
-  function selectorGroup(target) {
-    if (target.matches('.course-open')) return LAYER_SELECTORS.course;
-    if (target.matches('.action-card')) return LAYER_SELECTORS.action;
-    return LAYER_SELECTORS.header;
+  function groupFor(target) {
+    if (target.matches('.course-open')) return 'course';
+    if (target.matches('.action-card')) return 'action';
+    if (target.matches('.dashboard-header')) return 'header';
+    if (target.matches('.course-folder-card')) return 'folder';
+    if (target.matches('.course-search')) return 'search';
+    if (target.matches('.course-workspace-hero')) return 'workspaceHero';
+    if (target.matches('.course-workspace-progress')) return 'workspaceProgress';
+    if (target.matches('.course-tool-folder')) return 'workspaceTool';
+    if (target.matches('.overview-hero')) return 'overviewHero';
+    if (target.matches('.overview-stat')) return 'overviewStat';
+    if (target.matches('.overview-card')) return 'overviewCard';
+    if (target.matches('.study-session-hero')) return 'sessionHero';
+    if (target.matches('.session-goal-row')) return 'sessionGoal';
+    if (target.matches('.session-stat')) return 'sessionStat';
+    if (target.matches('.study-plan-builder')) return 'studyPlan';
+    if (target.matches('.collection-note-card')) return 'collectionNote';
+    if (target.matches('.generated-editor-glass')) return 'editorGlass';
+    return null;
   }
 
-  function prepareTarget(target) {
-    if (!target || state.has(target) || reducedMotion()) return;
+  function collectLayers(target, group) {
     const layers = [];
-    selectorGroup(target).forEach((selector) => {
-      const candidates = selector.startsWith('>')
-        ? [...target.children].filter((el) => {
-            const nth = selector.match(/nth-child\((\d+)\)/)?.[1];
-            return nth ? String([...target.children].indexOf(el) + 1) === nth : false;
-          })
-        : [...target.querySelectorAll(selector)];
+    (LAYER_SELECTORS[group] || []).forEach((selector) => {
+      let candidates = [];
+      if (selector.startsWith('>')) {
+        const nth = selector.match(/nth-child\((\d+)\)/)?.[1];
+        candidates = [...target.children].filter((el) => {
+          if (!nth) return true;
+          return String([...target.children].indexOf(el) + 1) === nth;
+        });
+      } else {
+        candidates = [...target.querySelectorAll(selector)];
+      }
       candidates.forEach((el) => {
         if (!layers.includes(el)) layers.push(el);
       });
     });
+    return layers.filter((el) => el !== target);
+  }
+
+  function prepareTarget(target) {
+    if (!target || state.has(target) || reducedMotion()) return;
+    const group = groupFor(target);
+    if (!group) return;
+    const layers = collectLayers(target, group);
     if (!layers.length) return;
     layers.forEach((layer, index) => {
       layer.classList.add('depth-parallax-layer');
-      layer.dataset.depthFactor = String(0.62 + index * 0.22);
+      layer.dataset.depthFactor = String(0.58 + index * 0.18);
     });
     state.set(target, { layers, goalX: 0, goalY: 0, x: 0, y: 0 });
 
@@ -142,7 +207,8 @@
 
   function boot() {
     if (reducedMotion()) return;
-    const observer = new MutationObserver(() => {
+    observer?.disconnect();
+    observer = new MutationObserver(() => {
       document.querySelectorAll(TARGETS.join(',')).forEach(prepareTarget);
       schedule();
     });
