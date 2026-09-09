@@ -3,6 +3,7 @@
   const ARC = '[data-ring-arc]';
   const GLOW = '[data-ring-glow]';
   const STYLE_ID = 'dashboard-pomodoro-ring-fix-style';
+  let frame = 0;
 
   function installStyles() {
     if (document.getElementById(STYLE_ID)) return;
@@ -25,6 +26,8 @@
         opacity: .48 !important;
         vector-effect: non-scaling-stroke;
         filter: url(#dashboard-pomodoro-glow) !important;
+        transform: rotate(180deg) !important;
+        transform-origin: 50% 50% !important;
       }
       .dashboard-pomodoro-ring-arc {
         stroke: #f7fcff !important;
@@ -33,6 +36,8 @@
         opacity: 1 !important;
         vector-effect: non-scaling-stroke;
         filter: url(#dashboard-pomodoro-glow-soft) !important;
+        transform: rotate(180deg) !important;
+        transform-origin: 50% 50% !important;
         transition: none !important;
       }
       .dashboard-pomodoro-ring-dot {
@@ -47,8 +52,8 @@
   function readNormalizedProgress(circle) {
     const raw = circle?.style?.strokeDasharray || '';
     // The premium timer writes normalized values such as "0.998 0.002".
-    // Once this fix converts them to pixel units, ignore the converted value
-    // until the premium timer writes the next normalized value.
+    // Ignore the pixel value after this fix has converted it until the timer
+    // supplies its next normalized countdown value.
     if (!raw || /px|%|em|rem/i.test(raw)) return null;
     const match = raw.match(/([0-9]*\.?[0-9]+)/);
     if (!match) return null;
@@ -68,31 +73,54 @@
     const arcLength = circumference * progress;
     const gapLength = Math.max(0, circumference - arcLength);
 
-    // Android WebView can render fractional dasharray values inconsistently here.
-    // Use the real circumference instead, while preserving the premium timer's
-    // normalized progress calculation and live countdown updates.
+    // Some Android WebViews render fractional dasharray values unreliably even
+    // with pathLength=1. Use real SVG units so the white arc remains visible and
+    // shrinks continuously as the countdown decreases.
     circle.removeAttribute('pathLength');
     circle.style.strokeDasharray = `${arcLength}px ${gapLength}px`;
     circle.style.strokeDashoffset = '0px';
   }
 
-  function syncRing(root) {
-    if (!root) return;
-    syncCircle(root.querySelector(ARC));
-    syncCircle(root.querySelector(GLOW));
+  function syncActiveRings() {
+    const rings = document.querySelectorAll(RING);
+    rings.forEach((root) => {
+      syncCircle(root.querySelector(ARC));
+      syncCircle(root.querySelector(GLOW));
+    });
+    return rings.length > 0;
+  }
+
+  function stopRefresh() {
+    if (!frame) return;
+    cancelAnimationFrame(frame);
+    frame = 0;
+  }
+
+  function refresh() {
+    const active = syncActiveRings();
+    if (active) {
+      frame = requestAnimationFrame(refresh);
+    } else {
+      frame = 0;
+    }
+  }
+
+  function ensureRefresh() {
+    if (!frame && document.querySelector(RING)) {
+      frame = requestAnimationFrame(refresh);
+    }
   }
 
   function boot() {
     installStyles();
 
-    // The premium timer updates the normalized dasharray on every timer frame.
-    // A lightweight frame watcher converts each new value to reliable SVG units.
-    const refresh = () => {
-      document.querySelectorAll(RING).forEach(syncRing);
-      requestAnimationFrame(refresh);
-    };
+    const observer = new MutationObserver(() => {
+      if (document.querySelector(RING)) ensureRefresh();
+      else stopRefresh();
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
 
-    refresh();
+    ensureRefresh();
   }
 
   if (document.readyState === 'loading') {
