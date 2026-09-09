@@ -68,31 +68,14 @@
     button.addEventListener('click', (event) => {
       event.preventDefault();
       event.stopPropagation();
-      openPomodoro(dashboard);
+      openPomodoro();
     });
 
     overview.insertAdjacentElement('afterend', button);
   }
 
-  function openPomodoro(dashboard) {
-    const firstCourse = qs(dashboard, '.course-dashboard-card .course-open');
-    if (!firstCourse) {
-      qs(dashboard, '.add-course-trigger')?.click();
-      return;
-    }
-
-    firstCourse.click();
-    const started = Date.now();
-    const seek = () => {
-      const study = [...document.querySelectorAll('.course-details-screen .course-tool-folder')]
-        .find((button) => (button.textContent || '').trim().toLowerCase().startsWith('study session'));
-      if (study) {
-        study.click();
-        return;
-      }
-      if (Date.now() - started < 1600) requestAnimationFrame(seek);
-    };
-    requestAnimationFrame(seek);
+  function openPomodoro() {
+    window.dispatchEvent(new CustomEvent('dashboard-open-pomodoro'));
   }
 
   function enhance(dashboard) {
