@@ -1,0 +1,50 @@
+/* Morph transition only: reuse the existing Liquid Glass surfaces. */
+@supports (view-transition-name: none){
+  /* Destination surface. A source card receives the same temporary name in JS. */
+  .course-workspace-screen .course-workspace-hero{
+    view-transition-name: liquid-glass-course;
+    view-transition-class: liquid-glass-course-surface;
+  }
+
+  ::view-transition-group(liquid-glass-course){
+    animation-duration:520ms;
+    animation-timing-function:cubic-bezier(.2,.78,.2,1);
+    overflow:hidden;
+  }
+
+  ::view-transition-image-pair(liquid-glass-course){
+    isolation:isolate;
+    overflow:hidden;
+    border-radius:var(--glass-theme-radius,24px);
+  }
+
+  ::view-transition-old(liquid-glass-course),
+  ::view-transition-new(liquid-glass-course){
+    animation-timing-function:cubic-bezier(.2,.78,.2,1);
+    backface-visibility:hidden;
+  }
+
+  ::view-transition-old(liquid-glass-course){
+    animation-name:liquid-glass-course-out;
+  }
+
+  ::view-transition-new(liquid-glass-course){
+    animation-name:liquid-glass-course-in;
+  }
+
+  @keyframes liquid-glass-course-out{
+    from{opacity:1;transform:scale(1)}
+    to{opacity:.18;transform:scale(.96)}
+  }
+
+  @keyframes liquid-glass-course-in{
+    from{opacity:.18;transform:scale(1.04)}
+    to{opacity:1;transform:scale(1)}
+  }
+}
+
+@media(prefers-reduced-motion:reduce){
+  ::view-transition-group(liquid-glass-course),
+  ::view-transition-old(liquid-glass-course),
+  ::view-transition-new(liquid-glass-course){animation:none!important}
+}
