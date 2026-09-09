@@ -1,7 +1,7 @@
 /*
  * Liquid Glass navigation transitions.
  * Reuses the existing glass surfaces; this file only controls temporary
- * View Transition snapshots created during navigation.
+ * View Transition snapshots and the post-transition interface entrance.
  */
 @supports (view-transition-name: none){
   /* True shared-element morph: course card -> course workspace hero. */
@@ -91,6 +91,42 @@
     to{opacity:1;transform:translate3d(0,0,0) scale(1)}
   }
 
+  /*
+   * Build 2 post-transition entrance.
+   * Each meaningful Dashboard/Course surface enters independently. The
+   * five-icon bottom navigation and modal/form controls are intentionally
+   * excluded so they remain stable and immediately usable.
+   */
+  .liquid-stagger-enter{
+    animation-name:liquid-glass-stagger-in;
+    animation-duration:460ms;
+    animation-timing-function:cubic-bezier(.2,.78,.2,1);
+    animation-delay:calc(var(--liquid-stagger-index,0) * 42ms);
+    animation-fill-mode:both;
+    will-change:transform,opacity;
+  }
+
+  @keyframes liquid-glass-stagger-in{
+    from{
+      opacity:0;
+      transform:translate3d(0,14px,0) scale(.985);
+    }
+    55%{
+      opacity:1;
+      transform:translate3d(0,-2px,0) scale(1.002);
+    }
+    to{
+      opacity:1;
+      transform:translate3d(0,0,0) scale(1);
+    }
+  }
+
+  html.liquid-stagger-reduced-motion .liquid-stagger-enter{
+    animation:none!important;
+    opacity:1!important;
+    transform:none!important;
+  }
+
   html[data-liquid-transition-active] ::view-transition-group(root){overflow:hidden}
 }
 
@@ -102,5 +138,11 @@
   html[data-liquid-transition-active] ::view-transition-old(root),
   html[data-liquid-transition-active] ::view-transition-new(root){
     animation:none!important;
+  }
+
+  .liquid-stagger-enter{
+    animation:none!important;
+    opacity:1!important;
+    transform:none!important;
   }
 }
