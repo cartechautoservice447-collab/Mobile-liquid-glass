@@ -1,7 +1,6 @@
 (() => {
   const DASHBOARD = '.dashboard-screen';
   const QUICK_ACTIONS = '.quick-actions';
-  const SPACER_CLASS = 'dashboard-course-message-reserve';
   const POMODORO_CLASS = 'dashboard-pomodoro-action';
   const STYLE_ID = 'dashboard-pomodoro-layout-style';
 
@@ -12,24 +11,31 @@
     const style = document.createElement('style');
     style.id = STYLE_ID;
     style.textContent = `
-      .dashboard-screen .${SPACER_CLASS}{
-        width:100%!important;
-        height:28px!important;
-        min-height:28px!important;
-        flex:0 0 28px!important;
-        pointer-events:none!important;
+      /* Keep a fixed amount of vertical room at the end of the dashboard.
+         It remains when the transient Course created message disappears. */
+      .dashboard-screen .dashboard-shell::after{
+        content:'';
+        display:block;
+        width:100%;
+        height:28px;
+        min-height:28px;
+        pointer-events:none;
       }
+      /* Reserve scroll room for the fixed five-item navigation without
+         changing the size or position of the existing glass cards. */
       .dashboard-screen .dashboard-shell{
-        padding-bottom:112px!important;
+        padding-bottom:108px!important;
       }
       .dashboard-screen .dashboard-bottom-nav{
-        bottom:max(18px,calc(env(safe-area-inset-bottom) + 12px))!important;
-        margin:0!important;
+        bottom:max(18px,calc(env(safe-area-inset-bottom) + 10px))!important;
       }
       @media(max-width:480px){
-        .dashboard-screen .${SPACER_CLASS}{height:26px!important;min-height:26px!important;flex-basis:26px!important}
-        .dashboard-screen .dashboard-shell{padding-bottom:114px!important}
-        .dashboard-screen .dashboard-bottom-nav{bottom:max(18px,calc(env(safe-area-inset-bottom) + 12px))!important}
+        .dashboard-screen .dashboard-shell{
+          padding-bottom:110px!important;
+        }
+        .dashboard-screen .dashboard-bottom-nav{
+          bottom:max(18px,calc(env(safe-area-inset-bottom) + 10px))!important;
+        }
       }
     `;
     document.head.appendChild(style);
@@ -38,6 +44,10 @@
   function addPomodoroCard(dashboard) {
     const actions = qs(dashboard, QUICK_ACTIONS);
     if (!actions || qs(actions, `.${POMODORO_CLASS}`)) return;
+
+    const overview = [...actions.querySelectorAll('.action-card')]
+      .find((card) => (card.textContent || '').trim().toLowerCase().includes('overview'));
+    if (!overview) return;
 
     const button = document.createElement('button');
     button.type = 'button';
@@ -61,7 +71,7 @@
       openPomodoro(dashboard);
     });
 
-    actions.appendChild(button);
+    overview.insertAdjacentElement('afterend', button);
   }
 
   function openPomodoro(dashboard) {
@@ -74,8 +84,8 @@
     firstCourse.click();
     const started = Date.now();
     const seek = () => {
-      const tools = [...document.querySelectorAll('.course-details-screen .course-tool-folder')];
-      const study = tools.find((button) => (button.textContent || '').trim().toLowerCase().startsWith('study session'));
+      const study = [...document.querySelectorAll('.course-details-screen .course-tool-folder')]
+        .find((button) => (button.textContent || '').trim().toLowerCase().startsWith('study session'));
       if (study) {
         study.click();
         return;
@@ -85,30 +95,10 @@
     requestAnimationFrame(seek);
   }
 
-  function placePermanentCourseSpacing(dashboard) {
-    const grid = qs(dashboard, '.course-grid');
-    if (!grid) return;
-    let spacer = qs(dashboard, `.${SPACER_CLASS}`);
-    if (!spacer) {
-      spacer = document.createElement('div');
-      spacer.className = SPACER_CLASS;
-      spacer.setAttribute('aria-hidden', 'true');
-    }
-
-    const message = qs(dashboard, '.message');
-    if (message) {
-      message.insertAdjacentElement('afterend', spacer);
-      return;
-    }
-
-    grid.insertAdjacentElement('afterend', spacer);
-  }
-
   function enhance(dashboard) {
     if (!dashboard) return;
     installStyles();
     addPomodoroCard(dashboard);
-    placePermanentCourseSpacing(dashboard);
   }
 
   const observer = new MutationObserver(() => {
