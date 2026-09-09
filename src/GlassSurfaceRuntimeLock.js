@@ -144,8 +144,16 @@ function syncThemeVariables() {
 function hardSyncTargets() {
   const recipe = activeRecipe();
   document.querySelectorAll(TARGETS.join(',')).forEach((surface) => {
-    surface.style.setProperty('background-color', recipe.bg, 'important');
-    surface.style.setProperty('background-image', recipe.sheen, 'important');
+    const isCollectionWorkspace = surface.classList.contains('generated-editor-glass')
+      && surface.classList.contains('collection-workspace');
+    const background = isCollectionWorkspace ? 'var(--feature-stage-background)' : recipe.bg;
+    const image = isCollectionWorkspace ? 'var(--feature-stage-background)' : recipe.sheen;
+
+    surface.style.setProperty('background-color', isCollectionWorkspace ? 'transparent' : background, 'important');
+    surface.style.setProperty('background-image', image, 'important');
+    surface.style.setProperty('background-repeat', 'no-repeat', 'important');
+    surface.style.setProperty('background-size', 'cover', 'important');
+    surface.style.setProperty('background-position', 'center', 'important');
     surface.style.setProperty('backdrop-filter', `blur(${recipe.blur}) saturate(${recipe.saturation}) contrast(105%)`, 'important');
     surface.style.setProperty('-webkit-backdrop-filter', `blur(${recipe.blur}) saturate(${recipe.saturation}) contrast(105%)`, 'important');
     surface.style.setProperty('border', `1px solid ${recipe.border}`, 'important');
