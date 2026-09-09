@@ -14,18 +14,22 @@
     style.textContent = `
       .dashboard-screen .${SPACER_CLASS}{
         width:100%!important;
-        height:26px!important;
-        min-height:26px!important;
-        flex:0 0 26px!important;
+        height:28px!important;
+        min-height:28px!important;
+        flex:0 0 28px!important;
         pointer-events:none!important;
       }
+      .dashboard-screen .dashboard-shell{
+        padding-bottom:112px!important;
+      }
       .dashboard-screen .dashboard-bottom-nav{
-        margin-top:10px!important;
-        margin-bottom:max(18px, env(safe-area-inset-bottom))!important;
+        bottom:max(18px,calc(env(safe-area-inset-bottom) + 12px))!important;
+        margin:0!important;
       }
       @media(max-width:480px){
-        .dashboard-screen .${SPACER_CLASS}{height:24px!important;min-height:24px!important;flex-basis:24px!important}
-        .dashboard-screen .dashboard-bottom-nav{margin-top:10px!important;margin-bottom:max(20px, env(safe-area-inset-bottom))!important}
+        .dashboard-screen .${SPACER_CLASS}{height:26px!important;min-height:26px!important;flex-basis:26px!important}
+        .dashboard-screen .dashboard-shell{padding-bottom:114px!important}
+        .dashboard-screen .dashboard-bottom-nav{bottom:max(18px,calc(env(safe-area-inset-bottom) + 12px))!important}
       }
     `;
     document.head.appendChild(style);
@@ -81,13 +85,22 @@
     requestAnimationFrame(seek);
   }
 
-  function addPermanentCourseSpacing(dashboard) {
+  function placePermanentCourseSpacing(dashboard) {
     const grid = qs(dashboard, '.course-grid');
     if (!grid) return;
-    if (qs(grid, `.${SPACER_CLASS}`)) return;
-    const spacer = document.createElement('div');
-    spacer.className = SPACER_CLASS;
-    spacer.setAttribute('aria-hidden', 'true');
+    let spacer = qs(dashboard, `.${SPACER_CLASS}`);
+    if (!spacer) {
+      spacer = document.createElement('div');
+      spacer.className = SPACER_CLASS;
+      spacer.setAttribute('aria-hidden', 'true');
+    }
+
+    const message = qs(dashboard, '.message');
+    if (message) {
+      message.insertAdjacentElement('afterend', spacer);
+      return;
+    }
+
     grid.insertAdjacentElement('afterend', spacer);
   }
 
@@ -95,7 +108,7 @@
     if (!dashboard) return;
     installStyles();
     addPomodoroCard(dashboard);
-    addPermanentCourseSpacing(dashboard);
+    placePermanentCourseSpacing(dashboard);
   }
 
   const observer = new MutationObserver(() => {
