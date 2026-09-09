@@ -44,12 +44,16 @@
     document.head.appendChild(style);
   }
 
-  function parseProgress(circle) {
+  function readNormalizedProgress(circle) {
     const raw = circle?.style?.strokeDasharray || '';
+    // The premium timer writes normalized values such as "0.998 0.002".
+    // Once this fix converts them to pixel units, ignore the converted value
+    // until the premium timer writes the next normalized value.
+    if (!raw || /px|%|em|rem/i.test(raw)) return null;
     const match = raw.match(/([0-9]*\.?[0-9]+)/);
-    if (!match) return 1;
+    if (!match) return null;
     const value = Number(match[1]);
-    return Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 1;
+    return Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : null;
   }
 
   function syncCircle(circle) {
@@ -57,14 +61,16 @@
     const radius = Number(circle.getAttribute('r'));
     if (!Number.isFinite(radius) || radius <= 0) return;
 
+    const progress = readNormalizedProgress(circle);
+    if (progress == null) return;
+
     const circumference = 2 * Math.PI * radius;
-    const progress = parseProgress(circle);
     const arcLength = circumference * progress;
     const gapLength = Math.max(0, circumference - arcLength);
 
-    // Android WebView is more reliable with real SVG units than fractional
-    // dasharray values combined with pathLength=1. Remove pathLength and use
-    // the circle's actual circumference so the shrinking white arc stays visible.
+    // Android WebView can render fractional dasharray values inconsistently here.
+    // Use the real circumference instead, while preserving the premium timer's
+    // normalized progress calculation and live countdown updates.
     circle.removeAttribute('pathLength');
     circle.style.strokeDasharray = `${arcLength}px ${gapLength}px`;
     circle.style.strokeDashoffset = '0px';
@@ -79,15 +85,12 @@
   function boot() {
     installStyles();
 
+    // The premium timer updates the normalized dasharray on every timer frame.
+    // A lightweight frame watcher converts each new value to reliable SVG units.
     const refresh = () => {
       document.querySelectorAll(RING).forEach(syncRing);
       requestAnimationFrame(refresh);
     };
-
-    const observer = new MutationObserver(() => {
-      document.querySelectorAll(RING).forEach(syncRing);
-    });
-    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['style'] });
 
     refresh();
   }
