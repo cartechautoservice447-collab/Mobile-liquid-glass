@@ -1,26 +1,14 @@
-/* Safe depth-parallax layer: no new glass material, blur, background, or shadow. */
-.dashboard-screen .depth-parallax-target,
-.course-workspace-screen .depth-parallax-target,
-.course-folder-screen .depth-parallax-target{
-  --depth-x:0px;
-  --depth-y:0px;
-  --depth-scale:1;
-  transform:translate3d(var(--depth-x),var(--depth-y),0) scale(var(--depth-scale));
-  transform-origin:center;
-  will-change:transform;
-}
-
+/* Safe depth-parallax layer: no new glass material, blur, background, border, or shadow. */
 .dashboard-screen .depth-parallax-layer{
   --depth-x:0px;
   --depth-y:0px;
   transform:translate3d(var(--depth-x),var(--depth-y),0);
   will-change:transform;
+  backface-visibility:hidden;
+  -webkit-backface-visibility:hidden;
 }
 
 @media(prefers-reduced-motion:reduce){
-  .dashboard-screen .depth-parallax-target,
-  .course-workspace-screen .depth-parallax-target,
-  .course-folder-screen .depth-parallax-target,
   .dashboard-screen .depth-parallax-layer{
     transform:none!important;
     will-change:auto!important;
