@@ -4,9 +4,9 @@
   /*
    * Global Liquid Glass Ripple.
    *
-   * The effect is deliberately implemented as a fixed, pointer-transparent
-   * overlay. It does not mutate React children, glass CSS, transforms, layout,
-   * or existing interaction handlers.
+   * The feedback is mounted inside the existing interactive glass surface so
+   * the glass itself appears to react to the tap. It does not add a detached
+   * white wave over the page and does not replace the existing glass material.
    */
   const MAX_ACTIVE = 4;
   const DURATION = 520;
@@ -29,7 +29,8 @@
     '.engine-chip',
   ].join(',');
 
-  const EXCLUDED_ANCESTOR = '.liquid-glass-ripple-host';
+  const RIPPLE_HOST = 'liquid-glass-ripple-host';
+  const EXCLUDED_ANCESTOR = `.${RIPPLE_HOST}`;
   const reducedMotionQuery = window.matchMedia?.('(prefers-reduced-motion: reduce)');
   const active = [];
 
@@ -57,6 +58,7 @@
     const index = active.indexOf(item);
     if (index >= 0) active.splice(index, 1);
     item.host.remove();
+    if (item.restoredPosition) item.target.style.position = item.previousPosition;
   }
 
   function createRipple(target, clientX, clientY) {
@@ -65,6 +67,7 @@
     while (active.length >= MAX_ACTIVE) {
       const oldest = active.shift();
       oldest?.host.remove();
+      if (oldest?.restoredPosition) oldest.target.style.position = oldest.previousPosition;
     }
 
     const rect = target.getBoundingClientRect();
@@ -76,13 +79,17 @@
     );
 
     const host = document.createElement('span');
-    host.className = 'liquid-glass-ripple-host';
+    host.className = RIPPLE_HOST;
     host.setAttribute('aria-hidden', 'true');
-    host.style.left = `${rect.left}px`;
-    host.style.top = `${rect.top}px`;
-    host.style.width = `${rect.width}px`;
-    host.style.height = `${rect.height}px`;
     host.style.borderRadius = getComputedStyle(target).borderRadius;
+
+    let restoredPosition = false;
+    let previousPosition = '';
+    if (getComputedStyle(target).position === 'static') {
+      previousPosition = target.style.position;
+      target.style.position = 'relative';
+      restoredPosition = true;
+    }
 
     const wave = document.createElement('span');
     wave.className = 'liquid-glass-ripple-wave';
@@ -92,13 +99,18 @@
     wave.style.top = `${clientY - rect.top}px`;
 
     host.appendChild(wave);
-    document.body.appendChild(host);
+    target.appendChild(host);
 
-    const item = { host };
+    const item = {
+      host,
+      target,
+      restoredPosition,
+      previousPosition,
+    };
     active.push(item);
     wave.addEventListener('animationend', () => clearFinished(item), { once: true });
     window.setTimeout(() => {
-      if (document.body.contains(host)) clearFinished(item);
+      if (target.contains(host)) clearFinished(item);
     }, DURATION + 120);
   }
 
