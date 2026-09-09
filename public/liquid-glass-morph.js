@@ -8,13 +8,12 @@
    * The restrained page transition is used only by approved Dashboard/Course
    * controls and the five bottom navigation items.
    *
-   * Build 2 entrance layer:
-   * - destination surfaces are prepared inside the View Transition update
-   *   callback so the new snapshot is captured with the stagger already active
-   * - meaningful Dashboard/Course sections enter in a controlled sequence
+   * Entrance handoff:
+   * - destination surfaces are hidden while the View Transition owns the frame
+   * - stagger classes are applied only after the transition has fully finished
+   * - this prevents the old Build 2 destination from flashing before the
+   *   staggered interface version appears
    * - five-icon bottom navigation is deliberately excluded
-   * - the course hero remains owned by the shared-element morph
-   * - existing glass material and normal interaction physics are untouched
    */
 
   const COURSE_SOURCES = [
@@ -50,7 +49,6 @@
     '.dashboard-screen .dashboard-pomodoro-action',
     '.dashboard-screen .dashboard-recent',
     '.dashboard-screen .dashboard-recent-item',
-    '.dashboard.screen .learning-suite',
     '.dashboard-screen .learning-suite',
     '.dashboard-screen .learning-suite > *',
     '.dashboard-screen .learning-suite-card',
@@ -87,6 +85,8 @@
   ].join(', ');
 
   const VIEW_NAME = 'liquid-glass-course';
+  const STAGGER_PENDING = 'liquid-stagger-pending';
+  const STAGGER_READY = 'liquid-stagger-ready';
   const reducedMotionQuery = window.matchMedia?.('(prefers-reduced-motion: reduce)');
   let replaying = false;
 
@@ -143,6 +143,7 @@
     delete document.documentElement.dataset.liquidTransition;
     delete document.documentElement.dataset.liquidTransitionActive;
     delete document.documentElement.dataset.liquidCourseMorph;
+    delete document.documentElement.dataset[STAGGER_PENDING];
   }
 
   function runNormal(element) {
@@ -158,28 +159,48 @@
     clearGlobalState();
   }
 
-  function prepareStaggeredEntrance({ excludeCourseHero = false } = {}) {
-    if (prefersReducedMotion()) return;
-
-    const screen = document.querySelector('.dashboard-screen, .course-folder-screen, .course-workspace-screen');
-    if (!screen) return;
-
-    const elements = [...screen.querySelectorAll(STAGGER_SOURCES)]
+  function collectStaggerElements(screen, excludeCourseHero) {
+    return [...screen.querySelectorAll(STAGGER_SOURCES)]
       .filter((element, index, list) => list.indexOf(element) === index)
       .filter((element) => !element.closest(STAGGER_EXCLUDED))
       .filter((element) => !excludeCourseHero || !element.closest('.course-workspace-hero'))
       .filter((element) => element.isConnected)
       .slice(0, 40);
+  }
 
+  function applyStaggeredEntrance({ excludeCourseHero = false } = {}) {
+    if (prefersReducedMotion()) return;
+
+    const screen = document.querySelector('.dashboard-screen, .course-folder-screen, .course-workspace-screen');
+    if (!screen) return;
+
+    const elements = collectStaggerElements(screen, excludeCourseHero);
     elements.forEach((element, index) => {
       element.classList.remove('liquid-stagger-enter');
       element.style.setProperty('--liquid-stagger-index', String(index));
       element.classList.add('liquid-stagger-enter');
     });
+
+    requestAnimationFrame(() => {
+      document.documentElement.classList.remove(STAGGER_READY);
+    });
+  }
+
+  function finishTransition(source) {
+    cleanupSource(source);
+    requestAnimationFrame(() => {
+      document.documentElement.classList.remove(STAGGER_PENDING);
+      if (!prefersReducedMotion()) {
+        document.documentElement.classList.add(STAGGER_READY);
+        applyStaggeredEntrance({ excludeCourseHero: source.type === 'course' });
+      }
+    });
   }
 
   function startTransition(source) {
     setPressCoordination(source.element, true);
+
+    document.documentElement.classList.add(STAGGER_PENDING);
 
     if (source.type === 'course') {
       source.element.style.viewTransitionName = VIEW_NAME;
@@ -194,17 +215,18 @@
     try {
       transition = document.startViewTransition(() => {
         runNormal(source.element);
-        prepareStaggeredEntrance({ excludeCourseHero: source.type === 'course' });
       });
     } catch (_error) {
       cleanupSource(source);
       runNormal(source.element);
-      queueMicrotask(() => prepareStaggeredEntrance({ excludeCourseHero: source.type === 'course' }));
+      requestAnimationFrame(() => {
+        document.documentElement.classList.remove(STAGGER_PENDING);
+        applyStaggeredEntrance({ excludeCourseHero: source.type === 'course' });
+      });
       return;
     }
 
-    const cleanup = () => cleanupSource(source);
-    transition.finished.then(cleanup, cleanup);
+    transition.finished.then(() => finishTransition(source), () => finishTransition(source));
   }
 
   function onClickCapture(event) {
