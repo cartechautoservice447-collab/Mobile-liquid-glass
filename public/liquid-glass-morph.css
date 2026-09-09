@@ -1,6 +1,10 @@
-/* Morph transition only: reuse the existing Liquid Glass surfaces. */
+/*
+ * Liquid Glass navigation transitions.
+ * Reuses the existing glass surfaces; this file only controls the temporary
+ * View Transition snapshots created during navigation.
+ */
 @supports (view-transition-name: none){
-  /* Destination surface. A source card receives the same temporary name in JS. */
+  /* True shared-element morph: course card -> course workspace hero. */
   .course-workspace-screen .course-workspace-hero{
     view-transition-name: liquid-glass-course;
     view-transition-class: liquid-glass-course-surface;
@@ -41,10 +45,70 @@
     from{opacity:.18;transform:scale(1.04)}
     to{opacity:1;transform:scale(1)}
   }
+
+  /* Global fallback transition for structurally different screens. */
+  ::view-transition-old(root),
+  ::view-transition-new(root){
+    animation-duration:420ms;
+    animation-timing-function:cubic-bezier(.22,.76,.2,1);
+    backface-visibility:hidden;
+  }
+
+  ::view-transition-old(root){
+    animation-name:liquid-glass-page-out;
+  }
+
+  ::view-transition-new(root){
+    animation-name:liquid-glass-page-in;
+  }
+
+  html[data-liquid-transition="back"] ::view-transition-old(root){
+    animation-name:liquid-glass-page-back-out;
+  }
+
+  html[data-liquid-transition="back"] ::view-transition-new(root){
+    animation-name:liquid-glass-page-back-in;
+  }
+
+  /* A course shared-element transition already owns the visual motion. */
+  html[data-liquid-course-morph] ::view-transition-old(root),
+  html[data-liquid-course-morph] ::view-transition-new(root){
+    animation:none;
+  }
+
+  @keyframes liquid-glass-page-out{
+    from{opacity:1;transform:translate3d(0,0,0) scale(1)}
+    to{opacity:.82;transform:translate3d(0,-8px,0) scale(.992)}
+  }
+
+  @keyframes liquid-glass-page-in{
+    from{opacity:.78;transform:translate3d(0,10px,0) scale(.992)}
+    to{opacity:1;transform:translate3d(0,0,0) scale(1)}
+  }
+
+  @keyframes liquid-glass-page-back-out{
+    from{opacity:1;transform:translate3d(0,0,0) scale(1)}
+    to{opacity:.82;transform:translate3d(0,8px,0) scale(.992)}
+  }
+
+  @keyframes liquid-glass-page-back-in{
+    from{opacity:.78;transform:translate3d(0,-10px,0) scale(.992)}
+    to{opacity:1;transform:translate3d(0,0,0) scale(1)}
+  }
+
+  /* Keep the temporary transform snapshots stable on mobile. */
+  ::view-transition-group(root){
+    overflow:hidden;
+  }
 }
 
 @media(prefers-reduced-motion:reduce){
   ::view-transition-group(liquid-glass-course),
   ::view-transition-old(liquid-glass-course),
-  ::view-transition-new(liquid-glass-course){animation:none!important}
+  ::view-transition-new(liquid-glass-course),
+  ::view-transition-group(root),
+  ::view-transition-old(root),
+  ::view-transition-new(root){
+    animation:none!important;
+  }
 }
