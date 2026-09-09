@@ -1,9 +1,8 @@
 (() => {
   'use strict';
 
-  // Parallax never transforms the glass container itself. Existing Motion/hover
-  // physics keep ownership of the card transform; this layer only moves content
-  // inside the existing glass surface by a few pixels.
+  // Final audited version. The parallax layer never transforms or replaces the
+  // existing glass surface; it only applies tiny transforms to content inside it.
   const TARGETS = [
     '.dashboard-screen .course-dashboard-card .course-open',
     '.dashboard-screen .action-card',
