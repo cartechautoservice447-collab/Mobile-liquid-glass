@@ -104,7 +104,8 @@
 }
 
 @media(max-width:480px){
-  .course-dashboard-card{height:168px;min-height:168px}
+  /* Matched to the supplied mobile reference screenshot: ~196px card height at a ~463px viewport. */
+  .course-dashboard-card{height:196px;min-height:196px}
 }
 
 @media(max-width:380px){
