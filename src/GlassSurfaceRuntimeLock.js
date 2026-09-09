@@ -13,9 +13,9 @@ const TARGETS = [
   '.collection-note-card',
   '.generated-editor-glass.collection-workspace',
 ];
+const TARGET_SELECTOR = TARGETS.join(',');
 
 const STYLE = `
-  /* Structural wrapper: never a second glass surface. */
   html[data-glass-theme] .app-root-layer .course-dashboard-card {
     background: transparent !important;
     background-image: none !important;
@@ -27,7 +27,6 @@ const STYLE = `
     overflow: visible !important;
   }
 
-  /* One theme-owned glass surface for Course, Saved Notes, and Notes Editor. */
   html[data-glass-theme] .app-root-layer .course-dashboard-card .course-open,
   html[data-glass-theme] .app-root-layer .collection-note-card,
   html[data-glass-theme] .app-root-layer .generated-editor-glass.collection-workspace {
@@ -44,7 +43,6 @@ const STYLE = `
     filter: none !important;
   }
 
-  /* The three target surfaces have no legacy refraction/veil layer. */
   html[data-glass-theme] .app-root-layer .course-dashboard-card .course-open::before,
   html[data-glass-theme] .app-root-layer .course-dashboard-card .course-open::after,
   html[data-glass-theme] .app-root-layer .collection-note-card::before,
@@ -66,7 +64,6 @@ const STYLE = `
     z-index: 1 !important;
   }
 
-  /* Keep the editor's internal controls/content layers separate from the outer glass. */
   html[data-glass-theme] .app-root-layer .generated-editor-glass.collection-workspace .generated-editor-topbar,
   html[data-glass-theme] .app-root-layer .generated-editor-glass.collection-workspace .generated-format-toolbar,
   html[data-glass-theme] .app-root-layer .generated-editor-glass.collection-workspace .generated-controls {
@@ -141,9 +138,11 @@ function syncThemeVariables() {
   root.style.setProperty('--glass-theme-saturation', recipe.saturation);
 }
 
-function hardSyncTargets() {
+function hardSyncTargets(targets) {
   const recipe = activeRecipe();
-  document.querySelectorAll(TARGETS.join(',')).forEach((surface) => {
+  const surfaces = targets || document.querySelectorAll(TARGET_SELECTOR);
+  surfaces.forEach((surface) => {
+    if (!(surface instanceof HTMLElement)) return;
     const isCollectionWorkspace = surface.classList.contains('generated-editor-glass')
       && surface.classList.contains('collection-workspace');
     const background = isCollectionWorkspace ? 'var(--feature-stage-background)' : recipe.bg;
@@ -164,6 +163,14 @@ function hardSyncTargets() {
   });
 }
 
+function isRelevantMutation(mutations) {
+  return mutations.some((mutation) => [...mutation.addedNodes].some((node) => {
+    if (!(node instanceof Element)) return false;
+    if (node.matches(TARGET_SELECTOR)) return true;
+    return Boolean(node.querySelector(TARGET_SELECTOR));
+  }));
+}
+
 if (typeof document !== 'undefined') {
   syncThemeVariables();
 
@@ -175,14 +182,23 @@ if (typeof document !== 'undefined') {
   }
   style.textContent = STYLE;
 
+  let syncFrame = 0;
   const sync = () => {
-    syncThemeVariables();
-    hardSyncTargets();
+    if (syncFrame) return;
+    syncFrame = requestAnimationFrame(() => {
+      syncFrame = 0;
+      syncThemeVariables();
+      hardSyncTargets();
+    });
   };
 
-  const observer = new MutationObserver(sync);
-  observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-glass-theme'] });
-  observer.observe(document.body, { childList: true, subtree: true });
-  window.addEventListener('glass-settings-changed', sync);
+  const themeObserver = new MutationObserver(() => sync());
+  themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-glass-theme'] });
+
+  const bodyObserver = new MutationObserver((mutations) => {
+    if (isRelevantMutation(mutations)) sync();
+  });
+  bodyObserver.observe(document.body, { childList: true, subtree: true });
+  window.addEventListener('glass-settings-changed', sync, { passive: true });
   sync();
 }
