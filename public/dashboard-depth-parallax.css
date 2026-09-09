@@ -1,5 +1,5 @@
-/* Safe depth-parallax layer: no new glass material, blur, background, border, or shadow. */
-.dashboard-screen .depth-parallax-layer{
+/* Depth motion only: inherit the existing Liquid Glass material completely. */
+.depth-parallax-layer{
   --depth-x:0px;
   --depth-y:0px;
   transform:translate3d(var(--depth-x),var(--depth-y),0);
@@ -9,7 +9,7 @@
 }
 
 @media(prefers-reduced-motion:reduce){
-  .dashboard-screen .depth-parallax-layer{
+  .depth-parallax-layer{
     transform:none!important;
     will-change:auto!important;
   }
