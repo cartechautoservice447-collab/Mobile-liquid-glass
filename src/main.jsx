@@ -17,9 +17,11 @@ import './NotesEditorResponsive.css';
 import './MobileNoteEditorFrame.css';
 import './MobileNoteEditorChrome.css';
 import './MobileNoteEditorHorizontalFit.css';
+import './NoteEditorPremiumRefinement.css';
 import './AndroidMobileHardening.css';
 import './FeatureBackgroundUnification.css';
 import './GlassSurfaceRuntimeLock.js';
+import './NoteEditorPremiumRefinement.js';
 
 function handleWebAuthCallback() {
   if (!supabase || typeof window === 'undefined') return;
