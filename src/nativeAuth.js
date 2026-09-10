@@ -1,8 +1,8 @@
 import { Capacitor } from '@capacitor/core';
 import { App as CapacitorApp } from '@capacitor/app';
-import { supabase } from './lib/supabase.js';
+import { supabase, MOBILE_NATIVE_AUTH_REDIRECT } from './lib/supabase.js';
 
-export const NATIVE_AUTH_REDIRECT = 'com.liquidglass.studio://auth/callback';
+export const NATIVE_AUTH_REDIRECT = MOBILE_NATIVE_AUTH_REDIRECT;
 export const AUTH_ERROR_KEY = 'mobile-liquid-glass-auth-error';
 export const AUTH_ERROR_EVENT = 'liquid-glass-auth-error';
 const SKIP_AUTH_KEY = 'mobile-liquid-glass-skip-auth';
