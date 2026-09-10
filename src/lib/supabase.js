@@ -43,21 +43,27 @@ export const supabase = isSupabaseConfigured
   : null;
 
 /**
- * Returns the final browser destination for this client only.
- * Production always stays on Mobile-liquid-glass; previews/local development
- * stay on their own current origin. Native auth uses nativeAuth.js instead.
+ * Returns the final web callback owned by Mobile-liquid-glass.
+ * Local development may use its local callback; production is always the
+ * Mobile app's production host so it can never fall back to Fluid Studio.
  */
 export function getMobileWebAuthRedirect() {
   if (typeof window === 'undefined') return MOBILE_WEB_AUTH_REDIRECT;
-
   const origin = window.location.origin;
   const isLocal = /^(https?:\/\/localhost(?::\d+)?|https?:\/\/127\.0\.0\.1(?::\d+)?)$/i.test(origin);
+  return isLocal ? `${origin}/auth/callback` : MOBILE_WEB_AUTH_REDIRECT;
+}
 
-  if (isLocal) return `${origin}/auth/callback`;
-  if (origin === MOBILE_WEB_AUTH_ORIGIN) return MOBILE_WEB_AUTH_REDIRECT;
-
-  // Vercel preview/deployment aliases for this client should return to the
-  // same host that started the login, never to Fluid Glass Studio.
-  if (origin.endsWith('.vercel.app')) return `${origin}/auth/callback`;
-  return MOBILE_WEB_AUTH_REDIRECT;
+// App.jsx currently calls signInWithOAuth directly. Enforce the Mobile-owned
+// redirect at the shared client boundary so no caller can accidentally reuse
+// Fluid Glass Studio's Site URL/default redirect.
+if (supabase) {
+  const originalSignInWithOAuth = supabase.auth.signInWithOAuth.bind(supabase.auth);
+  supabase.auth.signInWithOAuth = async (options = {}) => originalSignInWithOAuth({
+    ...options,
+    options: {
+      ...(options.options || {}),
+      redirectTo: getMobileWebAuthRedirect(),
+    },
+  });
 }
