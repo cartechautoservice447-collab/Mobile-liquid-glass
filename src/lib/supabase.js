@@ -73,5 +73,6 @@ if (typeof window !== 'undefined') {
     import('../collectionDeleteFeature.js').catch(() => {});
     import('../collectionDeletePolish.js').catch(() => {});
     import('../collectionDeleteLongPress.js').catch(() => {});
+    import('../collectionDeleteLongPressFix.js').catch(() => {});
   });
 }
