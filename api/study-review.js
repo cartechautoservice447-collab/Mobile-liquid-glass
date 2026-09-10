@@ -3,6 +3,9 @@ const WINDOW_MS = 60_000;
 const MAX_REQUESTS = 20;
 const MAX_BODY_BYTES = 64_000;
 
+const SHARED_SUPABASE_URL = 'https://asgwpmsuutigtvaxuxmr.supabase.co';
+const SHARED_SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_fi3mpoY8ZrymYbnxdpREYw_hnUmTYxG';
+
 function jsonSize(value) {
   try { return new TextEncoder().encode(JSON.stringify(value)).length; } catch { return Infinity; }
 }
@@ -16,12 +19,9 @@ async function authenticateRequest(req) {
   if (!authorization.startsWith('Bearer ')) return null;
   const accessToken = authorization.slice(7).trim();
   if (!accessToken) return null;
-  const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
-  const supabaseKey = process.env.VITE_SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_PUBLISHABLE_KEY;
-  if (!supabaseUrl || !supabaseKey) return null;
   try {
-    const response = await fetch(`${supabaseUrl.replace(/\/$/, '')}/auth/v1/user`, {
-      headers: { apikey: supabaseKey, Authorization: `Bearer ${accessToken}` },
+    const response = await fetch(`${SHARED_SUPABASE_URL}/auth/v1/user`, {
+      headers: { apikey: SHARED_SUPABASE_PUBLISHABLE_KEY, Authorization: `Bearer ${accessToken}` },
     });
     if (!response.ok) return null;
     const user = await response.json();
