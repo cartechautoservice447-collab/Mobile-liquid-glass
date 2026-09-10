@@ -66,24 +66,36 @@ function scopedMapKey(type, localId, scope = '') {
   return scope ? `${type}:${scope}:${localId}` : `${type}:${localId}`;
 }
 
-function cloudId(userId, type, localId, map, scope = '', occurrence = 0) {
+function cloudId(userId, type, localId, map, scope = '', occurrence = 0, usedIds = new Set()) {
   const normalizedLocalId = String(localId ?? '').trim();
   const baseKey = scopedMapKey(type, normalizedLocalId, scope);
   const occurrenceKey = occurrence > 0 ? `${baseKey}:duplicate-${occurrence}` : baseKey;
 
-  if (UUID_RE.test(normalizedLocalId)) return normalizedLocalId;
-  if (UUID_RE.test(String(map[occurrenceKey] || ''))) return String(map[occurrenceKey]);
+  const mapped = String(map[occurrenceKey] || '');
+  if (UUID_RE.test(mapped) && !usedIds.has(mapped)) {
+    usedIds.add(mapped);
+    return mapped;
+  }
 
   if (occurrence === 0 && scope) {
     const legacyKey = scopedMapKey(type, normalizedLocalId);
-    if (UUID_RE.test(String(map[legacyKey] || ''))) {
-      map[baseKey] = String(map[legacyKey]);
-      return String(map[legacyKey]);
+    const legacy = String(map[legacyKey] || '');
+    if (UUID_RE.test(legacy) && !usedIds.has(legacy)) {
+      map[baseKey] = legacy;
+      usedIds.add(legacy);
+      return legacy;
     }
   }
 
-  const next = crypto.randomUUID();
+  if (UUID_RE.test(normalizedLocalId) && !usedIds.has(normalizedLocalId)) {
+    usedIds.add(normalizedLocalId);
+    return normalizedLocalId;
+  }
+
+  let next = crypto.randomUUID();
+  while (usedIds.has(next)) next = crypto.randomUUID();
   map[occurrenceKey] = next;
+  usedIds.add(next);
   return next;
 }
 
@@ -157,10 +169,13 @@ function toMobileWorkspace(courses, collections, notes) {
 function normalizeCoursesForCloud(userId, courses) {
   const map = readIdMap(userId);
   const normalized = [];
+  const usedCourseIds = new Set();
+  const usedCollectionIds = new Set();
+  const usedNoteIds = new Set();
 
   for (const course of Array.isArray(courses) ? courses : []) {
     const courseOccurrence = normalized.filter((item) => item.sourceLocalId === course.id).length;
-    const courseId = cloudId(userId, 'course', course.id, map, '', courseOccurrence);
+    const courseId = cloudId(userId, 'course', course.id, map, '', courseOccurrence, usedCourseIds);
     const normalizedCourse = {
       id: courseId, user_id: userId, name: String(course.name || 'Untitled course').trim() || 'Untitled course', description: String(course.description || '').trim(), color: String(course.color || 'sky'),
       created_at: new Date(Number(course.createdAt) || Date.now()).toISOString(), updated_at: new Date().toISOString(), collections: [], sourceLocalId: course.id,
@@ -171,7 +186,7 @@ function normalizeCoursesForCloud(userId, courses) {
       const collectionKey = String(collection.id ?? '').trim();
       const occurrence = collectionOccurrences.get(collectionKey) || 0;
       collectionOccurrences.set(collectionKey, occurrence + 1);
-      const collectionId = cloudId(userId, 'collection', collection.id, map, String(course.id ?? courseId), occurrence);
+      const collectionId = cloudId(userId, 'collection', collection.id, map, String(course.id ?? courseId), occurrence, usedCollectionIds);
       const normalizedCollection = {
         id: collectionId, user_id: userId, course_id: courseId, name: String(collection.title || collection.name || 'New collection').trim() || 'New collection',
         created_at: new Date(Number(collection.createdAt) || Date.now()).toISOString(), updated_at: new Date(Number(collection.updatedAt) || Date.now()).toISOString(), notes: [],
@@ -189,6 +204,7 @@ function normalizeCoursesForCloud(userId, courses) {
           map,
           `${String(course.id ?? courseId)}:${String(collection.id ?? collectionId)}`,
           noteOccurrence,
+          usedNoteIds,
         );
         normalizedCollection.notes.push({
           id: noteId, user_id: userId, course_id: courseId, collection_id: collectionId,
