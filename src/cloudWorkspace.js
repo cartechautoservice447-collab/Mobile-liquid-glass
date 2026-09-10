@@ -274,13 +274,15 @@ export function deleteCloudNote(userId, noteId, courseId = '', collectionId = ''
   if (!cloudNoteId) return Promise.resolve();
   markDeleted(userId, 'note', cloudNoteId);
   bumpLoadGeneration(userId);
-  return deleteOnce(userId, 'note', cloudNoteId, () => enqueueCloudWrite(userId, async () => {
+  const backgroundDelete = deleteOnce(userId, 'note', cloudNoteId, () => enqueueCloudWrite(userId, async () => {
     const { error } = await supabase.from('notes').delete().eq('user_id', userId).eq('id', cloudNoteId);
     if (error) throw error;
     const { data, error: verifyError } = await supabase.from('notes').select('id').eq('user_id', userId).eq('id', cloudNoteId).limit(1);
     if (verifyError) throw verifyError;
     if (data?.length) throw new Error('Note deletion was not confirmed by Supabase.');
   }));
+  backgroundDelete.catch((error) => console.error('Note cloud deletion failed:', error));
+  return Promise.resolve();
 }
 
 export function deleteCloudCourse(userId, courseId) {
