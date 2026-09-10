@@ -90,12 +90,15 @@ function cloudId(userId, type, localId, map, scope = '', occurrence = 0, usedIds
   const baseKey = scopedMapKey(type, normalized, scope);
   const key = occurrence ? `${baseKey}:duplicate-${occurrence}` : baseKey;
   const mapped = String(map[key] || '');
-  if (UUID_RE.test(mapped) && !usedIds.has(mapped) && !isDeleted(userId, type, mapped)) { usedIds.add(mapped); return mapped; }
+  if (UUID_RE.test(mapped) && isDeleted(userId, type, mapped)) return mapped;
+  if (UUID_RE.test(mapped) && !usedIds.has(mapped)) { usedIds.add(mapped); return mapped; }
   if (occurrence === 0 && scope) {
     const legacy = String(map[scopedMapKey(type, normalized)] || '');
-    if (UUID_RE.test(legacy) && !usedIds.has(legacy) && !isDeleted(userId, type, legacy)) { map[baseKey] = legacy; usedIds.add(legacy); return legacy; }
+    if (UUID_RE.test(legacy) && isDeleted(userId, type, legacy)) return legacy;
+    if (UUID_RE.test(legacy) && !usedIds.has(legacy)) { map[baseKey] = legacy; usedIds.add(legacy); return legacy; }
   }
-  if (UUID_RE.test(normalized) && !usedIds.has(normalized) && !isDeleted(userId, type, normalized)) { usedIds.add(normalized); return normalized; }
+  if (UUID_RE.test(normalized) && isDeleted(userId, type, normalized)) return normalized;
+  if (UUID_RE.test(normalized) && !usedIds.has(normalized)) { usedIds.add(normalized); return normalized; }
   let next = crypto.randomUUID();
   while (usedIds.has(next) || isDeleted(userId, type, next)) next = crypto.randomUUID();
   map[key] = next;
