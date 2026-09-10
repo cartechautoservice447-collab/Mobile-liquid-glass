@@ -2,6 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App.jsx';
 import { configureNativeAuth } from './nativeAuth.js';
+import { configureSharedNotifications } from './sharedNotifications.js';
 import LiquidEnvironment from './LiquidEnvironment.jsx';
 import LiquidRefractionFilter from './LiquidRefractionFilter.jsx';
 import './styles.css';
@@ -17,6 +18,7 @@ import './FeatureBackgroundUnification.css';
 import './GlassSurfaceRuntimeLock.js';
 
 void configureNativeAuth();
+const disposeSharedNotifications = configureSharedNotifications();
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
@@ -27,3 +29,7 @@ createRoot(document.getElementById('root')).render(
     </div>
   </StrictMode>,
 );
+
+if (import.meta.hot) {
+  import.meta.hot.dispose(() => disposeSharedNotifications?.());
+}
