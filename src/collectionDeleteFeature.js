@@ -5,6 +5,7 @@ const ID_MAP_KEY = 'mobile-liquid-glass-cloud-id-map-v1';
 const TOMBSTONE_KEY = 'mobile-liquid-glass-delete-tombstones-v1';
 const TOMBSTONE_TTL = 24 * 60 * 60 * 1000;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const DELETE_ANIMATION_MS = 680;
 
 function getUserId() {
   try {
@@ -72,6 +73,15 @@ function markDeleted(userId, cloudIds) {
   } catch {}
 }
 
+function clearTombstones(userId, cloudIds) {
+  try {
+    const key = `${TOMBSTONE_KEY}:${userId}`;
+    const parsed = JSON.parse(localStorage.getItem(key) || '{}');
+    cloudIds.forEach((id) => delete parsed[`collection:${id}`]);
+    localStorage.setItem(key, JSON.stringify(parsed));
+  } catch {}
+}
+
 function courseFromPage(courseName, courses) {
   return courses.find((course) => String(course.name || '').trim() === String(courseName || '').trim()) || null;
 }
@@ -117,7 +127,15 @@ function injectStyles() {
     .collection-delete-modal h2{margin:0 0 7px;font-size:22px;letter-spacing:-.02em}.collection-delete-modal p{margin:0 0 16px;opacity:.76;line-height:1.5}
     .collection-delete-list{display:grid;gap:8px;max-height:220px;overflow:auto;margin:0 0 18px;padding-right:2px}.collection-delete-list span{padding:11px 12px;border-radius:13px;background:linear-gradient(145deg,rgba(255,255,255,.09),rgba(255,255,255,.035));border:1px solid rgba(255,255,255,.09);box-shadow:inset 0 1px 0 rgba(255,255,255,.08)}
     .collection-delete-modal-actions{display:flex;justify-content:flex-end;gap:10px}.collection-delete-modal-actions button{border:1px solid rgba(255,255,255,.12);border-radius:13px;padding:11px 15px;font:inherit;font-weight:700;cursor:pointer;transition:all .18s ease}.collection-delete-modal-actions .cancel{background:rgba(255,255,255,.06);color:inherit}.collection-delete-modal-actions .danger{background:linear-gradient(135deg,#ff6d8c,#ea4569);border-color:rgba(255,191,204,.28);color:#fff;box-shadow:0 10px 26px rgba(255,69,107,.18)}
-    @keyframes collectionDeleteFade{from{opacity:0}to{opacity:1}}@keyframes collectionDeletePop{from{opacity:0;transform:translateY(8px) scale(.985)}to{opacity:1;transform:translateY(0) scale(1)}}
+    .collection-selection-wrap.collection-deleting{position:relative;overflow:visible;pointer-events:none;animation:collectionDeleteDissolve ${DELETE_ANIMATION_MS}ms cubic-bezier(.22,.78,.27,1) forwards}
+    .collection-selection-wrap.collection-deleting>.glass-list-item{transition:none!important}
+    .collection-delete-sparkles{position:absolute;inset:0;z-index:4;pointer-events:none;overflow:visible}
+    .collection-delete-sparkles i{position:absolute;left:50%;top:50%;width:5px;height:5px;border-radius:50%;opacity:0;background:rgba(255,255,255,.95);box-shadow:0 0 12px rgba(214,194,255,.95),0 0 24px rgba(146,112,255,.45);animation:collectionDeleteSparkle ${DELETE_ANIMATION_MS}ms ease-out forwards}
+    .collection-delete-sparkles i:nth-child(1){--dx:-70px;--dy:-32px;animation-delay:0ms}.collection-delete-sparkles i:nth-child(2){--dx:62px;--dy:-46px;animation-delay:45ms}.collection-delete-sparkles i:nth-child(3){--dx:76px;--dy:15px;animation-delay:15ms}.collection-delete-sparkles i:nth-child(4){--dx:32px;--dy:46px;animation-delay:70ms}.collection-delete-sparkles i:nth-child(5){--dx:-54px;--dy:44px;animation-delay:30ms}.collection-delete-sparkles i:nth-child(6){--dx:-82px;--dy:8px;animation-delay:55ms}.collection-delete-sparkles i:nth-child(7){--dx:-12px;--dy:-54px;animation-delay:90ms}.collection-delete-sparkles i:nth-child(8){--dx:8px;--dy:58px;animation-delay:10ms}
+    .collection-selection-wrap.collection-deleting .collection-delete-sparkles i:nth-child(odd){width:4px;height:4px}.collection-selection-wrap.collection-deleting .collection-delete-sparkles i:nth-child(even){width:6px;height:6px}
+    @keyframes collectionDeleteSparkle{0%{opacity:0;transform:translate(-50%,-50%) scale(.35)}18%{opacity:1}100%{opacity:0;transform:translate(calc(-50% + var(--dx)),calc(-50% + var(--dy))) scale(.05)}}
+    @keyframes collectionDeleteDissolve{0%{opacity:1;transform:translate3d(0,0,0) scale(1);filter:blur(0)}38%{opacity:1;transform:translate3d(0,-2px,0) scale(1.005);filter:blur(.2px)}72%{opacity:.38;transform:translate3d(0,-5px,0) scale(.985);filter:blur(3px)}100%{opacity:0;transform:translate3d(0,-8px,0) scale(.94);filter:blur(8px);max-height:0;margin-top:0;margin-bottom:0}}
+    @media (prefers-reduced-motion:reduce){.collection-selection-wrap.collection-deleting{animation-duration:180ms}.collection-delete-sparkles{display:none}}
     @media (max-width:600px){.collection-delete-tools{padding-left:6px}.collection-delete-trigger{width:40px;height:40px}.collection-delete-actionbar{padding:9px 10px}.collection-delete-cancel,.collection-delete-confirm{padding:8px 10px}.collection-delete-modal{padding:20px;border-radius:24px}.collection-delete-modal-actions{position:sticky;bottom:0;padding-top:4px}}
   `;
   document.head.appendChild(style);
@@ -176,52 +194,118 @@ async function resolveCollectionIds(selectedEntries, course, userId) {
     cloudCollections = data || [];
   }
   const usedCloudIds = new Set();
-  return selectedEntries.map((entry) => {
-    let cloudId = map[`collection:${String(course.id)}:${String(entry.localId)}`];
-    if (!UUID_RE.test(String(cloudId || ''))) cloudId = map[`collection:${String(entry.localId)}`];
+  const updatedMap = { ...map };
+  const resolved = selectedEntries.map((entry) => {
+    let cloudId = updatedMap[`collection:${String(course.id)}:${String(entry.localId)}`];
+    if (!UUID_RE.test(String(cloudId || ''))) cloudId = updatedMap[`collection:${String(entry.localId)}`];
     if (!UUID_RE.test(String(cloudId || '')) && UUID_RE.test(String(entry.localId))) cloudId = String(entry.localId);
     if (!UUID_RE.test(String(cloudId || '')) && cloudCollections) {
       const exactCourseMatches = cloudCollections.filter((row) => String(row.name || '').trim() === String(entry.name || '').trim());
       const unused = exactCourseMatches.find((row) => !usedCloudIds.has(String(row.id)));
       if (unused) {
         cloudId = String(unused.id);
-        map[`collection:${String(course.id)}:${String(entry.localId)}`] = cloudId;
+        updatedMap[`collection:${String(course.id)}:${String(entry.localId)}`] = cloudId;
       }
     }
     if (UUID_RE.test(String(cloudId || ''))) usedCloudIds.add(String(cloudId));
     return { ...entry, cloudId: UUID_RE.test(String(cloudId || '')) ? String(cloudId) : '' };
   });
+  writeMap(userId, updatedMap);
+  return resolved;
 }
 
-async function deleteSelectedCollections(selectedEntries, courseName, userId, list) {
+function getSparkleOverlay() {
+  const sparkles = document.createElement('span');
+  sparkles.className = 'collection-delete-sparkles';
+  for (let index = 0; index < 8; index += 1) sparkles.appendChild(document.createElement('i'));
+  return sparkles;
+}
+
+function removeWrappersAfterAnimation(items) {
+  items.forEach((item) => {
+    item.nextSibling = item.wrapper.nextSibling;
+    if (item.wrapper.parentNode) item.wrapper.parentNode.removeChild(item.wrapper);
+  });
+}
+
+function restoreWrappers(items) {
+  items.forEach((item) => {
+    item.wrapper.classList.remove('collection-deleting');
+    item.wrapper.querySelector('.collection-delete-sparkles')?.remove();
+    if (!item.wrapper.isConnected && item.parent) {
+      if (item.nextSibling && item.nextSibling.parentNode === item.parent) item.parent.insertBefore(item.wrapper, item.nextSibling);
+      else item.parent.appendChild(item.wrapper);
+    }
+  });
+}
+
+async function performCloudCollectionDeletes(resolved, userId) {
+  const outcomes = await Promise.all(resolved.map(async (entry) => {
+    const { error } = await supabase.from('collections').delete().eq('user_id', userId).eq('id', entry.cloudId);
+    if (error) throw error;
+    const { data, error: verifyError } = await supabase.from('collections').select('id').eq('user_id', userId).eq('id', entry.cloudId).limit(1);
+    if (verifyError) throw verifyError;
+    if (data?.length) throw new Error(`Collection deletion was not confirmed for ${entry.name}.`);
+    return entry;
+  }));
+  return outcomes;
+}
+
+async function deleteSelectedCollections(selectedEntries, courseName, userId, list, exitSelectionMode) {
   if (!supabase || !userId || !selectedEntries.length || busy) return;
   busy = true;
+  const items = list.filter((item) => selectedEntries.some((entry) => String(entry.localId) === String(item.localId)));
+  const deletedCloudIds = [];
+  let originalCourses = null;
+  let nextCourses = null;
   try {
     const courses = readWorkspace(userId);
+    originalCourses = courses;
     const course = courseFromPage(courseName, courses);
     if (!course) throw new Error('The current course could not be identified.');
+
     const resolved = await resolveCollectionIds(selectedEntries, course, userId);
     if (resolved.some((entry) => !entry.cloudId)) {
       const unresolved = resolved.filter((entry) => !entry.cloudId).map((entry) => entry.name).join(', ');
       throw new Error(`Unable to match these collections to Supabase: ${unresolved}.`);
     }
-    writeMap(userId, readMap(userId));
-    writeMap(userId, { ...readMap(userId), ...Object.fromEntries(resolved.map((entry) => [`collection:${String(course.id)}:${String(entry.localId)}`, entry.cloudId])) });
-    markDeleted(userId, resolved.map((entry) => entry.cloudId));
-    for (const entry of resolved) {
-      const { error } = await supabase.from('collections').delete().eq('user_id', userId).eq('id', entry.cloudId);
-      if (error) throw error;
-      const { data, error: verifyError } = await supabase.from('collections').select('id').eq('user_id', userId).eq('id', entry.cloudId).limit(1);
-      if (verifyError) throw verifyError;
-      if (data?.length) throw new Error(`Collection deletion was not confirmed for ${entry.name}.`);
-    }
-    const nextCourses = courses.map((item) => item.id !== course.id ? item : { ...item, collections: item.collections.filter((collection) => !resolved.some((entry) => entry.localId === collection.id)) });
+
+    resolved.forEach((entry) => deletedCloudIds.push(entry.cloudId));
+    markDeleted(userId, deletedCloudIds);
+
+    items.forEach((item) => {
+      item.parent = item.wrapper.parentNode;
+      item.nextSibling = item.wrapper.nextSibling;
+      item.wrapper.classList.remove('selected');
+      item.checkbox.disabled = true;
+      item.wrapper.classList.add('collection-deleting');
+      item.wrapper.appendChild(getSparkleOverlay());
+    });
+    exitSelectionMode();
+
+    await new Promise((resolve) => window.setTimeout(resolve, DELETE_ANIMATION_MS + 40));
+    removeWrappersAfterAnimation(items);
+
+    nextCourses = courses.map((item) => item.id !== course.id ? item : {
+      ...item,
+      collections: item.collections.filter((collection) => !resolved.some((entry) => String(entry.localId) === String(collection.id))),
+    });
     writeWorkspace(userId, nextCourses);
-    list.forEach(({ wrapper, localId }) => { if (resolved.some((entry) => entry.localId === localId)) wrapper.remove(); });
-    window.location.reload();
+    window.dispatchEvent(new CustomEvent('collection-delete-completed', {
+      detail: { courseId: course.id, collectionIds: selectedEntries.map((entry) => entry.localId) },
+    }));
+
+    await performCloudCollectionDeletes(resolved, userId);
+    clearTombstones(userId, deletedCloudIds);
   } catch (error) {
-    window.alert(`Collection deletion failed: ${error.message}`);
-  } finally { busy = false; }
+    restoreWrappers(items);
+    if (originalCourses) writeWorkspace(userId, originalCourses);
+    clearTombstones(userId, deletedCloudIds);
+    window.dispatchEvent(new CustomEvent('collection-delete-failed', { detail: { message: error?.message || 'Collection deletion failed.' } }));
+    window.alert(`Collection deletion failed: ${error?.message || 'Unknown error.'}`);
+  } finally {
+    busy = false;
+  }
 }
 
 function enhanceCollectionsPage() {
@@ -272,9 +356,9 @@ function enhanceCollectionsPage() {
     row.parentNode.insertBefore(wrapper, row);
     wrapper.appendChild(label);
     wrapper.appendChild(row);
-    wrappers.push({ wrapper, checkbox, localId: String(collection.id), name: collection.title });
+    wrappers.push({ wrapper, checkbox, localId: String(collection.id), name: collection.title, parent: wrapper.parentNode, nextSibling: wrapper.nextSibling });
     row.addEventListener('click', (event) => {
-      if (!selectionMode) return;
+      if (!selectionMode || wrapper.classList.contains('collection-deleting')) return;
       event.preventDefault();
       event.stopImmediatePropagation();
       checkbox.click();
@@ -283,6 +367,7 @@ function enhanceCollectionsPage() {
       wrapper.classList.toggle('selected', checkbox.checked);
       syncSelection();
     };
+    checkbox.disabled = true;
   });
 
   const actionBar = document.createElement('div');
@@ -302,7 +387,7 @@ function enhanceCollectionsPage() {
   list.parentNode.insertBefore(actionBar, list);
 
   function syncSelection() {
-    const selected = wrappers.filter((item) => item.checkbox.checked);
+    const selected = wrappers.filter((item) => item.checkbox.checked && !item.wrapper.classList.contains('collection-deleting'));
     selectedCount.textContent = `${selected.length} selected`;
     actionBar.hidden = !selectionMode || selected.length === 0;
   }
@@ -310,7 +395,11 @@ function enhanceCollectionsPage() {
   function exitSelectionMode() {
     selectionMode = false;
     trigger.classList.remove('active');
-    wrappers.forEach((item) => { item.checkbox.checked = false; item.wrapper.classList.remove('selected'); });
+    wrappers.forEach((item) => {
+      item.checkbox.disabled = true;
+      item.checkbox.checked = false;
+      item.wrapper.classList.remove('selected');
+    });
     actionBar.hidden = true;
     trigger.setAttribute('aria-pressed', 'false');
   }
@@ -320,20 +409,25 @@ function enhanceCollectionsPage() {
     selectionMode = !selectionMode;
     trigger.classList.toggle('active', selectionMode);
     trigger.setAttribute('aria-pressed', selectionMode ? 'true' : 'false');
-    wrappers.forEach((item) => { item.checkbox.disabled = !selectionMode; if (!selectionMode) { item.checkbox.checked = false; item.wrapper.classList.remove('selected'); } });
+    wrappers.forEach((item) => {
+      if (!item.wrapper.classList.contains('collection-deleting')) item.checkbox.disabled = !selectionMode;
+      if (!selectionMode) { item.checkbox.checked = false; item.wrapper.classList.remove('selected'); }
+    });
     syncSelection();
   };
+
   cancel.onclick = exitSelectionMode;
   continueButton.onclick = () => {
-    const selected = wrappers.filter((item) => item.checkbox.checked);
+    if (busy) return;
+    const selected = wrappers.filter((item) => item.checkbox.checked && !item.wrapper.classList.contains('collection-deleting'));
     if (!selected.length) return;
     const modal = buildModal(selected.map((item) => item.name), async () => {
+      const confirmButton = modal.querySelector('.danger');
       confirmButton.disabled = true;
-      confirmButton.textContent = 'Deleting…';
+      confirmButton.textContent = 'Preparing…';
       modal.remove();
-      await deleteSelectedCollections(selected.map((item) => ({ localId: item.localId, name: item.name })), courseName, userId, wrappers);
+      await deleteSelectedCollections(selected.map((item) => ({ localId: item.localId, name: item.name })), courseName, userId, wrappers, exitSelectionMode);
     }, () => modal.remove());
-    const confirmButton = modal.querySelector('.danger');
     document.body.appendChild(modal);
   };
 }
