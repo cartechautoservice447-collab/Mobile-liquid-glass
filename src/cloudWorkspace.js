@@ -342,9 +342,10 @@ export function saveCloudWorkspace(userId, courses) {
   });
 }
 
-export function deleteCloudNote(userId, noteId) {
+export function deleteCloudNote(userId, noteId, courseId = '', collectionId = '') {
   if (!supabase || !userId) return Promise.resolve();
-  const cloudNoteId = resolveCloudId(userId, 'note', noteId);
+  const scope = courseId || collectionId ? `${String(courseId || '').trim()}:${String(collectionId || '').trim()}` : '';
+  const cloudNoteId = resolveCloudId(userId, 'note', noteId, scope);
   if (!cloudNoteId) return Promise.resolve();
   markDeleted(userId, 'note', cloudNoteId);
   return enqueueCloudWrite(userId, async () => {
