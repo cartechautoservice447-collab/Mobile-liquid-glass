@@ -234,8 +234,24 @@ export function saveCloudWorkspace(userId, courses) {
   return enqueueCloudWrite(userId, async () => {
     const normalized = normalizeCoursesForCloud(userId, courses);
     const desiredCourses = dedupeById(normalized.map(({ collections, sourceLocalId, ...course }) => course)).filter((row) => !isDeleted(userId, 'course', row.id));
-    const desiredCollections = dedupeById(normalized.flatMap((course) => course.collections.map(({ notes, ...collection }) => collection))).filter((row) => !isDeleted(userId, 'collection', row.id));
-    const desiredNotes = dedupeById(normalized.flatMap((course) => course.collections.flatMap((collection) => collection.notes))).filter((row) => !isDeleted(userId, 'note', row.id));
+    const desiredCourseIds = new Set(desiredCourses.map((row) => row.id));
+
+    const existingCoursesResult = await supabase.from('courses').select('id').eq('user_id', userId);
+    if (existingCoursesResult.error) throw existingCoursesResult.error;
+    for (const row of existingCoursesResult.data || []) {
+      const id = String(row.id);
+      if (desiredCourseIds.has(id)) continue;
+      markDeleted(userId, 'course', id);
+      const { error: deleteError } = await supabase.from('courses').delete().eq('user_id', userId).eq('id', id);
+      if (deleteError) throw deleteError;
+    }
+
+    const desiredCollections = dedupeById(normalized.flatMap((course) => course.collections.map(({ notes, ...collection }) => collection)))
+      .filter((row) => desiredCourseIds.has(row.course_id) && !isDeleted(userId, 'collection', row.id));
+    const desiredCollectionIds = new Set(desiredCollections.map((row) => row.id));
+    const desiredNotes = dedupeById(normalized.flatMap((course) => course.collections.flatMap((collection) => collection.notes)))
+      .filter((row) => desiredCourseIds.has(row.course_id) && (!row.collection_id || desiredCollectionIds.has(row.collection_id)) && !isDeleted(userId, 'note', row.id));
+
     if (desiredCourses.length) { const { error } = await supabase.from('courses').upsert(desiredCourses, { onConflict: 'id' }); if (error) throw error; }
     if (desiredCollections.length) { const { error } = await supabase.from('collections').upsert(desiredCollections, { onConflict: 'id' }); if (error) throw error; }
     if (desiredNotes.length) { const { error } = await supabase.from('notes').upsert(desiredNotes, { onConflict: 'id' }); if (error) throw error; }
