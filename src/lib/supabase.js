@@ -5,10 +5,9 @@ import { createClient } from '@supabase/supabase-js';
 export const SUPABASE_URL = 'https://asgwpmsuutigtvaxuxmr.supabase.co';
 export const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_fi3mpoY8ZrymYbnxdpREYw_hnUmTYxG';
 
-// Google OAuth must return to Mobile-liquid-glass, not the Fluid Glass Studio web app.
-// Native Android is overridden separately by nativeAuth.js with the custom app scheme.
 export const MOBILE_WEB_AUTH_ORIGIN = 'https://mobile-liquid-glass.vercel.app';
 export const MOBILE_WEB_AUTH_REDIRECT = `${MOBILE_WEB_AUTH_ORIGIN}/auth/callback`;
+export const MOBILE_NATIVE_AUTH_REDIRECT = 'com.liquidglass.studio://auth/callback';
 
 function createSupabaseFetch(supabaseKey) {
   return (input, init) => {
@@ -38,19 +37,27 @@ export const supabase = isSupabaseConfigured
         flowType: 'pkce',
         persistSession: true,
         autoRefreshToken: true,
-        detectSessionInUrl: true,
+        detectSessionInUrl: false,
       },
     })
   : null;
 
-if (supabase) {
-  const originalSignInWithOAuth = supabase.auth.signInWithOAuth.bind(supabase.auth);
-  supabase.auth.signInWithOAuth = async (options = {}) => originalSignInWithOAuth({
-    ...options,
-    options: {
-      ...(options.options || {}),
-      // Web: always return to Mobile-liquid-glass after Google account selection.
-      redirectTo: MOBILE_WEB_AUTH_REDIRECT,
-    },
-  });
+/**
+ * Returns the final browser destination for this client only.
+ * Production always stays on Mobile-liquid-glass; previews/local development
+ * stay on their own current origin. Native auth uses nativeAuth.js instead.
+ */
+export function getMobileWebAuthRedirect() {
+  if (typeof window === 'undefined') return MOBILE_WEB_AUTH_REDIRECT;
+
+  const origin = window.location.origin;
+  const isLocal = /^(https?:\/\/localhost(?::\d+)?|https?:\/\/127\.0\.0\.1(?::\d+)?)$/i.test(origin);
+
+  if (isLocal) return `${origin}/auth/callback`;
+  if (origin === MOBILE_WEB_AUTH_ORIGIN) return MOBILE_WEB_AUTH_REDIRECT;
+
+  // Vercel preview/deployment aliases for this client should return to the
+  // same host that started the login, never to Fluid Glass Studio.
+  if (origin.endsWith('.vercel.app')) return `${origin}/auth/callback`;
+  return MOBILE_WEB_AUTH_REDIRECT;
 }
