@@ -22,6 +22,7 @@ import './AndroidMobileHardening.css';
 import './FeatureBackgroundUnification.css';
 import './GlassSurfaceRuntimeLock.js';
 import './NoteEditorPremiumRefinement.js';
+import './NoteEditorPythonTheme.js';
 
 function handleWebAuthCallback() {
   if (!supabase || typeof window === 'undefined') return;
