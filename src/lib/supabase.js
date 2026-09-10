@@ -45,7 +45,7 @@ export const supabase = isSupabaseConfigured
 /**
  * Returns the final web callback owned by Mobile-liquid-glass.
  * Local development may use its local callback; production is always the
- * Mobile app's production host so it can never fall back to Fluid Studio.
+ * Mobile app's production host so it can never fall back to Fluid Glass Studio's Site URL.
  */
 export function getMobileWebAuthRedirect() {
   if (typeof window === 'undefined') return MOBILE_WEB_AUTH_REDIRECT;
@@ -66,4 +66,8 @@ if (supabase) {
       redirectTo: getMobileWebAuthRedirect(),
     },
   });
+}
+
+if (typeof window !== 'undefined') {
+  queueMicrotask(() => { import('../collectionDeleteFeature.js').catch(() => {}); });
 }
