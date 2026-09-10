@@ -10,6 +10,7 @@ import CourseFolderPage from './CourseFolderPage.jsx';
 import CollectionWorkspace from './CollectionWorkspace.jsx';
 import EngineSettingsModal from './EngineSettingsModal.jsx';
 import useEngineSettings from './useEngineSettings.js';
+import { loadCloudWorkspace, readLocalWorkspace, saveCloudWorkspace, writeLocalWorkspace } from './cloudWorkspace.js';
 
 const ICON = '/icon.svg';
 const SKIP_AUTH_KEY = 'mobile-liquid-glass-skip-auth';
@@ -37,7 +38,8 @@ export default function App() {
   const [selectedCourseId, setSelectedCourseId] = useState(null);
   const [selectedCollectionId, setSelectedCollectionId] = useState(null);
   const [selectedNoteId, setSelectedNoteId] = useState(null);
-  const [courses, setCourses] = useState(INITIAL_COURSES);
+  const [courses, setCourses] = useState(() => readLocalWorkspace() || INITIAL_COURSES);
+  const [workspaceReady, setWorkspaceReady] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(true);
@@ -53,54 +55,69 @@ export default function App() {
   const [action, setAction] = useState(null);
 
   useEffect(() => {
-    if (!supabase) { setLoading(false); return undefined; }
+    if (!supabase) { setWorkspaceReady(true); setLoading(false); return undefined; }
     let active = true;
-    supabase.auth.getSession().then(({ data }) => { if (active) { setSession(data.session); setLoading(false); } });
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => setSession(nextSession));
+    supabase.auth.getSession().then(async ({ data }) => {
+      if (!active) return;
+      setSession(data.session);
+      if (data.session?.user?.id) {
+        try {
+          const cloud = await loadCloudWorkspace(data.session.user.id);
+          if (active && cloud) setCourses(cloud);
+        } catch (error) {
+          if (active) setMessage(`Workspace sync unavailable: ${error.message}`);
+        }
+      }
+      if (active) { setWorkspaceReady(true); setLoading(false); }
+    }).catch((error) => {
+      if (active) { setWorkspaceReady(true); setLoading(false); setMessage(`Authentication check failed: ${error.message}`); }
+    });
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      setSession(nextSession);
+      setWorkspaceReady(false);
+    });
     return () => { active = false; listener.subscription.unsubscribe(); };
   }, []);
 
   useEffect(() => {
-    if (!Capacitor.isNativePlatform()) return undefined;
-
-    const register = async () => CapacitorApp.addListener('backButton', async () => {
-        if (courseCreateOpen) {
-          setCourseCreateOpen(false);
-          return;
-        }
-
-        if (action) {
-          setAction(null);
-          return;
-        }
-
-        switch (page) {
-          case 'editor':
-            setSelectedNoteId(null);
-            setPage('notes');
-            break;
-          case 'notes':
-            setPage('collections');
-            break;
-          case 'collections':
-            setPage('course-workspace');
-            break;
-          case 'course-notes':
-            setPage('course-workspace');
-            break;
-          case 'course-workspace':
-            setSelectedCollectionId(null);
-            setSelectedNoteId(null);
-            setPage('workspace');
-            break;
-          case 'courses':
-            setPage('workspace');
-            break;
-          default:
-            await CapacitorApp.exitApp();
-        }
+    if (!workspaceReady) return;
+    writeLocalWorkspace(courses);
+    if (!session?.user?.id || !supabase) return;
+    const timer = setTimeout(() => {
+      saveCloudWorkspace(session.user.id, courses).catch((error) => {
+        setMessage(`Cloud save failed: ${error.message}`);
       });
+    }, 450);
+    return () => clearTimeout(timer);
+  }, [courses, session?.user?.id, workspaceReady]);
 
+  useEffect(() => {
+    if (!supabase || !session?.user?.id) return undefined;
+    let active = true;
+    loadCloudWorkspace(session.user.id).then((cloud) => {
+      if (!active) return;
+      if (cloud) setCourses(cloud);
+      else saveCloudWorkspace(session.user.id, courses).catch(() => {});
+      setWorkspaceReady(true);
+    }).catch(() => { if (active) setWorkspaceReady(true); });
+    return () => { active = false; };
+  }, [session?.user?.id]);
+
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return undefined;
+    const register = async () => CapacitorApp.addListener('backButton', async () => {
+      if (courseCreateOpen) { setCourseCreateOpen(false); return; }
+      if (action) { setAction(null); return; }
+      switch (page) {
+        case 'editor': setSelectedNoteId(null); setPage('notes'); break;
+        case 'notes': setPage('collections'); break;
+        case 'collections': setPage('course-workspace'); break;
+        case 'course-notes': setPage('course-workspace'); break;
+        case 'course-workspace': setSelectedCollectionId(null); setSelectedNoteId(null); setPage('workspace'); break;
+        case 'courses': setPage('workspace'); break;
+        default: await CapacitorApp.exitApp();
+      }
+    });
     const registration = register();
     return () => { registration.then((handle) => handle.remove()); };
   }, [action, courseCreateOpen, page]);
@@ -108,7 +125,6 @@ export default function App() {
   const { settings, setSetting, reset: resetEngineSettings } = useEngineSettings(session?.user?.id || null);
   const performance = settings.performance;
   const setPerformanceMode = (mode) => setSetting('performance', mode);
-
   const selectedCourse = useMemo(() => courses.find((course) => course.id === selectedCourseId) || null, [courses, selectedCourseId]);
   const selectedCollection = useMemo(() => selectedCourse?.collections.find((collection) => collection.id === selectedCollectionId) || null, [selectedCourse, selectedCollectionId]);
   const selectedNote = useMemo(() => selectedCollection?.notes.find((note) => note.id === selectedNoteId) || null, [selectedCollection, selectedNoteId]);
@@ -124,7 +140,7 @@ export default function App() {
   };
   const signUp = async () => { if (!supabase) return; setBusy(true); setMessage(''); const { error } = await supabase.auth.signUp({ email, password }); setMessage(error ? error.message : 'Account created. Check your email if confirmation is enabled.'); setBusy(false); };
   const signInWithGoogle = async () => { if (!supabase) return; setBusy(true); setMessage(''); const { error } = await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin, queryParams: { prompt: 'select_account' } } }); if (error) { setMessage(error.message); setBusy(false); } };
-  const skipForNow = () => { localStorage.setItem(SKIP_AUTH_KEY, 'true'); setSkippedAuth(true); setPage('workspace'); };
+  const skipForNow = () => { localStorage.setItem(SKIP_AUTH_KEY, 'true'); setSkippedAuth(true); setWorkspaceReady(true); setPage('workspace'); };
   const returnToLogin = () => { localStorage.removeItem(SKIP_AUTH_KEY); setSkippedAuth(false); setMessage(''); setPage('workspace'); };
 
   const openCourse = (id) => { setSelectedCourseId(id); setSelectedCollectionId(null); setSelectedNoteId(null); setPage('course-workspace'); setMessage(''); };
@@ -134,44 +150,14 @@ export default function App() {
   const openCourseNote = (collectionId, noteId) => { setSelectedCollectionId(collectionId); setSelectedNoteId(noteId); const collection = selectedCourse?.collections.find((item) => item.id === collectionId); const note = collection?.notes.find((item) => item.id === noteId); setEditorContent(note?.content || ''); setPage('editor'); setMessage(''); };
   const openCourseCreator = () => { setNewCourseName(''); setNewCourseDescription(''); setNewCourseColor('sky'); setMessage(''); setCourseCreateOpen(true); };
   const closeCourseCreator = () => { setCourseCreateOpen(false); setNewCourseName(''); setNewCourseDescription(''); setNewCourseColor('sky'); };
-  const addCourse = (event) => {
-    event.preventDefault(); const name = newCourseName.trim(); if (!name) return;
-    const description = newCourseDescription.trim() || 'New course workspace';
-    setCourses((current) => [...current, { id: `course-${Date.now()}`, name, description, color: newCourseColor, progress: 0, collections: [] }]);
-    closeCourseCreator(); setMessage('Course created.'); setPage('workspace');
-  };
-  const updateCourse = (patch) => {
-    if (!selectedCourseId) return;
-    setCourses((current) => current.map((course) => course.id === selectedCourseId ? { ...course, ...patch } : course));
-    setMessage('Course updated.');
-  };
+  const addCourse = (event) => { event.preventDefault(); const name = newCourseName.trim(); if (!name) return; const description = newCourseDescription.trim() || 'New course workspace'; setCourses((current) => [...current, { id: `course-${Date.now()}`, name, description, color: newCourseColor, progress: 0, collections: [] }]); closeCourseCreator(); setMessage('Course created.'); setPage('workspace'); };
+  const updateCourse = (patch) => { if (!selectedCourseId) return; setCourses((current) => current.map((course) => course.id === selectedCourseId ? { ...course, ...patch } : course)); setMessage('Course updated.'); };
   const deleteCourse = (id) => { setCourses((current) => current.filter((course) => course.id !== id)); setSelectedCourseId(null); setPage('workspace'); setMessage('Course deleted.'); };
-  const addCollection = (event) => {
-    event.preventDefault(); const title = newCollectionName.trim(); if (!title || !selectedCourseId) return;
-    setCourses((current) => current.map((course) => course.id === selectedCourseId ? { ...course, collections: [...course.collections, { id: `collection-${Date.now()}`, title, description: 'New collection', notes: [] }] } : course));
-    setNewCollectionName(''); setMessage('Collection created.');
-  };
-  const addNote = (event) => {
-    event?.preventDefault(); if (!selectedCourseId || !selectedCollectionId) return;
-    const noteId = `note-${Date.now()}`;
-    const now = Date.now();
-    setCourses((current) => current.map((course) => course.id !== selectedCourseId ? course : { ...course, collections: course.collections.map((collection) => collection.id !== selectedCollectionId ? collection : { ...collection, notes: [...collection.notes, { id: noteId, title: 'New Note', content: '', createdAt: now, updatedAt: now }] }) }));
-    setNewNoteName(''); setSelectedNoteId(noteId); setEditorContent(''); setPage('notes'); setMessage('New note created.');
-  };
-  const saveNote = () => {
-    if (!selectedCourseId || !selectedCollectionId || !selectedNoteId) return;
-    setCourses((current) => current.map((course) => course.id !== selectedCourseId ? course : { ...course, collections: course.collections.map((collection) => collection.id !== selectedCollectionId ? collection : { ...collection, notes: collection.notes.map((note) => note.id === selectedNoteId ? { ...note, content: editorContent } : note) }) }));
-    setMessage('Note saved.');
-  };
-  const saveCollectionNote = (draft) => {
-    if (!selectedCourseId || !selectedCollectionId || !draft?.id) return;
-    setCourses((current) => current.map((course) => course.id !== selectedCourseId ? course : { ...course, collections: course.collections.map((collection) => collection.id !== selectedCollectionId ? collection : { ...collection, notes: collection.notes.map((note) => note.id === draft.id ? { ...note, title: draft.title, content: draft.content, updatedAt: Date.now() } : note) }) }));
-    setMessage('Note saved.');
-  };
-  const deleteCollectionNote = (noteId) => {
-    setCourses((current) => current.map((course) => course.id !== selectedCourseId ? course : { ...course, collections: course.collections.map((collection) => collection.id !== selectedCollectionId ? collection : { ...collection, notes: collection.notes.filter((note) => note.id !== noteId) }) }));
-    setSelectedNoteId(null); setMessage('Note deleted.');
-  };
+  const addCollection = (event) => { event.preventDefault(); const title = newCollectionName.trim(); if (!title || !selectedCourseId) return; setCourses((current) => current.map((course) => course.id === selectedCourseId ? { ...course, collections: [...course.collections, { id: `collection-${Date.now()}`, title, description: 'New collection', notes: [] }] } : course)); setNewCollectionName(''); setMessage('Collection created.'); };
+  const addNote = (event) => { event?.preventDefault(); if (!selectedCourseId || !selectedCollectionId) return; const noteId = `note-${Date.now()}`; const now = Date.now(); const title = newNoteName.trim() || 'New Note'; setCourses((current) => current.map((course) => course.id !== selectedCourseId ? course : { ...course, collections: course.collections.map((collection) => collection.id !== selectedCollectionId ? collection : { ...collection, notes: [...collection.notes, { id: noteId, title, content: '', createdAt: now, updatedAt: now }] }) })); setNewNoteName(''); setSelectedNoteId(noteId); setEditorContent(''); setPage('notes'); setMessage('New note created.'); };
+  const saveNote = () => { if (!selectedCourseId || !selectedCollectionId || !selectedNoteId) return; setCourses((current) => current.map((course) => course.id !== selectedCourseId ? course : { ...course, collections: course.collections.map((collection) => collection.id !== selectedCollectionId ? collection : { ...collection, notes: collection.notes.map((note) => note.id === selectedNoteId ? { ...note, content: editorContent, updatedAt: Date.now() } : note) }) })); setMessage('Note saved.'); };
+  const saveCollectionNote = (draft) => { if (!selectedCourseId || !selectedCollectionId || !draft?.id) return; setCourses((current) => current.map((course) => course.id !== selectedCourseId ? course : { ...course, collections: course.collections.map((collection) => collection.id !== selectedCollectionId ? collection : { ...collection, notes: collection.notes.map((note) => note.id === draft.id ? { ...note, title: draft.title, content: draft.content, updatedAt: Date.now() } : note) }) })); setMessage('Note saved.'); };
+  const deleteCollectionNote = (noteId) => { setCourses((current) => current.map((course) => course.id !== selectedCourseId ? course : { ...course, collections: course.collections.map((collection) => collection.id !== selectedCollectionId ? collection : { ...collection, notes: collection.notes.filter((note) => note.id !== noteId) }) })); setSelectedNoteId(null); setMessage('Note deleted.'); };
 
   if (loading) return <main className="screen"><div className="glass-card loading-card">Loading your workspace…</div></main>;
   if (!session && !skippedAuth) return <AuthScreen email={email} password={password} setEmail={setEmail} setPassword={setPassword} busy={busy} message={message} signIn={signIn} signUp={signUp} signInWithGoogle={signInWithGoogle} skipForNow={skipForNow} />;
