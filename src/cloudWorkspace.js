@@ -7,6 +7,8 @@ const DELETE_TOMBSTONE_KEY = 'mobile-liquid-glass-delete-tombstones-v1';
 const DELETE_TOMBSTONE_TTL = 24 * 60 * 60 * 1000;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const CLOUD_WRITE_QUEUES = new Map();
+const CLOUD_LOAD_GENERATIONS = new Map();
+const CLOUD_DELETE_PROMISES = new Map();
 
 function findAuthUserId() {
   if (!supabase) return 'anonymous';
@@ -19,8 +21,11 @@ function findAuthUserId() {
       const parsed = JSON.parse(raw);
       if (parsed?.user?.id) return String(parsed.user.id);
       if (parsed?.access_token) {
-        const payload = JSON.parse(atob(parsed.access_token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
-        if (payload?.sub) return String(payload.sub);
+        const payloadPart = parsed.access_token.split('.')[1];
+        if (payloadPart) {
+          const payload = JSON.parse(atob(payloadPart.replace(/-/g, '+').replace(/_/g, '/')));
+          if (payload?.sub) return String(payload.sub);
+        }
       }
     }
   } catch {}
@@ -31,6 +36,14 @@ function localStorageKey() { return `${LOCAL_KEY}:${findAuthUserId()}`; }
 function hydrationKey(userId) { return `${CLOUD_HYDRATED_KEY}:${userId}`; }
 function isCloudHydrated(userId) { try { return localStorage.getItem(hydrationKey(userId)) === '1'; } catch { return false; } }
 function markCloudHydrated(userId) { try { localStorage.setItem(hydrationKey(userId), '1'); } catch {} }
+function loadGenerationKey(userId) { return String(userId); }
+function currentLoadGeneration(userId) { return CLOUD_LOAD_GENERATIONS.get(loadGenerationKey(userId)) || 0; }
+function bumpLoadGeneration(userId) {
+  const key = loadGenerationKey(userId);
+  const next = currentLoadGeneration(userId) + 1;
+  CLOUD_LOAD_GENERATIONS.set(key, next);
+  return next;
+}
 
 function readIdMap(userId) {
   try {
@@ -46,11 +59,10 @@ function readDeleteTombstones(userId) {
     const now = Date.now();
     const active = {};
     for (const [key, value] of Object.entries(parsed || {})) {
-      if (Number(value) > now - DELETE_TOMBSTONE_TTL) active[key] = Number(value);
+      const timestamp = Number(value);
+      if (Number.isFinite(timestamp) && timestamp > now - DELETE_TOMBSTONE_TTL) active[key] = timestamp;
     }
-    if (Object.keys(active).length !== Object.keys(parsed || {}).length) {
-      localStorage.setItem(`${DELETE_TOMBSTONE_KEY}:${userId}`, JSON.stringify(active));
-    }
+    if (Object.keys(active).length !== Object.keys(parsed || {}).length) localStorage.setItem(`${DELETE_TOMBSTONE_KEY}:${userId}`, JSON.stringify(active));
     return active;
   } catch { return {}; }
 }
@@ -61,9 +73,7 @@ function markDeleted(userId, type, cloudId) {
     localStorage.setItem(`${DELETE_TOMBSTONE_KEY}:${userId}`, JSON.stringify(active));
   } catch {}
 }
-function isDeleted(userId, type, cloudId) {
-  return Boolean(readDeleteTombstones(userId)[`${type}:${cloudId}`]);
-}
+function isDeleted(userId, type, cloudId) { return Boolean(readDeleteTombstones(userId)[`${type}:${cloudId}`]); }
 
 function enqueueCloudWrite(userId, operation) {
   const previous = CLOUD_WRITE_QUEUES.get(userId) || Promise.resolve();
@@ -75,29 +85,23 @@ function enqueueCloudWrite(userId, operation) {
 }
 
 function scopedMapKey(type, localId, scope = '') { return scope ? `${type}:${scope}:${localId}` : `${type}:${localId}`; }
-
 function cloudId(userId, type, localId, map, scope = '', occurrence = 0, usedIds = new Set()) {
   const normalized = String(localId ?? '').trim();
   const baseKey = scopedMapKey(type, normalized, scope);
   const key = occurrence ? `${baseKey}:duplicate-${occurrence}` : baseKey;
   const mapped = String(map[key] || '');
-  if (UUID_RE.test(mapped) && !usedIds.has(mapped) && !isDeleted(userId, type, mapped)) {
-    usedIds.add(mapped); return mapped;
-  }
+  if (UUID_RE.test(mapped) && !usedIds.has(mapped) && !isDeleted(userId, type, mapped)) { usedIds.add(mapped); return mapped; }
   if (occurrence === 0 && scope) {
     const legacy = String(map[scopedMapKey(type, normalized)] || '');
-    if (UUID_RE.test(legacy) && !usedIds.has(legacy) && !isDeleted(userId, type, legacy)) {
-      map[baseKey] = legacy; usedIds.add(legacy); return legacy;
-    }
+    if (UUID_RE.test(legacy) && !usedIds.has(legacy) && !isDeleted(userId, type, legacy)) { map[baseKey] = legacy; usedIds.add(legacy); return legacy; }
   }
-  if (UUID_RE.test(normalized) && !usedIds.has(normalized) && !isDeleted(userId, type, normalized)) {
-    usedIds.add(normalized); return normalized;
-  }
+  if (UUID_RE.test(normalized) && !usedIds.has(normalized) && !isDeleted(userId, type, normalized)) { usedIds.add(normalized); return normalized; }
   let next = crypto.randomUUID();
   while (usedIds.has(next) || isDeleted(userId, type, next)) next = crypto.randomUUID();
-  map[key] = next; usedIds.add(next); return next;
+  map[key] = next;
+  usedIds.add(next);
+  return next;
 }
-
 function resolveCloudId(userId, type, localId, scope = '') {
   const raw = String(localId ?? '').trim();
   if (UUID_RE.test(raw)) return raw;
@@ -107,7 +111,6 @@ function resolveCloudId(userId, type, localId, scope = '') {
   const legacy = map[scopedMapKey(type, raw)];
   return UUID_RE.test(String(legacy || '')) ? String(legacy) : null;
 }
-
 function dedupeById(rows) {
   const byId = new Map();
   for (const row of rows || []) if (row?.id) byId.set(String(row.id), row);
@@ -155,8 +158,7 @@ function normalizeCoursesForCloud(userId, courses) {
     const courseOccurrence = normalized.filter((item) => item.sourceLocalId === course.id).length;
     const courseId = cloudId(userId, 'course', course.id, map, '', courseOccurrence, usedCourseIds);
     const normalizedCourse = {
-      id: courseId, user_id: userId, name: String(course.name || 'Untitled course').trim() || 'Untitled course',
-      description: String(course.description || '').trim(), color: String(course.color || 'sky'),
+      id: courseId, user_id: userId, name: String(course.name || 'Untitled course').trim() || 'Untitled course', description: String(course.description || '').trim(), color: String(course.color || 'sky'),
       created_at: new Date(Number(course.createdAt) || Date.now()).toISOString(), updated_at: new Date().toISOString(), collections: [], sourceLocalId: course.id,
     };
     const collectionOccurrences = new Map();
@@ -172,9 +174,9 @@ function normalizeCoursesForCloud(userId, courses) {
       const noteOccurrences = new Map();
       for (const note of Array.isArray(collection.notes) ? collection.notes : []) {
         const noteKey = String(note.id ?? '').trim();
-        const occurrence = noteOccurrences.get(noteKey) || 0;
-        noteOccurrences.set(noteKey, occurrence + 1);
-        const noteId = cloudId(userId, 'note', note.id, map, `${String(course.id ?? courseId)}:${String(collection.id ?? collectionId)}`, occurrence, usedNoteIds);
+        const noteOccurrence = noteOccurrences.get(noteKey) || 0;
+        noteOccurrences.set(noteKey, noteOccurrence + 1);
+        const noteId = cloudId(userId, 'note', note.id, map, `${String(course.id ?? courseId)}:${String(collection.id ?? collectionId)}`, noteOccurrence, usedNoteIds);
         normalizedCollection.notes.push({
           id: noteId, user_id: userId, course_id: courseId, collection_id: collectionId,
           title: String(note.title || 'Untitled note').trim() || 'Untitled note', body: String(note.content || note.body || ''), favorite: Boolean(note.favorite),
@@ -202,13 +204,11 @@ export function readLocalWorkspace() {
   } catch {}
   return null;
 }
-
-export function writeLocalWorkspace(courses) {
-  try { localStorage.setItem(localStorageKey(), JSON.stringify({ version: 3, courses })); } catch {}
-}
+export function writeLocalWorkspace(courses) { try { localStorage.setItem(localStorageKey(), JSON.stringify({ version: 3, courses })); } catch {} }
 
 export async function loadCloudWorkspace(userId) {
   if (!supabase || !userId) return null;
+  const generation = currentLoadGeneration(userId);
   const [coursesResult, collectionsResult, notesResult] = await Promise.all([
     supabase.from('courses').select('id,name,description,color,created_at,updated_at').eq('user_id', userId).order('created_at', { ascending: false }),
     supabase.from('collections').select('id,course_id,name,created_at,updated_at').eq('user_id', userId).order('created_at', { ascending: true }),
@@ -217,9 +217,14 @@ export async function loadCloudWorkspace(userId) {
   if (coursesResult.error) throw coursesResult.error;
   if (collectionsResult.error) throw collectionsResult.error;
   if (notesResult.error) throw notesResult.error;
+  if (generation !== currentLoadGeneration(userId)) return null;
   const tombstones = readDeleteTombstones(userId);
-  const visibleNotes = (notesResult.data || []).filter((row) => !tombstones[`note:${row.id}`]);
-  const workspace = toMobileWorkspace(coursesResult.data || [], collectionsResult.data || [], visibleNotes);
+  const visibleCourses = (coursesResult.data || []).filter((row) => !tombstones[`course:${row.id}`]);
+  const visibleCollections = (collectionsResult.data || []).filter((row) => !tombstones[`collection:${row.id}`] && visibleCourses.some((course) => course.id === row.course_id));
+  const visibleCourseIds = new Set(visibleCourses.map((row) => row.id));
+  const visibleCollectionIds = new Set(visibleCollections.map((row) => row.id));
+  const visibleNotes = (notesResult.data || []).filter((row) => !tombstones[`note:${row.id}`] && visibleCourseIds.has(row.course_id) && (!row.collection_id || visibleCollectionIds.has(row.collection_id)));
+  const workspace = toMobileWorkspace(visibleCourses, visibleCollections, visibleNotes);
   markCloudHydrated(userId);
   return workspace;
 }
@@ -234,8 +239,6 @@ export function saveCloudWorkspace(userId, courses) {
     if (desiredCourses.length) { const { error } = await supabase.from('courses').upsert(desiredCourses, { onConflict: 'id' }); if (error) throw error; }
     if (desiredCollections.length) { const { error } = await supabase.from('collections').upsert(desiredCollections, { onConflict: 'id' }); if (error) throw error; }
     if (desiredNotes.length) { const { error } = await supabase.from('notes').upsert(desiredNotes, { onConflict: 'id' }); if (error) throw error; }
-    // Notes are intentionally NOT snapshot-deleted. Snapshot omission is ambiguous during concurrent UI mutations.
-    // A note is removed only through the explicit delete path below, which creates a tombstone first.
     await deleteRowsMissingFromSnapshot('collections', userId, desiredCollections.map((row) => row.id));
     await deleteRowsMissingFromSnapshot('courses', userId, desiredCourses.map((row) => row.id));
   });
@@ -247,10 +250,21 @@ async function deleteRowsMissingFromSnapshot(table, userId, desiredIds) {
   if (error) throw error;
   for (const row of data || []) {
     const id = String(row.id);
-    if (desired.has(id)) continue;
+    if (desired.has(id) || isDeleted(userId, table === 'courses' ? 'course' : 'collection', id)) continue;
     const { error: deleteError } = await supabase.from(table).delete().eq('user_id', userId).eq('id', id);
     if (deleteError) throw deleteError;
   }
+}
+
+function deleteOnce(userId, type, cloudId, operation) {
+  const key = `${userId}:${type}:${cloudId}`;
+  const existing = CLOUD_DELETE_PROMISES.get(key);
+  if (existing) return existing;
+  const promise = operation().finally(() => {
+    if (CLOUD_DELETE_PROMISES.get(key) === promise) CLOUD_DELETE_PROMISES.delete(key);
+  });
+  CLOUD_DELETE_PROMISES.set(key, promise);
+  return promise;
 }
 
 export function deleteCloudNote(userId, noteId, courseId = '', collectionId = '') {
@@ -259,13 +273,14 @@ export function deleteCloudNote(userId, noteId, courseId = '', collectionId = ''
   const cloudNoteId = resolveCloudId(userId, 'note', noteId, scope);
   if (!cloudNoteId) return Promise.resolve();
   markDeleted(userId, 'note', cloudNoteId);
-  return enqueueCloudWrite(userId, async () => {
+  bumpLoadGeneration(userId);
+  return deleteOnce(userId, 'note', cloudNoteId, () => enqueueCloudWrite(userId, async () => {
     const { error } = await supabase.from('notes').delete().eq('user_id', userId).eq('id', cloudNoteId);
     if (error) throw error;
     const { data, error: verifyError } = await supabase.from('notes').select('id').eq('user_id', userId).eq('id', cloudNoteId).limit(1);
     if (verifyError) throw verifyError;
     if (data?.length) throw new Error('Note deletion was not confirmed by Supabase.');
-  });
+  }));
 }
 
 export function deleteCloudCourse(userId, courseId) {
@@ -273,11 +288,15 @@ export function deleteCloudCourse(userId, courseId) {
   const cloudCourseId = resolveCloudId(userId, 'course', courseId);
   if (!cloudCourseId) return Promise.resolve();
   markDeleted(userId, 'course', cloudCourseId);
-  return enqueueCloudWrite(userId, async () => {
+  bumpLoadGeneration(userId);
+  return deleteOnce(userId, 'course', cloudCourseId, () => enqueueCloudWrite(userId, async () => {
     const { error } = await supabase.from('courses').delete().eq('user_id', userId).eq('id', cloudCourseId);
     if (error) throw error;
     const { data, error: verifyError } = await supabase.from('courses').select('id').eq('user_id', userId).eq('id', cloudCourseId).limit(1);
     if (verifyError) throw verifyError;
     if (data?.length) throw new Error('Course deletion was not confirmed by Supabase.');
-  });
+    const { data: childNotes, error: childNoteError } = await supabase.from('notes').select('id').eq('user_id', userId).eq('course_id', cloudCourseId).limit(1);
+    if (childNoteError) throw childNoteError;
+    if (childNotes?.length) throw new Error('Course deletion left notes behind in Supabase.');
+  }));
 }
