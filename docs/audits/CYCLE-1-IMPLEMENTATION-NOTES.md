@@ -1,25 +1,16 @@
 # Cycle 1 implementation notes
 
-This file records the intended code-level changes while Cycle 1 is executed.
+## Part A — BUG #1
+Course, collection, and note changes now use a direct persistence path: local cache is updated immediately, authenticated cloud writes are awaited, and explicit course/note deletes are sent to Supabase using stable cloud UUID resolution.
 
-## Part A
-- Keep Supabase as the authoritative authenticated workspace store.
-- Keep localStorage only as a device-local fallback/cache.
-- Persist explicit course/note deletions to Supabase.
-- Preserve stable cloud UUID mappings for legacy local IDs.
+## Part B — BUG #2
+Verified on the baseline code: note creation already uses the entered `newNoteName` value, falling back to `New Note` only when blank. No behavior-changing rewrite was necessary.
 
-## Part B
-- Preserve the entered note title when creating a note.
+## Part C — BUG #33 prerequisite
+Stable cloud UUID mappings remain keyed by entity type + local ID, so note renames do not change the persisted note ID. The title-derived learning-history consumer is intentionally deferred to Cycle 6.
 
-## Part C
-- Stable note UUIDs remain independent of title/rename operations.
-- The learning-suite title-derived identity consumer is intentionally closed in Cycle 6, where its learning-history semantics are owned.
+## Part D — BUG #39
+The collection editor now flushes the current draft through the save callback before navigating away, while retaining inactivity autosave.
 
-## Part D
-- Save the current editor draft when leaving the editor.
-- Immediate saves must write local state and cloud state, not rely only on a delayed background debounce.
-
-## Part E
-- Hydrate Engine Settings from `profiles.engine_settings`.
-- Persist setting changes back to that authenticated profile.
-- Keep a local cache as a fallback, but database state is authoritative when authenticated.
+## Part E — ISSUE #11
+The full Engine Settings object hydrates from `profiles.engine_settings` for authenticated users and persists changes back to that profile. Local storage remains a user-scoped cache/fallback.
