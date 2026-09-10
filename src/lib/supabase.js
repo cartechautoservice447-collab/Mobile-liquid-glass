@@ -42,11 +42,6 @@ export const supabase = isSupabaseConfigured
     })
   : null;
 
-/**
- * Returns the final web callback owned by Mobile-liquid-glass.
- * Local development may use its local callback; production is always the
- * Mobile app's production host so it can never fall back to Fluid Glass Studio's Site URL.
- */
 export function getMobileWebAuthRedirect() {
   if (typeof window === 'undefined') return MOBILE_WEB_AUTH_REDIRECT;
   const origin = window.location.origin;
@@ -54,9 +49,6 @@ export function getMobileWebAuthRedirect() {
   return isLocal ? `${origin}/auth/callback` : MOBILE_WEB_AUTH_REDIRECT;
 }
 
-// App.jsx currently calls signInWithOAuth directly. Enforce the Mobile-owned
-// redirect at the shared client boundary so no caller can accidentally reuse
-// Fluid Glass Studio's Site URL/default redirect.
 if (supabase) {
   const originalSignInWithOAuth = supabase.auth.signInWithOAuth.bind(supabase.auth);
   supabase.auth.signInWithOAuth = async (options = {}) => originalSignInWithOAuth({
@@ -74,5 +66,6 @@ if (typeof window !== 'undefined') {
     import('../collectionDeletePolish.js').catch(() => {});
     import('../collectionDeleteLongPress.js').catch(() => {});
     import('../collectionDeleteLongPressFix.js').catch(() => {});
+    import('../MobileNoteEditorPremiumLoader.js').catch(() => {});
   });
 }
