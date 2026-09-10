@@ -1,0 +1,43 @@
+/* Final horizontal fit: the dark preview/editor surface reaches the outer glass frame edge. */
+.mobile-note-editor .generated-workarea{
+  width:100%;
+  max-width:none;
+  margin-left:0;
+  margin-right:0;
+  padding:0;
+  border-left:1px solid rgba(32,41,55,.96);
+  border-right:1px solid rgba(32,41,55,.96);
+  box-sizing:border-box;
+}
+.mobile-note-editor .generated-preview-pane,
+.mobile-note-editor .generated-editor-pane{
+  width:100%;
+  max-width:none;
+  margin:0;
+  box-sizing:border-box;
+}
+.mobile-note-editor .generated-preview-pane{padding:0!important;}
+.mobile-note-editor .generated-preview-content{
+  width:100%;
+  min-width:0;
+  max-width:none;
+  margin:0;
+  box-sizing:border-box;
+}
+.mobile-note-editor .generated-preview-content article{
+  width:100%;
+  max-width:none;
+  box-sizing:border-box;
+  margin:0;
+}
+.mobile-note-editor .preview-code,
+.mobile-note-editor .preview-table-wrap,
+.mobile-note-editor .preview-callout{
+  width:100%;
+  max-width:none;
+  box-sizing:border-box;
+}
+@media (max-width:520px){
+  .mobile-note-editor .generated-workarea{width:100%;}
+  .mobile-note-editor .generated-preview-content article{width:100%;}
+}
