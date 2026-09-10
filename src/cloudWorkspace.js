@@ -78,6 +78,15 @@ function resolveCloudId(userId, type, localId) {
   return UUID_RE.test(String(resolved || '')) ? String(resolved) : null;
 }
 
+function dedupeById(rows) {
+  const byId = new Map();
+  for (const row of rows || []) {
+    if (!row?.id) continue;
+    byId.set(String(row.id), row);
+  }
+  return Array.from(byId.values());
+}
+
 function toMobileWorkspace(courses, collections, notes) {
   const collectionMap = new Map();
   for (const row of collections) {
@@ -199,9 +208,10 @@ export async function loadCloudWorkspace(userId) {
 export async function saveCloudWorkspace(userId, courses) {
   if (!supabase || !userId || !isCloudHydrated(userId)) return;
   const normalized = normalizeCoursesForCloud(userId, courses);
-  const desiredCourses = normalized.map(({ collections, ...course }) => course);
-  const desiredCollections = normalized.flatMap((course) => course.collections.map(({ notes, ...collection }) => collection));
-  const desiredNotes = normalized.flatMap((course) => course.collections.flatMap((collection) => collection.notes));
+  const desiredCourses = dedupeById(normalized.map(({ collections, ...course }) => course));
+  const desiredCollections = dedupeById(normalized.flatMap((course) => course.collections.map(({ notes, ...collection }) => collection)));
+  const desiredNotes = dedupeById(normalized.flatMap((course) => course.collections.flatMap((collection) => collection.notes)));
+
   if (desiredCourses.length) {
     const { error } = await supabase.from('courses').upsert(desiredCourses, { onConflict: 'id' });
     if (error) throw error;
