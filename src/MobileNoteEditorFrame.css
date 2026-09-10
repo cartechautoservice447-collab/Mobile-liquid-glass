@@ -29,4 +29,10 @@
 .mobile-note-editor .preview-callout{margin:18px 0;padding:11px 12px;border-color:#30363d;background:#161b22}
 .mobile-note-editor .preview-callout span{font-size:.95rem;line-height:1.72;color:#c9d1d9}
 .mobile-note-editor .task-list li{font-size:1rem;line-height:1.78}
-@media (max-width:520px){.mobile-note-editor{gap:7px}.mobile-note-editor .generated-workarea{border-radius:17px}.mobile-note-editor .generated-editor-pane{padding:13px 9px 18px}.mobile-note-editor .generated-editor-pane>textarea{font-size:.93rem;line-height:1.84}.mobile-note-editor .generated-preview-content article{padding:18px 12px 40px}.mobile-note-editor .generated-preview-content p,.mobile-note-editor .generated-preview-content li{font-size:1rem;line-height:1.82}.mobile-note-editor .preview-code pre{font-size:.75rem;line-height:1.65;padding:12px}}
+
+/* The bottom save/status panel is intentionally removed so the dark editor/preview surface reaches the outer glass curve. */
+.mobile-note-editor .generated-editor-footer{display:none!important}
+.mobile-note-editor .generated-workarea{margin-bottom:0;border-radius:18px 18px 20px 20px}
+.mobile-note-editor{padding-bottom:0!important}
+
+@media (max-width:520px){.mobile-note-editor{gap:7px}.mobile-note-editor .generated-workarea{border-radius:17px 17px 19px 19px}.mobile-note-editor .generated-editor-pane{padding:13px 9px 18px}.mobile-note-editor .generated-editor-pane>textarea{font-size:.93rem;line-height:1.84}.mobile-note-editor .generated-preview-content article{padding:18px 12px 40px}.mobile-note-editor .generated-preview-content p,.mobile-note-editor .generated-preview-content li{font-size:1rem;line-height:1.82}.mobile-note-editor .preview-code pre{font-size:.75rem;line-height:1.65;padding:12px}}
