@@ -2,6 +2,7 @@ import { supabase } from './lib/supabase.js';
 
 const LOCAL_KEY = 'mobile-liquid-glass-workspace-v1';
 const ID_MAP_KEY = 'mobile-liquid-glass-cloud-id-map-v1';
+const CLOUD_HYDRATED_KEY = 'mobile-liquid-glass-cloud-hydrated-v1';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function findAuthUserId() {
@@ -35,6 +36,26 @@ function findAuthUserId() {
 
 function localStorageKey() {
   return `${LOCAL_KEY}:${findAuthUserId()}`;
+}
+
+function hydrationKey(userId) {
+  return `${CLOUD_HYDRATED_KEY}:${userId}`;
+}
+
+function markCloudHydrated(userId) {
+  try {
+    localStorage.setItem(hydrationKey(userId), '1');
+  } catch {
+    // Best-effort safety marker.
+  }
+}
+
+function isCloudHydrated(userId) {
+  try {
+    return localStorage.getItem(hydrationKey(userId)) === '1';
+  } catch {
+    return false;
+  }
 }
 
 function readIdMap(userId) {
@@ -238,11 +259,13 @@ export async function loadCloudWorkspace(userId) {
   if (collectionsResult.error) throw collectionsResult.error;
   if (notesResult.error) throw notesResult.error;
 
-  return toMobileWorkspace(coursesResult.data || [], collectionsResult.data || [], notesResult.data || []);
+  const workspace = toMobileWorkspace(coursesResult.data || [], collectionsResult.data || [], notesResult.data || []);
+  markCloudHydrated(userId);
+  return workspace;
 }
 
 export async function saveCloudWorkspace(userId, courses) {
-  if (!supabase || !userId) return;
+  if (!supabase || !userId || !isCloudHydrated(userId)) return;
 
   const normalized = normalizeCoursesForCloud(userId, courses);
   const desiredCourses = normalized.map(({ collections, ...course }) => course);
