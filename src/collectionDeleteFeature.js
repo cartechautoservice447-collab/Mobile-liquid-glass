@@ -5,7 +5,7 @@ const ID_MAP_KEY = 'mobile-liquid-glass-cloud-id-map-v1';
 const TOMBSTONE_KEY = 'mobile-liquid-glass-delete-tombstones-v1';
 const TOMBSTONE_TTL = 24 * 60 * 60 * 1000;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const DELETE_ANIMATION_MS = 680;
+const DELETE_ANIMATION_MS = 920;
 
 function getUserId() {
   try {
@@ -109,7 +109,8 @@ function injectStyles() {
     .collection-selection-wrap{display:flex;align-items:center;gap:11px;width:100%;margin-bottom:10px}
     .collection-selection-wrap>.glass-list-item{flex:1;min-width:0}
     .collection-selection-wrap.selected>.glass-list-item{border-color:rgba(191,145,255,.38);box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 10px 28px rgba(105,72,165,.12);transform:translateY(-1px)}
-    .collection-selection-control{position:relative;width:36px;height:36px;flex:0 0 36px;display:inline-flex;align-items:center;justify-content:center;border-radius:13px;border:1px solid rgba(255,255,255,.17);background:linear-gradient(145deg,rgba(255,255,255,.13),rgba(255,255,255,.04));box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 8px 20px rgba(19,23,40,.16);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);cursor:pointer;transition:all .2s ease}
+    .collection-selection-control{position:relative;width:36px;height:36px;flex:0 0 36px;display:inline-flex;align-items:center;justify-content:center;border-radius:13px;border:1px solid rgba(255,255,255,.17);background:linear-gradient(145deg,rgba(255,255,255,.13),rgba(255,255,255,.04));box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 8px 20px rgba(19,23,40,.16);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);cursor:pointer;transition:opacity .2s ease,transform .2s ease,background .2s ease,border-color .2s ease,box-shadow .2s ease;opacity:0;visibility:hidden;pointer-events:none;transform:translateX(-7px) scale(.96)}
+    .collection-delete-mode .collection-selection-control{opacity:1;visibility:visible;pointer-events:auto;transform:translateX(0) scale(1)}
     .collection-selection-control:hover{border-color:rgba(193,165,255,.42);background:linear-gradient(145deg,rgba(198,166,255,.18),rgba(255,255,255,.05));transform:scale(1.03)}
     .collection-selection-control input{position:absolute;opacity:0;pointer-events:none;width:1px;height:1px}
     .collection-checkmark{width:22px;height:22px;border-radius:8px;border:1px solid rgba(255,255,255,.22);background:linear-gradient(145deg,rgba(255,255,255,.1),rgba(255,255,255,.02));display:inline-flex;align-items:center;justify-content:center;color:transparent;transition:all .2s ease;box-shadow:inset 0 1px 0 rgba(255,255,255,.12)}
@@ -117,7 +118,7 @@ function injectStyles() {
     .collection-selection-control input:focus-visible + .collection-checkmark{outline:2px solid rgba(202,176,255,.85);outline-offset:3px}
     .collection-delete-actionbar{display:flex;align-items:center;gap:9px;margin:2px 0 14px;padding:10px 12px;border:1px solid rgba(255,255,255,.12);border-radius:16px;background:linear-gradient(145deg,rgba(255,255,255,.1),rgba(255,255,255,.035));box-shadow:inset 0 1px 0 rgba(255,255,255,.1),0 10px 24px rgba(15,18,32,.12);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
     .collection-delete-selection-count{margin-right:auto;font-size:12px;font-weight:700;letter-spacing:.02em;opacity:.78}
-    .collection-delete-cancel,.collection-delete-confirm{border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:9px 13px;font:inherit;font-weight:700;cursor:pointer;transition:all .18s ease}
+    .collection-delete-cancel,.collection-delete-confirm{border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:9px 13px;font:inherit;font-weight:700;cursor:pointer;transition:transform .18s ease,background .18s ease,border-color .18s ease,box-shadow .18s ease}
     .collection-delete-cancel{background:rgba(255,255,255,.06);color:inherit}.collection-delete-cancel:hover{background:rgba(255,255,255,.1)}
     .collection-delete-confirm{background:linear-gradient(135deg,rgba(255,102,135,.26),rgba(255,66,104,.12));border-color:rgba(255,137,160,.3);color:#ffdce4;box-shadow:inset 0 1px 0 rgba(255,255,255,.1),0 6px 18px rgba(255,69,107,.12)}
     .collection-delete-confirm:hover{background:linear-gradient(135deg,rgba(255,102,135,.34),rgba(255,66,104,.16));transform:translateY(-1px)}
@@ -126,16 +127,17 @@ function injectStyles() {
     .collection-delete-modal-symbol{width:48px;height:48px;margin-bottom:14px;border-radius:16px;display:inline-flex;align-items:center;justify-content:center;color:#ffdce4;background:linear-gradient(145deg,rgba(255,121,151,.27),rgba(255,255,255,.06));border:1px solid rgba(255,160,178,.24);box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 10px 26px rgba(255,69,107,.12)}
     .collection-delete-modal h2{margin:0 0 7px;font-size:22px;letter-spacing:-.02em}.collection-delete-modal p{margin:0 0 16px;opacity:.76;line-height:1.5}
     .collection-delete-list{display:grid;gap:8px;max-height:220px;overflow:auto;margin:0 0 18px;padding-right:2px}.collection-delete-list span{padding:11px 12px;border-radius:13px;background:linear-gradient(145deg,rgba(255,255,255,.09),rgba(255,255,255,.035));border:1px solid rgba(255,255,255,.09);box-shadow:inset 0 1px 0 rgba(255,255,255,.08)}
-    .collection-delete-modal-actions{display:flex;justify-content:flex-end;gap:10px}.collection-delete-modal-actions button{border:1px solid rgba(255,255,255,.12);border-radius:13px;padding:11px 15px;font:inherit;font-weight:700;cursor:pointer;transition:all .18s ease}.collection-delete-modal-actions .cancel{background:rgba(255,255,255,.06);color:inherit}.collection-delete-modal-actions .danger{background:linear-gradient(135deg,#ff6d8c,#ea4569);border-color:rgba(255,191,204,.28);color:#fff;box-shadow:0 10px 26px rgba(255,69,107,.18)}
-    .collection-selection-wrap.collection-deleting{position:relative;overflow:visible;pointer-events:none;animation:collectionDeleteDissolve ${DELETE_ANIMATION_MS}ms cubic-bezier(.22,.78,.27,1) forwards}
+    .collection-delete-modal-actions{display:flex;justify-content:flex-end;gap:10px}.collection-delete-modal-actions button{border:1px solid rgba(255,255,255,.12);border-radius:13px;padding:11px 15px;font:inherit;font-weight:700;cursor:pointer;transition:transform .18s ease,background .18s ease,border-color .18s ease}.collection-delete-modal-actions .cancel{background:rgba(255,255,255,.06);color:inherit}.collection-delete-modal-actions .danger{background:linear-gradient(135deg,#ff6d8c,#ea4569);border-color:rgba(255,191,204,.28);color:#fff;box-shadow:0 10px 26px rgba(255,69,107,.18)}
+    .collection-selection-wrap.collection-deleting{position:relative;overflow:visible;pointer-events:none;will-change:clip-path,opacity;contain:paint;animation:collectionDeleteErase ${DELETE_ANIMATION_MS}ms cubic-bezier(.22,.72,.18,1) forwards}
     .collection-selection-wrap.collection-deleting>.glass-list-item{transition:none!important}
-    .collection-delete-sparkles{position:absolute;inset:0;z-index:4;pointer-events:none;overflow:visible}
-    .collection-delete-sparkles i{position:absolute;left:50%;top:50%;width:5px;height:5px;border-radius:50%;opacity:0;background:rgba(255,255,255,.95);box-shadow:0 0 12px rgba(214,194,255,.95),0 0 24px rgba(146,112,255,.45);animation:collectionDeleteSparkle ${DELETE_ANIMATION_MS}ms ease-out forwards}
-    .collection-delete-sparkles i:nth-child(1){--dx:-70px;--dy:-32px;animation-delay:0ms}.collection-delete-sparkles i:nth-child(2){--dx:62px;--dy:-46px;animation-delay:45ms}.collection-delete-sparkles i:nth-child(3){--dx:76px;--dy:15px;animation-delay:15ms}.collection-delete-sparkles i:nth-child(4){--dx:32px;--dy:46px;animation-delay:70ms}.collection-delete-sparkles i:nth-child(5){--dx:-54px;--dy:44px;animation-delay:30ms}.collection-delete-sparkles i:nth-child(6){--dx:-82px;--dy:8px;animation-delay:55ms}.collection-delete-sparkles i:nth-child(7){--dx:-12px;--dy:-54px;animation-delay:90ms}.collection-delete-sparkles i:nth-child(8){--dx:8px;--dy:58px;animation-delay:10ms}
-    .collection-selection-wrap.collection-deleting .collection-delete-sparkles i:nth-child(odd){width:4px;height:4px}.collection-selection-wrap.collection-deleting .collection-delete-sparkles i:nth-child(even){width:6px;height:6px}
-    @keyframes collectionDeleteSparkle{0%{opacity:0;transform:translate(-50%,-50%) scale(.35)}18%{opacity:1}100%{opacity:0;transform:translate(calc(-50% + var(--dx)),calc(-50% + var(--dy))) scale(.05)}}
-    @keyframes collectionDeleteDissolve{0%{opacity:1;transform:translate3d(0,0,0) scale(1);filter:blur(0)}38%{opacity:1;transform:translate3d(0,-2px,0) scale(1.005);filter:blur(.2px)}72%{opacity:.38;transform:translate3d(0,-5px,0) scale(.985);filter:blur(3px)}100%{opacity:0;transform:translate3d(0,-8px,0) scale(.94);filter:blur(8px);max-height:0;margin-top:0;margin-bottom:0}}
-    @media (prefers-reduced-motion:reduce){.collection-selection-wrap.collection-deleting{animation-duration:180ms}.collection-delete-sparkles{display:none}}
+    .collection-delete-sparkles{position:absolute;inset:0;z-index:4;pointer-events:none;overflow:visible;clip-path:inset(0)}
+    .collection-delete-sparkles i{position:absolute;left:50%;bottom:7px;width:5px;height:5px;border-radius:50%;opacity:0;background:rgba(255,255,255,.98);box-shadow:0 0 8px rgba(255,255,255,.95),0 0 16px rgba(181,147,255,.8),0 0 28px rgba(133,99,255,.42);will-change:transform,opacity;animation:collectionDeleteStar ${DELETE_ANIMATION_MS}ms cubic-bezier(.34,.7,.22,1) forwards}
+    @keyframes collectionDeleteStar{0%{opacity:0;transform:translate3d(-50%,7px,0) scale(.45)}10%{opacity:.96;transform:translate3d(-50%,0,0) scale(.95)}82%{opacity:.95;transform:translate3d(-50%,calc(-100% + 22px),0) scale(.78)}100%{opacity:0;transform:translate3d(-50%,calc(-100% + 10px),0) scale(.1)}}
+    @keyframes collectionDeleteErase{0%{opacity:1;clip-path:inset(0 0 0 0);transform:translate3d(0,0,0)}64%{opacity:1;clip-path:inset(0 0 54% 0);transform:translate3d(0,0,0)}86%{opacity:.42;clip-path:inset(0 0 84% 0);transform:translate3d(0,-1px,0)}100%{opacity:0;clip-path:inset(0 0 100% 0);transform:translate3d(0,-2px,0)}}
+    .collection-selection-wrap.collection-layout-shift{will-change:transform;animation:collectionDeleteLift var(--collection-shift-ms,620ms) cubic-bezier(.22,.76,.2,1) both}
+    @keyframes collectionDeleteLift{from{transform:translate3d(0,var(--collection-shift-y,0px),0)}to{transform:translate3d(0,0,0)}}
+    @keyframes collectionDeleteFade{from{opacity:0}to{opacity:1}}@keyframes collectionDeletePop{from{opacity:0;transform:translateY(8px) scale(.985)}to{opacity:1;transform:translateY(0) scale(1)}}
+    @media (prefers-reduced-motion:reduce){.collection-selection-control{transition:none}.collection-selection-wrap.collection-deleting,.collection-selection-wrap.collection-layout-shift{animation-duration:180ms}.collection-delete-sparkles{display:none}}
     @media (max-width:600px){.collection-delete-tools{padding-left:6px}.collection-delete-trigger{width:40px;height:40px}.collection-delete-actionbar{padding:9px 10px}.collection-delete-cancel,.collection-delete-confirm{padding:8px 10px}.collection-delete-modal{padding:20px;border-radius:24px}.collection-delete-modal-actions{position:sticky;bottom:0;padding-top:4px}}
   `;
   document.head.appendChild(style);
@@ -214,24 +216,62 @@ async function resolveCollectionIds(selectedEntries, course, userId) {
   return resolved;
 }
 
-function getSparkleOverlay() {
+function getSparkleOverlay(wrapper) {
   const sparkles = document.createElement('span');
   sparkles.className = 'collection-delete-sparkles';
-  for (let index = 0; index < 8; index += 1) sparkles.appendChild(document.createElement('i'));
+  const star = document.createElement('i');
+  const height = Math.max(wrapper.getBoundingClientRect().height, 1);
+  star.style.setProperty('--star-travel', `${Math.max(height - 18, 16)}px`);
+  star.style.animationName = 'collectionDeleteStar';
+  sparkles.appendChild(star);
   return sparkles;
 }
 
-function removeWrappersAfterAnimation(items) {
+function captureLayout(items) {
+  return items.map((item) => ({
+    item,
+    rect: item.wrapper.getBoundingClientRect(),
+  }));
+}
+
+function animateRemainingIntoPlace(beforeLayout, removedItems) {
+  const removedSet = new Set(removedItems.map((entry) => entry.wrapper));
+  const activeBefore = beforeLayout.filter(({ item }) => !removedSet.has(item.wrapper));
+  const afterRects = new Map();
+  activeBefore.forEach(({ item }) => afterRects.set(item.wrapper, item.wrapper.getBoundingClientRect()));
+  activeBefore.forEach(({ item, rect }) => {
+    const after = afterRects.get(item.wrapper);
+    if (!after || !item.wrapper.isConnected) return;
+    const deltaY = rect.top - after.top;
+    if (Math.abs(deltaY) < 0.5) return;
+    item.wrapper.style.setProperty('--collection-shift-y', `${deltaY}px`);
+    item.wrapper.style.setProperty('--collection-shift-ms', `${Math.min(720, Math.max(520, 600 + Math.abs(deltaY) * 0.5))}ms`);
+    item.wrapper.classList.remove('collection-layout-shift');
+    void item.wrapper.offsetWidth;
+    item.wrapper.classList.add('collection-layout-shift');
+    const clear = () => {
+      item.wrapper.classList.remove('collection-layout-shift');
+      item.wrapper.style.removeProperty('--collection-shift-y');
+      item.wrapper.style.removeProperty('--collection-shift-ms');
+      item.wrapper.removeEventListener('animationend', clear);
+    };
+    item.wrapper.addEventListener('animationend', clear, { once: true });
+  });
+}
+
+function removeWrappersAfterAnimation(items, beforeLayout) {
   items.forEach((item) => {
     item.nextSibling = item.wrapper.nextSibling;
     if (item.wrapper.parentNode) item.wrapper.parentNode.removeChild(item.wrapper);
   });
+  animateRemainingIntoPlace(beforeLayout, items);
 }
 
 function restoreWrappers(items) {
   items.forEach((item) => {
     item.wrapper.classList.remove('collection-deleting');
     item.wrapper.querySelector('.collection-delete-sparkles')?.remove();
+    item.wrapper.style.removeProperty('--star-travel');
     if (!item.wrapper.isConnected && item.parent) {
       if (item.nextSibling && item.nextSibling.parentNode === item.parent) item.parent.insertBefore(item.wrapper, item.nextSibling);
       else item.parent.appendChild(item.wrapper);
@@ -240,7 +280,7 @@ function restoreWrappers(items) {
 }
 
 async function performCloudCollectionDeletes(resolved, userId) {
-  const outcomes = await Promise.all(resolved.map(async (entry) => {
+  return Promise.all(resolved.map(async (entry) => {
     const { error } = await supabase.from('collections').delete().eq('user_id', userId).eq('id', entry.cloudId);
     if (error) throw error;
     const { data, error: verifyError } = await supabase.from('collections').select('id').eq('user_id', userId).eq('id', entry.cloudId).limit(1);
@@ -248,16 +288,15 @@ async function performCloudCollectionDeletes(resolved, userId) {
     if (data?.length) throw new Error(`Collection deletion was not confirmed for ${entry.name}.`);
     return entry;
   }));
-  return outcomes;
 }
 
 async function deleteSelectedCollections(selectedEntries, courseName, userId, list, exitSelectionMode) {
   if (!supabase || !userId || !selectedEntries.length || busy) return;
   busy = true;
   const items = list.filter((item) => selectedEntries.some((entry) => String(entry.localId) === String(item.localId)));
+  const beforeLayout = captureLayout(list.filter((item) => !selectedEntries.some((entry) => String(entry.localId) === String(item.localId))));
   const deletedCloudIds = [];
   let originalCourses = null;
-  let nextCourses = null;
   try {
     const courses = readWorkspace(userId);
     originalCourses = courses;
@@ -276,17 +315,17 @@ async function deleteSelectedCollections(selectedEntries, courseName, userId, li
     items.forEach((item) => {
       item.parent = item.wrapper.parentNode;
       item.nextSibling = item.wrapper.nextSibling;
-      item.wrapper.classList.remove('selected');
       item.checkbox.disabled = true;
+      item.wrapper.classList.remove('selected');
       item.wrapper.classList.add('collection-deleting');
-      item.wrapper.appendChild(getSparkleOverlay());
+      item.wrapper.appendChild(getSparkleOverlay(item.wrapper));
     });
     exitSelectionMode();
 
-    await new Promise((resolve) => window.setTimeout(resolve, DELETE_ANIMATION_MS + 40));
-    removeWrappersAfterAnimation(items);
+    await new Promise((resolve) => window.setTimeout(resolve, DELETE_ANIMATION_MS + 30));
+    removeWrappersAfterAnimation(items, beforeLayout);
 
-    nextCourses = courses.map((item) => item.id !== course.id ? item : {
+    const nextCourses = courses.map((item) => item.id !== course.id ? item : {
       ...item,
       collections: item.collections.filter((collection) => !resolved.some((entry) => String(entry.localId) === String(collection.id))),
     });
@@ -394,6 +433,7 @@ function enhanceCollectionsPage() {
 
   function exitSelectionMode() {
     selectionMode = false;
+    header.classList.remove('collection-delete-mode');
     trigger.classList.remove('active');
     wrappers.forEach((item) => {
       item.checkbox.disabled = true;
@@ -407,6 +447,7 @@ function enhanceCollectionsPage() {
   trigger.setAttribute('aria-pressed', 'false');
   trigger.onclick = () => {
     selectionMode = !selectionMode;
+    header.classList.toggle('collection-delete-mode', selectionMode);
     trigger.classList.toggle('active', selectionMode);
     trigger.setAttribute('aria-pressed', selectionMode ? 'true' : 'false');
     wrappers.forEach((item) => {
