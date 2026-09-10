@@ -1,7 +1,10 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabasePublishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+const SUPABASE_URL_FALLBACK = 'https://qlxllkmuhthlqmbjwseq.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY_FALLBACK = 'sb_publishable_hJEpUthl54Sim83HebiHfQ_dtbo4qyh';
+
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || SUPABASE_URL_FALLBACK;
+const supabasePublishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || SUPABASE_PUBLISHABLE_KEY_FALLBACK;
 
 function isUsableClientKey(value) {
   return Boolean(value) && !value.startsWith('sb_secret_');
