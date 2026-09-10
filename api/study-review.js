@@ -27,31 +27,31 @@ export default async function handler(req, res) {
     });
   }
 
-  // Gemini model used for the Study Review feature.
-  const model = 'gemini-2.5-flash';
+  // Current stable Gemini model for this integration.
+  const model = 'gemini-3.6-flash';
 
   const schema =
     phase === 'decision'
       ? {
-          type: 'OBJECT',
+          type: 'object',
           properties: {
             decision: {
-              type: 'OBJECT',
+              type: 'object',
               properties: {
                 priority: {
-                  type: 'STRING',
+                  type: 'string',
                 },
                 reason: {
-                  type: 'STRING',
+                  type: 'string',
                 },
                 nextReview: {
-                  type: 'STRING',
+                  type: 'string',
                 },
                 recommendedMinutes: {
-                  type: 'NUMBER',
+                  type: 'number',
                 },
                 focus: {
-                  type: 'STRING',
+                  type: 'string',
                 },
               },
               required: [
@@ -66,35 +66,35 @@ export default async function handler(req, res) {
           required: ['decision'],
         }
       : {
-          type: 'OBJECT',
+          type: 'object',
           properties: {
             summary: {
-              type: 'STRING',
+              type: 'string',
             },
             strengths: {
-              type: 'STRING',
+              type: 'string',
             },
             weakArea: {
-              type: 'STRING',
+              type: 'string',
             },
             nextReview: {
-              type: 'STRING',
+              type: 'string',
             },
             questions: {
-              type: 'ARRAY',
+              type: 'array',
               items: {
-                type: 'OBJECT',
+                type: 'object',
                 properties: {
                   id: {
-                    type: 'STRING',
+                    type: 'string',
                   },
                   text: {
-                    type: 'STRING',
+                    type: 'string',
                   },
                   options: {
-                    type: 'ARRAY',
+                    type: 'array',
                     items: {
-                      type: 'STRING',
+                      type: 'string',
                     },
                   },
                 },
@@ -116,9 +116,24 @@ export default async function handler(req, res) {
       ? 'Make one clear next-study decision from the activity and the user answers. Do not invent facts. Include priority, reason, next-review timing, a realistic session length in minutes, and the focus area.'
       : 'Analyze the completed study cycle and today’s activity. Generate exactly three meaningful check-in questions based on what the user actually did. Do not repeat generic questions unnecessarily.';
 
+  const systemInstruction = [
+    'You are the study-intelligence layer inside an existing learning app.',
+    phaseInstruction,
+    'Use only supplied app data.',
+    'Do not invent facts.',
+    'Do not teach a lesson.',
+    'Do not request information already present.',
+    'Keep the output concise, specific, and practical.',
+  ].join(' ');
+
+  const userInput = JSON.stringify({
+    activity: payload,
+    userAnswers: answers,
+  });
+
   try {
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+      'https://generativelanguage.googleapis.com/v1beta/interactions',
       {
         method: 'POST',
         headers: {
@@ -126,33 +141,22 @@ export default async function handler(req, res) {
           'x-goog-api-key': apiKey,
         },
         body: JSON.stringify({
-          systemInstruction: {
-            parts: [
-              {
-                text:
-                  `You are the study-intelligence layer inside an existing learning app. ${phaseInstruction} Use only supplied app data. Do not teach a lesson and do not request information already present. Keep the output concise and practical.`,
-              },
-            ],
+          model,
+          input: userInput,
+          system_instruction: systemInstruction,
+
+          response_format: {
+            type: 'text',
+            mime_type: 'application/json',
+            schema,
           },
 
-          contents: [
-            {
-              role: 'user',
-              parts: [
-                {
-                  text: JSON.stringify({
-                    activity: payload,
-                    userAnswers: answers,
-                  }),
-                },
-              ],
-            },
-          ],
-
-          generationConfig: {
-            responseMimeType: 'application/json',
-            responseSchema: schema,
+          generation_config: {
+            thinking_level: 'high',
+            max_output_tokens: 2000,
           },
+
+          store: false,
         }),
       }
     );
@@ -161,17 +165,49 @@ export default async function handler(req, res) {
 
     if (!response.ok) {
       return res.status(response.status).json({
-        error: raw.slice(0, 1200),
+        error: raw.slice(0, 1500),
       });
     }
 
-    const data = JSON.parse(raw);
+    let data;
 
-    const outputText =
-      data?.candidates?.[0]?.content?.parts
-        ?.map((part) => part.text || '')
+    try {
+      data = JSON.parse(raw);
+    } catch {
+      return res.status(502).json({
+        error: 'Gemini returned invalid API JSON',
+        raw: raw.slice(0, 1500),
+      });
+    }
+
+    /*
+     * Interactions API responses can expose output text directly
+     * or through the model_output step.
+     */
+    let outputText =
+      typeof data?.output_text === 'string'
+        ? data.output_text.trim()
+        : '';
+
+    if (!outputText && Array.isArray(data?.steps)) {
+      outputText = data.steps
+        .filter((step) => step?.type === 'model_output')
+        .flatMap((step) =>
+          Array.isArray(step?.content) ? step.content : []
+        )
+        .filter((content) => content?.type === 'text')
+        .map((content) => content.text || '')
         .join('')
-        .trim() || '';
+        .trim();
+    }
+
+    if (!outputText && Array.isArray(data?.outputs)) {
+      outputText = data.outputs
+        .filter((output) => output?.type === 'text')
+        .map((output) => output.text || '')
+        .join('')
+        .trim();
+    }
 
     if (!outputText) {
       return res.status(502).json({
@@ -185,16 +221,15 @@ export default async function handler(req, res) {
       parsedOutput = JSON.parse(outputText);
     } catch {
       return res.status(502).json({
-        error: 'Gemini returned invalid JSON',
-        raw: outputText.slice(0, 1200),
+        error: 'Gemini returned invalid structured JSON',
+        raw: outputText.slice(0, 1500),
       });
     }
 
     return res.status(200).json(parsedOutput);
   } catch (error) {
     return res.status(500).json({
-      error:
-        error?.message || 'Gemini study review failed',
+      error: error?.message || 'Gemini study review failed',
     });
   }
 }
