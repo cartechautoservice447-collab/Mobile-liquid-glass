@@ -61,7 +61,6 @@ function cloudId(userId, type, localId, map) {
   if (UUID_RE.test(String(map[key] || ''))) return map[key];
   const next = crypto.randomUUID();
   map[key] = next;
-  writeIdMap(userId, map);
   return next;
 }
 
@@ -70,9 +69,12 @@ function toMobileWorkspace(courses, collections, notes) {
   for (const row of collections) {
     collectionMap.set(row.id, {
       id: row.id,
+      courseId: row.course_id,
       title: row.name || 'New collection',
       description: '',
       notes: [],
+      createdAt: Date.parse(row.created_at || '') || Date.now(),
+      updatedAt: Date.parse(row.updated_at || '') || Date.now(),
     });
   }
 
@@ -86,6 +88,7 @@ function toMobileWorkspace(courses, collections, notes) {
       progress: 0,
       collections: [],
       createdAt: Date.parse(row.created_at || '') || Date.now(),
+      updatedAt: Date.parse(row.updated_at || '') || Date.now(),
     });
   }
 
@@ -101,9 +104,12 @@ function toMobileWorkspace(courses, collections, notes) {
     if (!collection) {
       collection = {
         id: row.collection_id || `uncategorized-${row.course_id}`,
+        courseId: row.course_id,
         title: 'Uncategorized',
         description: '',
         notes: [],
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
       };
       collectionMap.set(collection.id, collection);
       course.collections.push(collection);
@@ -121,7 +127,7 @@ function toMobileWorkspace(courses, collections, notes) {
   }
 
   for (const course of courseMap.values()) {
-    course.collections.sort((a, b) => a.title.localeCompare(b.title));
+    course.collections.sort((a, b) => a.createdAt - b.createdAt);
     for (const collection of course.collections) {
       collection.notes.sort((a, b) => b.updatedAt - a.updatedAt);
     }
@@ -162,7 +168,7 @@ function normalizeCoursesForCloud(userId, courses) {
         course_id: courseId,
         name: String(collection.title || collection.name || 'New collection').trim() || 'New collection',
         created_at: new Date(Number(collection.createdAt) || Date.now()).toISOString(),
-        updated_at: new Date().toISOString(),
+        updated_at: new Date(Number(collection.updatedAt) || Date.now()).toISOString(),
         notes: [],
       };
 
