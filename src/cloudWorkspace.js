@@ -62,20 +62,41 @@ function writeIdMap(userId, map) {
   try { localStorage.setItem(`${ID_MAP_KEY}:${userId}`, JSON.stringify(map)); } catch {}
 }
 
-function cloudId(userId, type, localId, map) {
-  if (UUID_RE.test(String(localId))) return String(localId);
-  const key = `${type}:${localId}`;
-  if (UUID_RE.test(String(map[key] || ''))) return map[key];
+function scopedMapKey(type, localId, scope = '') {
+  return scope ? `${type}:${scope}:${localId}` : `${type}:${localId}`;
+}
+
+function cloudId(userId, type, localId, map, scope = '', occurrence = 0) {
+  const normalizedLocalId = String(localId ?? '').trim();
+  const baseKey = scopedMapKey(type, normalizedLocalId, scope);
+  const occurrenceKey = occurrence > 0 ? `${baseKey}:duplicate-${occurrence}` : baseKey;
+
+  if (UUID_RE.test(normalizedLocalId)) return normalizedLocalId;
+  if (UUID_RE.test(String(map[occurrenceKey] || ''))) return String(map[occurrenceKey]);
+
+  // Preserve legacy unscoped mappings for the first occurrence while migrating to
+  // parent-scoped keys so identical legacy IDs in different parents no longer collide.
+  if (occurrence === 0 && scope) {
+    const legacyKey = scopedMapKey(type, normalizedLocalId);
+    if (UUID_RE.test(String(map[legacyKey] || ''))) {
+      map[baseKey] = String(map[legacyKey]);
+      return String(map[legacyKey]);
+    }
+  }
+
   const next = crypto.randomUUID();
-  map[key] = next;
+  map[occurrenceKey] = next;
   return next;
 }
 
-function resolveCloudId(userId, type, localId) {
+function resolveCloudId(userId, type, localId, scope = '') {
   if (UUID_RE.test(String(localId))) return String(localId);
   const map = readIdMap(userId);
-  const resolved = map[`${type}:${localId}`];
-  return UUID_RE.test(String(resolved || '')) ? String(resolved) : null;
+  const normalizedLocalId = String(localId ?? '').trim();
+  const scoped = map[scopedMapKey(type, normalizedLocalId, scope)];
+  if (UUID_RE.test(String(scoped || ''))) return String(scoped);
+  const legacy = map[scopedMapKey(type, normalizedLocalId)];
+  return UUID_RE.test(String(legacy || '')) ? String(legacy) : null;
 }
 
 function dedupeById(rows) {
@@ -140,21 +161,37 @@ function normalizeCoursesForCloud(userId, courses) {
   const normalized = [];
 
   for (const course of Array.isArray(courses) ? courses : []) {
-    const courseId = cloudId(userId, 'course', course.id, map);
+    const courseOccurrence = normalized.filter((item) => item.sourceLocalId === course.id).length;
+    const courseId = cloudId(userId, 'course', course.id, map, '', courseOccurrence);
     const normalizedCourse = {
       id: courseId, user_id: userId, name: String(course.name || 'Untitled course').trim() || 'Untitled course', description: String(course.description || '').trim(), color: String(course.color || 'sky'),
-      created_at: new Date(Number(course.createdAt) || Date.now()).toISOString(), updated_at: new Date().toISOString(), collections: [],
+      created_at: new Date(Number(course.createdAt) || Date.now()).toISOString(), updated_at: new Date().toISOString(), collections: [], sourceLocalId: course.id,
     };
 
+    const collectionOccurrences = new Map();
     for (const collection of Array.isArray(course.collections) ? course.collections : []) {
-      const collectionId = cloudId(userId, 'collection', collection.id, map);
+      const collectionKey = String(collection.id ?? '').trim();
+      const occurrence = collectionOccurrences.get(collectionKey) || 0;
+      collectionOccurrences.set(collectionKey, occurrence + 1);
+      const collectionId = cloudId(userId, 'collection', collection.id, map, String(course.id ?? courseId), occurrence);
       const normalizedCollection = {
         id: collectionId, user_id: userId, course_id: courseId, name: String(collection.title || collection.name || 'New collection').trim() || 'New collection',
         created_at: new Date(Number(collection.createdAt) || Date.now()).toISOString(), updated_at: new Date(Number(collection.updatedAt) || Date.now()).toISOString(), notes: [],
       };
 
+      const noteOccurrences = new Map();
       for (const note of Array.isArray(collection.notes) ? collection.notes : []) {
-        const noteId = cloudId(userId, 'note', note.id, map);
+        const noteKey = String(note.id ?? '').trim();
+        const noteOccurrence = noteOccurrences.get(noteKey) || 0;
+        noteOccurrences.set(noteKey, noteOccurrence + 1);
+        const noteId = cloudId(
+          userId,
+          'note',
+          note.id,
+          map,
+          `${String(course.id ?? courseId)}:${String(collection.id ?? collectionId)}`,
+          noteOccurrence,
+        );
         normalizedCollection.notes.push({
           id: noteId, user_id: userId, course_id: courseId, collection_id: collectionId,
           title: String(note.title || 'Untitled note').trim() || 'Untitled note', body: String(note.content || note.body || ''), favorite: Boolean(note.favorite),
@@ -208,7 +245,7 @@ export async function loadCloudWorkspace(userId) {
 export async function saveCloudWorkspace(userId, courses) {
   if (!supabase || !userId || !isCloudHydrated(userId)) return;
   const normalized = normalizeCoursesForCloud(userId, courses);
-  const desiredCourses = dedupeById(normalized.map(({ collections, ...course }) => course));
+  const desiredCourses = dedupeById(normalized.map(({ collections, sourceLocalId, ...course }) => course));
   const desiredCollections = dedupeById(normalized.flatMap((course) => course.collections.map(({ notes, ...collection }) => collection)));
   const desiredNotes = dedupeById(normalized.flatMap((course) => course.collections.flatMap((collection) => collection.notes)));
 
@@ -239,5 +276,4 @@ export async function deleteCloudCourse(userId, courseId) {
   const cloudCourseId = resolveCloudId(userId, 'course', courseId);
   if (!cloudCourseId) return;
   const { error } = await supabase.from('courses').delete().eq('user_id', userId).eq('id', cloudCourseId);
-  if (error) throw error;
 }
