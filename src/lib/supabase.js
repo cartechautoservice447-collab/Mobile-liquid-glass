@@ -69,5 +69,8 @@ if (supabase) {
 }
 
 if (typeof window !== 'undefined') {
-  queueMicrotask(() => { import('../collectionDeleteFeature.js').catch(() => {}); });
+  queueMicrotask(() => {
+    import('../collectionDeleteFeature.js').catch(() => {});
+    import('../collectionDeletePolish.js').catch(() => {});
+  });
 }
