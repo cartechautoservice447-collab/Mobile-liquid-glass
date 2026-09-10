@@ -1,0 +1,1 @@
+Intentional rollback of Notes multi-select / Select All UI. Earlier persistence and Supabase fixes remain unchanged.
