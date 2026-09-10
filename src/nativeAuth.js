@@ -9,13 +9,44 @@ const SKIP_AUTH_KEY = 'mobile-liquid-glass-skip-auth';
 const handledCodes = new Set();
 let bridgeConfigured = false;
 
+function renderAuthError(message) {
+  const text = String(message || '').trim();
+  if (!text || typeof document === 'undefined') return;
+
+  const render = () => {
+    const card = document.querySelector('.auth-card');
+    if (!card) return false;
+    let node = card.querySelector('[data-native-auth-error]');
+    if (!node) {
+      node = document.createElement('p');
+      node.className = 'message';
+      node.setAttribute('data-native-auth-error', 'true');
+      card.appendChild(node);
+    }
+    node.textContent = text;
+    return true;
+  };
+
+  if (!render()) {
+    requestAnimationFrame(() => {
+      if (!render()) setTimeout(render, 50);
+    });
+  }
+}
+
+function clearRenderedAuthError() {
+  if (typeof document === 'undefined') return;
+  document.querySelector('[data-native-auth-error]')?.remove();
+}
+
 function publishAuthError(message) {
   const text = String(message || 'Unable to complete sign-in. Please try again.');
   try {
     localStorage.setItem(AUTH_ERROR_KEY, text);
   } catch {
-    // Continue to the in-memory event even when storage is unavailable.
+    // Continue to the in-memory event and visible login error.
   }
+  renderAuthError(text);
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent(AUTH_ERROR_EVENT, { detail: { message: text } }));
   }
@@ -35,6 +66,7 @@ export function clearNativeAuthError() {
   } catch {
     // Ignore storage cleanup failures.
   }
+  clearRenderedAuthError();
 }
 
 function isNativeAuthUrl(url) {
@@ -86,6 +118,19 @@ async function handleAuthUrl(url) {
 export async function configureNativeAuth() {
   if (!Capacitor.isNativePlatform() || !supabase || bridgeConfigured) return undefined;
   bridgeConfigured = true;
+
+  const originalSignInWithOAuth = supabase.auth.signInWithOAuth.bind(supabase.auth);
+  supabase.auth.signInWithOAuth = async (options = {}) => {
+    const result = await originalSignInWithOAuth({
+      ...options,
+      options: {
+        ...(options.options || {}),
+        redirectTo: NATIVE_AUTH_REDIRECT,
+      },
+    });
+    if (result?.error) publishAuthError(result.error.message);
+    return result;
+  };
 
   let active = true;
   const listener = await CapacitorApp.addListener('appUrlOpen', ({ url }) => {
