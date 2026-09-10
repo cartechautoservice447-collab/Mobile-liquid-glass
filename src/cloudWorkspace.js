@@ -118,6 +118,17 @@ function dedupeById(rows) {
   return Array.from(byId.values());
 }
 
+async function deleteRowsMissingFromSnapshot(table, userId, desiredIds) {
+  const { data, error } = await supabase.from(table).select('id').eq('user_id', userId);
+  if (error) throw error;
+  const desired = new Set(desiredIds);
+  const staleIds = (data || []).map((row) => String(row.id)).filter((id) => !desired.has(id));
+  for (const id of staleIds) {
+    const { error: deleteError } = await supabase.from(table).delete().eq('user_id', userId).eq('id', id);
+    if (deleteError) throw deleteError;
+  }
+}
+
 function toMobileWorkspace(courses, collections, notes) {
   const collectionMap = new Map();
   for (const row of collections) {
@@ -275,6 +286,12 @@ export async function saveCloudWorkspace(userId, courses) {
     const { error } = await supabase.from('notes').upsert(desiredNotes, { onConflict: 'id' });
     if (error) throw error;
   }
+
+  // The hydrated workspace is the complete user-owned snapshot. Remove remote rows
+  // that are no longer present so deletions cannot reappear after refresh.
+  await deleteRowsMissingFromSnapshot('notes', userId, desiredNotes.map((row) => row.id));
+  await deleteRowsMissingFromSnapshot('collections', userId, desiredCollections.map((row) => row.id));
+  await deleteRowsMissingFromSnapshot('courses', userId, desiredCourses.map((row) => row.id));
 }
 
 export async function deleteCloudNote(userId, noteId) {
