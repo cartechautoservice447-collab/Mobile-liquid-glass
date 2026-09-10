@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { supabase } from './lib/supabase.js';
 
 export const ENGINE_DEFAULTS = {
   displayName: '',
@@ -30,75 +31,133 @@ const clamp = (value, min, max, fallback) => {
   return Math.min(max, Math.max(min, numeric));
 };
 
-const readStored = (key, fallback, parse = (value) => value) => {
+const readStored = (key, fallback) => {
   try {
     const raw = localStorage.getItem(key);
-    return raw == null ? fallback : parse(raw);
+    return raw == null ? fallback : raw;
   } catch {
     return fallback;
   }
 };
 
 const writeStored = (key, value) => {
-  try { localStorage.setItem(key, String(value)); } catch { /* storage can be unavailable */ }
+  try { localStorage.setItem(key, String(value)); } catch { /* local cache is best-effort */ }
 };
 
 const scopeKey = (userId, suffix) => `${STORAGE_PREFIX}:${userId || 'guest'}:${suffix}`;
+
+const normalizeSettings = (raw = {}) => ({
+  displayName: String(raw.displayName || '').trim().slice(0, 40),
+  uiTextClarity: CLARITY_VALUES.includes(raw.uiTextClarity) ? raw.uiTextClarity : ENGINE_DEFAULTS.uiTextClarity,
+  performance: raw.performance === 'ultra' ? 'ultra' : 'high',
+  theme: raw.theme === 'dark' ? 'dark' : 'light',
+  glassTheme: GLASS_THEME_VALUES.includes(raw.glassTheme) ? raw.glassTheme : ENGINE_DEFAULTS.glassTheme,
+  pureBlack: Boolean(raw.pureBlack),
+  backgroundThemeEnabled: Boolean(raw.backgroundThemeEnabled),
+  backgroundOpacity: clamp(raw.backgroundOpacity, 0, 100, ENGINE_DEFAULTS.backgroundOpacity),
+  backgroundBrightness: clamp(raw.backgroundBrightness, 0, 200, ENGINE_DEFAULTS.backgroundBrightness),
+  fullDarkBackground: Boolean(raw.fullDarkBackground),
+  liquidDensity: clamp(raw.liquidDensity, 0, 40, ENGINE_DEFAULTS.liquidDensity),
+  liquidTransparency: clamp(raw.liquidTransparency, 5, 95, ENGINE_DEFAULTS.liquidTransparency),
+  liquidClearness: clamp(raw.liquidClearness, 0, 100, ENGINE_DEFAULTS.liquidClearness),
+  liquidGel: clamp(raw.liquidGel, 0, 100, ENGINE_DEFAULTS.liquidGel),
+  bounceStiffness: clamp(raw.bounceStiffness, 100, 500, ENGINE_DEFAULTS.bounceStiffness),
+  bounceDamping: clamp(raw.bounceDamping, 10, 40, ENGINE_DEFAULTS.bounceDamping),
+});
+
+function readLocalSettings(scope) {
+  return normalizeSettings({
+    displayName: readStored(scopeKey(scope, 'display-name'), ENGINE_DEFAULTS.displayName),
+    uiTextClarity: readStored(scopeKey(scope, 'ui-text-clarity'), ENGINE_DEFAULTS.uiTextClarity),
+    performance: readStored(scopeKey(scope, 'performance'), readStored(LEGACY_PERFORMANCE_KEY, ENGINE_DEFAULTS.performance)),
+    theme: readStored(scopeKey(scope, 'theme'), ENGINE_DEFAULTS.theme),
+    glassTheme: readStored(scopeKey(scope, 'glass-theme'), ENGINE_DEFAULTS.glassTheme),
+    pureBlack: readStored(scopeKey(scope, 'pure-black'), String(ENGINE_DEFAULTS.pureBlack)) === 'true',
+    backgroundThemeEnabled: readStored(scopeKey(scope, 'background-theme'), String(ENGINE_DEFAULTS.backgroundThemeEnabled)) === 'true',
+    backgroundOpacity: readStored(scopeKey(scope, 'background-opacity'), ENGINE_DEFAULTS.backgroundOpacity),
+    backgroundBrightness: readStored(scopeKey(scope, 'background-brightness'), ENGINE_DEFAULTS.backgroundBrightness),
+    fullDarkBackground: readStored(scopeKey(scope, 'full-dark-background'), String(ENGINE_DEFAULTS.fullDarkBackground)) === 'true',
+    liquidDensity: readStored(scopeKey(scope, 'liquid-density'), ENGINE_DEFAULTS.liquidDensity),
+    liquidTransparency: readStored(scopeKey(scope, 'liquid-transparency'), ENGINE_DEFAULTS.liquidTransparency),
+    liquidClearness: readStored(scopeKey(scope, 'liquid-clearness'), ENGINE_DEFAULTS.liquidClearness),
+    liquidGel: readStored(scopeKey(scope, 'liquid-gel'), ENGINE_DEFAULTS.liquidGel),
+    bounceStiffness: readStored(scopeKey(scope, 'bounce-stiffness'), ENGINE_DEFAULTS.bounceStiffness),
+    bounceDamping: readStored(scopeKey(scope, 'bounce-damping'), ENGINE_DEFAULTS.bounceDamping),
+  });
+}
+
+function cacheSettings(scope, settings) {
+  const entries = [
+    ['display-name', settings.displayName],
+    ['ui-text-clarity', settings.uiTextClarity],
+    ['performance', settings.performance],
+    ['theme', settings.theme],
+    ['glass-theme', settings.glassTheme],
+    ['pure-black', settings.pureBlack],
+    ['background-theme', settings.backgroundThemeEnabled],
+    ['background-opacity', settings.backgroundOpacity],
+    ['background-brightness', settings.backgroundBrightness],
+    ['full-dark-background', settings.fullDarkBackground],
+    ['liquid-density', settings.liquidDensity],
+    ['liquid-transparency', settings.liquidTransparency],
+    ['liquid-clearness', settings.liquidClearness],
+    ['liquid-gel', settings.liquidGel],
+    ['bounce-stiffness', settings.bounceStiffness],
+    ['bounce-damping', settings.bounceDamping],
+  ];
+  entries.forEach(([suffix, value]) => writeStored(scopeKey(scope, suffix), value));
+  writeStored(LEGACY_PERFORMANCE_KEY, settings.performance);
+}
 
 export default function useEngineSettings(userId) {
   const [settings, setSettings] = useState(ENGINE_DEFAULTS);
   const [hydratedUser, setHydratedUser] = useState(null);
 
   useEffect(() => {
+    let active = true;
     const scope = userId || 'guest';
-    const legacyPerformance = readStored(LEGACY_PERFORMANCE_KEY, ENGINE_DEFAULTS.performance);
-    const storedGlassTheme = readStored(scopeKey(scope, 'glass-theme'), ENGINE_DEFAULTS.glassTheme);
-    setSettings({
-      displayName: readStored(scopeKey(scope, 'display-name'), ENGINE_DEFAULTS.displayName, (value) => value.trim().slice(0, 40)),
-      uiTextClarity: (() => {
-        const value = readStored(scopeKey(scope, 'ui-text-clarity'), ENGINE_DEFAULTS.uiTextClarity);
-        return CLARITY_VALUES.includes(value) ? value : ENGINE_DEFAULTS.uiTextClarity;
-      })(),
-      performance: readStored(scopeKey(scope, 'performance'), legacyPerformance) === 'ultra' ? 'ultra' : 'high',
-      theme: readStored(scopeKey(scope, 'theme'), ENGINE_DEFAULTS.theme) === 'dark' ? 'dark' : 'light',
-      glassTheme: GLASS_THEME_VALUES.includes(storedGlassTheme) ? storedGlassTheme : ENGINE_DEFAULTS.glassTheme,
-      pureBlack: readStored(scopeKey(scope, 'pure-black'), ENGINE_DEFAULTS.pureBlack) === 'true',
-      backgroundThemeEnabled: readStored(scopeKey(scope, 'background-theme'), ENGINE_DEFAULTS.backgroundThemeEnabled) === 'true',
-      backgroundOpacity: clamp(readStored(scopeKey(scope, 'background-opacity'), ENGINE_DEFAULTS.backgroundOpacity), 0, 100, ENGINE_DEFAULTS.backgroundOpacity),
-      backgroundBrightness: clamp(readStored(scopeKey(scope, 'background-brightness'), ENGINE_DEFAULTS.backgroundBrightness), 0, 200, ENGINE_DEFAULTS.backgroundBrightness),
-      fullDarkBackground: readStored(scopeKey(scope, 'full-dark-background'), ENGINE_DEFAULTS.fullDarkBackground) === 'true',
-      liquidDensity: clamp(readStored(scopeKey(scope, 'liquid-density'), ENGINE_DEFAULTS.liquidDensity), 0, 40, ENGINE_DEFAULTS.liquidDensity),
-      liquidTransparency: clamp(readStored(scopeKey(scope, 'liquid-transparency'), ENGINE_DEFAULTS.liquidTransparency), 5, 95, ENGINE_DEFAULTS.liquidTransparency),
-      liquidClearness: clamp(readStored(scopeKey(scope, 'liquid-clearness'), ENGINE_DEFAULTS.liquidClearness), 0, 100, ENGINE_DEFAULTS.liquidClearness),
-      liquidGel: clamp(readStored(scopeKey(scope, 'liquid-gel'), ENGINE_DEFAULTS.liquidGel), 0, 100, ENGINE_DEFAULTS.liquidGel),
-      bounceStiffness: clamp(readStored(scopeKey(scope, 'bounce-stiffness'), ENGINE_DEFAULTS.bounceStiffness), 100, 500, ENGINE_DEFAULTS.bounceStiffness),
-      bounceDamping: clamp(readStored(scopeKey(scope, 'bounce-damping'), ENGINE_DEFAULTS.bounceDamping), 10, 40, ENGINE_DEFAULTS.bounceDamping),
+    const local = readLocalSettings(scope);
+    setHydratedUser(null);
+    setSettings(local);
+
+    if (!userId || !supabase) {
+      setHydratedUser(scope);
+      return () => { active = false; };
+    }
+
+    supabase.from('profiles').select('engine_settings').eq('id', userId).maybeSingle().then(({ data, error }) => {
+      if (!active) return;
+      if (error) {
+        console.warn('Engine Settings cloud load failed; using local cache.', error);
+        setHydratedUser(userId);
+        return;
+      }
+      const raw = data?.engine_settings;
+      const cloud = raw && typeof raw === 'object' && Object.keys(raw).length ? normalizeSettings(raw) : null;
+      if (cloud) {
+        setSettings(cloud);
+        cacheSettings(userId, cloud);
+      }
+      setHydratedUser(userId);
+    }).catch((error) => {
+      if (!active) return;
+      console.warn('Engine Settings cloud load failed; using local cache.', error);
+      setHydratedUser(userId);
     });
-    setHydratedUser(scope);
+
+    return () => { active = false; };
   }, [userId]);
 
   useEffect(() => {
     if (!hydratedUser) return;
-    const entries = [
-      ['display-name', settings.displayName],
-      ['ui-text-clarity', settings.uiTextClarity],
-      ['performance', settings.performance],
-      ['theme', settings.theme],
-      ['glass-theme', settings.glassTheme],
-      ['pure-black', settings.pureBlack],
-      ['background-theme', settings.backgroundThemeEnabled],
-      ['background-opacity', settings.backgroundOpacity],
-      ['background-brightness', settings.backgroundBrightness],
-      ['full-dark-background', settings.fullDarkBackground],
-      ['liquid-density', settings.liquidDensity],
-      ['liquid-transparency', settings.liquidTransparency],
-      ['liquid-clearness', settings.liquidClearness],
-      ['liquid-gel', settings.liquidGel],
-      ['bounce-stiffness', settings.bounceStiffness],
-      ['bounce-damping', settings.bounceDamping],
-    ];
-    entries.forEach(([suffix, value]) => writeStored(scopeKey(hydratedUser, suffix), value));
-    writeStored(LEGACY_PERFORMANCE_KEY, settings.performance);
+    cacheSettings(hydratedUser, settings);
+    if (hydratedUser === 'guest' || !supabase) return;
+    const timer = setTimeout(() => {
+      supabase.from('profiles').upsert({ id: hydratedUser, engine_settings: settings }, { onConflict: 'id' }).then(({ error }) => {
+        if (error) console.warn('Engine Settings cloud save failed.', error);
+      }).catch((error) => console.warn('Engine Settings cloud save failed.', error));
+    }, 250);
+    return () => clearTimeout(timer);
   }, [hydratedUser, settings]);
 
   useEffect(() => {
@@ -115,20 +174,13 @@ export default function useEngineSettings(userId) {
     const density = settings.liquidDensity;
     const clearness = settings.liquidClearness / 100;
     const gel = settings.liquidGel / 100;
-    const glassAlpha = transparency;
-    const darkAlpha = transparency * 0.16;
-    const veilAlpha = transparency * 0.36;
-    const darkVeilAlpha = transparency <= 0.45
-      ? 0.0775 + 0.45 * transparency
-      : 0.46 - 0.4 * transparency;
-
     const root = document.documentElement;
     root.style.setProperty('--liquid-density', `${density}px`);
     root.style.setProperty('--liquid-transparency', String(transparency));
-    root.style.setProperty('--liquid-glass-alpha', String(glassAlpha));
-    root.style.setProperty('--liquid-glass-dark-alpha', String(darkAlpha));
-    root.style.setProperty('--liquid-veil-alpha', String(veilAlpha));
-    root.style.setProperty('--liquid-dark-veil-alpha', String(darkVeilAlpha));
+    root.style.setProperty('--liquid-glass-alpha', String(transparency));
+    root.style.setProperty('--liquid-glass-dark-alpha', String(transparency * 0.16));
+    root.style.setProperty('--liquid-veil-alpha', String(transparency * 0.36));
+    root.style.setProperty('--liquid-dark-veil-alpha', String(transparency <= 0.45 ? 0.0775 + 0.45 * transparency : 0.46 - 0.4 * transparency));
     root.style.setProperty('--liquid-clearness', String(clearness));
     root.style.setProperty('--liquid-gel', String(gel));
     root.style.setProperty('--liquid-bounce', String(settings.bounceStiffness));
@@ -149,15 +201,11 @@ export default function useEngineSettings(userId) {
     } else {
       document.body.style.background = settings.theme === 'dark' ? '#07111f' : '#eef4fb';
     }
-
     window.dispatchEvent(new CustomEvent('glass-settings-changed'));
   }, [settings]);
 
   useEffect(() => {
-    const onPerformanceChange = (event) => {
-      const mode = event.detail === 'ultra' ? 'ultra' : 'high';
-      setSettings((current) => ({ ...current, performance: mode }));
-    };
+    const onPerformanceChange = (event) => setSettings((current) => ({ ...current, performance: event.detail === 'ultra' ? 'ultra' : 'high' }));
     window.addEventListener('glass-performance-changed', onPerformanceChange);
     return () => window.removeEventListener('glass-performance-changed', onPerformanceChange);
   }, []);
@@ -166,11 +214,7 @@ export default function useEngineSettings(userId) {
     setSettings((current) => {
       if (key === 'displayName') return { ...current, displayName: String(value).trim().slice(0, 40) };
       if (key === 'uiTextClarity') return { ...current, uiTextClarity: CLARITY_VALUES.includes(value) ? value : current.uiTextClarity };
-      if (key === 'performance') {
-        const performance = value === 'ultra' ? 'ultra' : 'high';
-        window.dispatchEvent(new CustomEvent('glass-performance-changed', { detail: performance }));
-        return { ...current, performance };
-      }
+      if (key === 'performance') return { ...current, performance: value === 'ultra' ? 'ultra' : 'high' };
       if (key === 'theme') return { ...current, theme: value === 'dark' ? 'dark' : 'light' };
       if (key === 'glassTheme') return { ...current, glassTheme: GLASS_THEME_VALUES.includes(value) ? value : current.glassTheme };
       if (key === 'pureBlack' || key === 'backgroundThemeEnabled' || key === 'fullDarkBackground') return { ...current, [key]: Boolean(value) };
@@ -186,9 +230,6 @@ export default function useEngineSettings(userId) {
     });
   }, []);
 
-  const reset = useCallback(() => {
-    setSettings(ENGINE_DEFAULTS);
-  }, []);
-
+  const reset = useCallback(() => setSettings(ENGINE_DEFAULTS), []);
   return useMemo(() => ({ settings, setSetting: update, reset }), [settings, update, reset]);
 }
