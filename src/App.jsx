@@ -1,8 +1,8 @@
 import { motion } from 'motion/react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { App as CapacitorApp } from '@capacitor/app';
-import { BookOpen, FileText, Folder, History, Moon, Plus, Settings2, Sparkles, Sun, Trash2, User, X, Zap } from 'lucide-react';
+import { ArrowLeft, BookOpen, FileText, Folder, History, Moon, Plus, Settings2, Sparkles, Sun, Trash2, User, X, Zap } from 'lucide-react';
 import { isSupabaseConfigured, supabase } from './lib/supabase.js';
 import { DEFAULT_COURSE } from './courseDefaults.js';
 import CourseWorkspace from './CourseWorkspace.jsx';
@@ -53,6 +53,12 @@ export default function App() {
   const [newNoteName, setNewNoteName] = useState('');
   const [editorContent, setEditorContent] = useState('');
   const [action, setAction] = useState(null);
+  const latestCoursesRef = useRef(courses);
+  const workspaceMutationQueueRef = useRef(Promise.resolve());
+
+  useEffect(() => {
+    latestCoursesRef.current = courses;
+  }, [courses]);
 
   useEffect(() => {
     if (!supabase) { setWorkspaceReady(true); setLoading(false); return undefined; }
@@ -63,7 +69,7 @@ export default function App() {
       if (data.session?.user?.id) {
         try {
           const cloud = await loadCloudWorkspace(data.session.user.id);
-          if (active && cloud) setCourses(cloud);
+          if (active && cloud) { latestCoursesRef.current = cloud; setCourses(cloud); }
           if (active) setWorkspaceReady(true);
         } catch (error) {
           if (active) { setMessage(`Workspace sync unavailable: ${error.message}`); setWorkspaceReady(true); }
@@ -87,7 +93,7 @@ export default function App() {
     let active = true;
     loadCloudWorkspace(session.user.id).then((cloud) => {
       if (!active) return;
-      if (cloud) setCourses(cloud);
+      if (cloud) { latestCoursesRef.current = cloud; setCourses(cloud); }
     }).catch((error) => {
       if (active) setMessage(`Workspace reload failed: ${error.message}`);
     });
@@ -122,6 +128,7 @@ export default function App() {
   const totalNotes = courses.reduce((sum, course) => sum + course.collections.reduce((inner, collection) => inner + collection.notes.length, 0), 0);
 
   const persistWorkspace = async (nextCourses) => {
+    latestCoursesRef.current = nextCourses;
     writeLocalWorkspace(nextCourses);
     setCourses(nextCourses);
     if (!session?.user?.id || !supabase) return;
@@ -131,6 +138,17 @@ export default function App() {
       setMessage(`Cloud save failed: ${error.message}`);
       throw error;
     }
+  };
+
+  const runWorkspaceMutation = (mutator) => {
+    const execute = workspaceMutationQueueRef.current.catch(() => {}).then(async () => {
+      const current = latestCoursesRef.current;
+      const nextCourses = mutator(current);
+      await persistWorkspace(nextCourses);
+      return nextCourses;
+    });
+    workspaceMutationQueueRef.current = execute.catch(() => {});
+    return execute;
   };
 
   const signIn = async (event) => {
@@ -153,17 +171,78 @@ export default function App() {
   const openCourseNote = (collectionId, noteId) => { setSelectedCollectionId(collectionId); setSelectedNoteId(noteId); const collection = selectedCourse?.collections.find((item) => item.id === collectionId); const note = collection?.notes.find((item) => item.id === noteId); setEditorContent(note?.content || ''); setPage('editor'); setMessage(''); };
   const openCourseCreator = () => { setNewCourseName(''); setNewCourseDescription(''); setNewCourseColor('sky'); setMessage(''); setCourseCreateOpen(true); };
   const closeCourseCreator = () => { setCourseCreateOpen(false); setNewCourseName(''); setNewCourseDescription(''); setNewCourseColor('sky'); };
-  const addCourse = async (event) => { event.preventDefault(); const name = newCourseName.trim(); if (!name) return; const description = newCourseDescription.trim() || 'New course workspace'; const nextCourse = { id: `course-${Date.now()}`, name, description, color: newCourseColor, progress: 0, collections: [] }; await persistWorkspace([...courses, nextCourse]); closeCourseCreator(); setMessage('Course created.'); setPage('workspace'); };
-  const updateCourse = async (patch) => { if (!selectedCourseId) return; const nextCourses = courses.map((course) => course.id === selectedCourseId ? { ...course, ...patch } : course); await persistWorkspace(nextCourses); setMessage('Course updated.'); };
-  const deleteCourse = async (id) => { const nextCourses = courses.filter((course) => course.id !== id); await persistWorkspace(nextCourses); if (session?.user?.id) await deleteCloudCourse(session.user.id, id); setSelectedCourseId(null); setPage('workspace'); setMessage('Course deleted.'); };
-  const addCollection = async (event) => { event.preventDefault(); const title = newCollectionName.trim(); if (!title || !selectedCourseId) return; const nextCourses = courses.map((course) => course.id === selectedCourseId ? { ...course, collections: [...course.collections, { id: `collection-${Date.now()}`, title, description: 'New collection', notes: [] }] } : course); await persistWorkspace(nextCourses); setNewCollectionName(''); setMessage('Collection created.'); };
-  const addNote = async (event) => { event?.preventDefault(); if (!selectedCourseId || !selectedCollectionId) return; const noteId = `note-${Date.now()}`; const now = Date.now(); const title = newNoteName.trim() || 'New Note'; const nextCourses = courses.map((course) => course.id !== selectedCourseId ? course : { ...course, collections: course.collections.map((collection) => collection.id !== selectedCollectionId ? collection : { ...collection, notes: [...collection.notes, { id: noteId, title, content: '', createdAt: now, updatedAt: now }] }) }); await persistWorkspace(nextCourses); setNewNoteName(''); setSelectedNoteId(noteId); setEditorContent(''); setPage('notes'); setMessage('New note created.'); };
-  const saveNote = async () => { if (!selectedCourseId || !selectedCollectionId || !selectedNoteId) return; const nextCourses = courses.map((course) => course.id !== selectedCourseId ? course : { ...course, collections: course.collections.map((collection) => collection.id !== selectedCollectionId ? collection : { ...collection, notes: collection.notes.map((note) => note.id === selectedNoteId ? { ...note, content: editorContent, updatedAt: Date.now() } : note) }) }); await persistWorkspace(nextCourses); setMessage('Note saved.'); };
-  const saveCollectionNote = async (draft) => { if (!selectedCourseId || !selectedCollectionId || !draft?.id) return; const nextCourses = courses.map((course) => course.id !== selectedCourseId ? course : { ...course, collections: course.collections.map((collection) => collection.id !== selectedCollectionId ? collection : { ...collection, notes: collection.notes.map((note) => note.id === draft.id ? { ...note, title: draft.title, content: draft.content, updatedAt: Date.now() } : note) }) }); await persistWorkspace(nextCourses); setMessage('Note saved.'); };
+
+  const addCourse = async (event) => {
+    event.preventDefault();
+    const name = newCourseName.trim(); if (!name) return;
+    const description = newCourseDescription.trim() || 'New course workspace';
+    const nextCourse = { id: `course-${Date.now()}`, name, description, color: newCourseColor, progress: 0, collections: [] };
+    await runWorkspaceMutation((current) => [...current, nextCourse]);
+    closeCourseCreator(); setMessage('Course created.'); setPage('workspace');
+  };
+  const updateCourse = async (patch) => {
+    if (!selectedCourseId) return;
+    await runWorkspaceMutation((current) => current.map((course) => course.id === selectedCourseId ? { ...course, ...patch } : course));
+    setMessage('Course updated.');
+  };
+  const deleteCourse = async (id) => {
+    await runWorkspaceMutation((current) => current.filter((course) => course.id !== id));
+    if (session?.user?.id) await deleteCloudCourse(session.user.id, id);
+    setSelectedCourseId(null); setPage('workspace'); setMessage('Course deleted.');
+  };
+  const addCollection = async (event) => {
+    event.preventDefault(); const title = newCollectionName.trim(); if (!title || !selectedCourseId) return;
+    const collection = { id: `collection-${Date.now()}`, title, description: 'New collection', notes: [] };
+    await runWorkspaceMutation((current) => current.map((course) => course.id === selectedCourseId ? { ...course, collections: [...course.collections, collection] } : course));
+    setNewCollectionName(''); setMessage('Collection created.');
+  };
+  const addNote = async (event) => {
+    event?.preventDefault(); if (!selectedCourseId || !selectedCollectionId) return;
+    const noteId = `note-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const now = Date.now(); const title = newNoteName.trim() || 'New Note';
+    await runWorkspaceMutation((current) => current.map((course) => course.id !== selectedCourseId ? course : {
+      ...course,
+      collections: course.collections.map((collection) => collection.id !== selectedCollectionId ? collection : {
+        ...collection,
+        notes: [...collection.notes, { id: noteId, title, content: '', createdAt: now, updatedAt: now }],
+      }),
+    }));
+    setNewNoteName(''); setSelectedNoteId(noteId); setEditorContent(''); setPage('notes'); setMessage('New note created.');
+  };
+  const saveNote = async () => {
+    if (!selectedCourseId || !selectedCollectionId || !selectedNoteId) return;
+    const content = editorContent;
+    await runWorkspaceMutation((current) => current.map((course) => course.id !== selectedCourseId ? course : {
+      ...course,
+      collections: course.collections.map((collection) => collection.id !== selectedCollectionId ? collection : {
+        ...collection,
+        notes: collection.notes.map((note) => note.id === selectedNoteId ? { ...note, content, updatedAt: Date.now() } : note),
+      }),
+    }));
+    setMessage('Note saved.');
+  };
+  const saveCollectionNote = async (draft) => {
+    if (!selectedCourseId || !selectedCollectionId || !draft?.id) return;
+    await runWorkspaceMutation((current) => current.map((course) => course.id !== selectedCourseId ? course : {
+      ...course,
+      collections: course.collections.map((collection) => collection.id !== selectedCollectionId ? collection : {
+        ...collection,
+        notes: collection.notes.map((note) => note.id === draft.id ? { ...note, title: draft.title, content: draft.content, updatedAt: Date.now() } : note),
+      }),
+    }));
+    setMessage('Note saved.');
+  };
   const deleteCollectionNote = async (noteId) => {
-    const nextCourses = courses.map((course) => course.id !== selectedCourseId ? course : { ...course, collections: course.collections.map((collection) => collection.id !== selectedCollectionId ? collection : { ...collection, notes: collection.notes.filter((note) => note.id !== noteId) }) });
-    if (session?.user?.id) await deleteCloudNote(session.user.id, noteId, selectedCourseId, selectedCollectionId);
-    await persistWorkspace(nextCourses);
+    const courseId = selectedCourseId;
+    const collectionId = selectedCollectionId;
+    await runWorkspaceMutation((current) => current.map((course) => course.id !== courseId ? course : {
+      ...course,
+      collections: course.collections.map((collection) => collection.id !== collectionId ? collection : {
+        ...collection,
+        notes: collection.notes.filter((note) => note.id !== noteId),
+      }),
+    }));
+    if (session?.user?.id) await deleteCloudNote(session.user.id, noteId, courseId, collectionId);
     setSelectedNoteId(null);
     setMessage('Note deleted.');
   };
@@ -195,5 +274,4 @@ function CourseCreateModal({ close, name, description, color, setName, setDescri
 function ActionModal({ action, close }) { const details = { study: ['Study Hub', 'CS50 lectures and study workspace will open here.'], overview: ['Overview', 'Your study tools, progress and activity overview will appear here.'], theme: ['Theme', 'Liquid Glass appearance controls are available from Engine Settings.'], settings: ['Engine Settings', 'Liquid density, gel, bounce and display controls are available here.'], 'course-more': ['Course actions', 'Use Edit or Delete from the course header to manage this course.'], 'courses-more': ['Course library', 'Select a course to open its details and manage notes or collections.'] }[action]; return <div className="modal-backdrop" onClick={close}><section className="glass-modal" onClick={(e) => e.stopPropagation()}><button className="modal-close" onClick={close} aria-label="Close"><X size={18} /></button><span className="modal-symbol"><Sparkles size={22} /></span><h2>{details[0]}</h2><p>{details[1]}</p><button className="primary-button" onClick={close}>Close</button></section></div>; }
 function CollectionsPage({ course, newCollectionName, setNewCollectionName, addCollection, onBack, openCollection, message }) { return <main className="screen feature-screen"><section className="full-glass-panel"><header className="feature-header centered-header"><button className="back-button" onClick={onBack} aria-label="Back">‹</button><div className="header-title"><span className="eyebrow">{course.name}</span><h1>Collections</h1></div></header><form className="top-action-form collection-create-form-inline" onSubmit={addCollection}><input value={newCollectionName} onChange={(e) => setNewCollectionName(e.target.value)} placeholder="Collection name" aria-label="Collection name" /><button className="collection-add-button" type="submit" aria-label="Create collection"><Plus size={18} /></button></form><div className="collections-list">{course.collections.map((collection, index) => <button className="glass-list-item" key={collection.id} onClick={() => openCollection(collection.id)}><span className="list-index">{String(index + 1).padStart(2, '0')}</span><span className="list-copy"><strong>{collection.title}</strong><span>{collection.description}</span></span><span className="collection-count">{collection.notes.length} notes</span><span className="list-arrow">›</span></button>)}</div>{message && <p className="message">{message}</p>}</section></main>; }
 function AllCourseNotesPage({ course, onBack, openCollection }) { const noteCount = course.collections.reduce((sum, collection) => sum + collection.notes.length, 0); return <main className="screen feature-screen"><section className="full-glass-panel"><header className="feature-header centered-header"><button className="back-button" onClick={onBack} aria-label="Back to course"><History size={18} /></button><div className="header-title"><span className="eyebrow">{course.name}</span><h1>All Notes</h1></div></header><div className="section-heading course-section-heading"><div><span className="heading-dot" /><h2>Course notes</h2></div><span className="note-total">{noteCount} total</span></div><div className="notes-list">{course.collections.map((collection, index) => <button className="glass-list-item" key={collection.id} onClick={() => openCollection(collection.id)}><span className="list-index">{String(index + 1).padStart(2, '0')}</span><span className="list-copy"><strong>{collection.title}</strong><span>{collection.notes.length} notes · Open collection</span></span><span className="collection-count">{collection.notes.length}</span><span className="list-arrow">›</span></button>)}</div></section></main>; }
-function EditorPage({ course, collection, note, content, setContent, onBack, onSave, message }) { return <main className="screen feature-screen"><section className="full-glass-panel editor-panel"><header className="feature-header"><button className="back-button" onClick={onBack} aria-label="Back"><ArrowLeftIcon /></button><div><span className="eyebrow">{course.name} · {collection.title}</span><h1>{note?.title || 'New note'}</h1></div><button className="primary-button compact-button" onClick={onSave}>Save</button></header><div className="editor-layout"><section className="editor-surface glass-inner"><span className="section-label">Editor</span><textarea value={content} onChange={(e) => setContent(e.target.value)} placeholder="Write your note here…" /></section><section className="preview-surface glass-inner"><span className="section-label">Preview</span><article className="note-preview">{content ? <p>{content}</p> : <p className="empty-preview">Your note preview will appear here.</p>}</article></section></div>{message && <p className="message">{message}</p>}</section></main>; }
-function ArrowLeftIcon(){return <span aria-hidden="true">‹</span>}
+function EditorPage({ course, collection, note, content, setContent, onBack, onSave, message }) { return <main className="screen feature-screen"><section className="full-glass-panel editor-panel"><header className="feature-header"><button className="back-button" onClick={onBack} aria-label="Back"><ArrowLeft size={18} /></button><div><span className="eyebrow">{course.name} · {collection.title}</span><h1>{note?.title || 'New note'}</h1></div><button className="primary-button compact-button" onClick={onSave}>Save</button></header><div className="editor-layout"><section className="editor-surface glass-inner"><span className="section-label">Editor</span><textarea value={content} onChange={(e) => setContent(e.target.value)} placeholder="Write your note here…" /></section><section className="preview-surface glass-inner"><span className="section-label">Preview</span><article className="note-preview">{content ? <p>{content}</p> : <p className="empty-preview">Your note preview will appear here.</p>}</article></section></div>{message && <p className="message">{message}</p>}</section></main>; }
