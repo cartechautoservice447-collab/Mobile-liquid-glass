@@ -3,7 +3,10 @@ import { supabase } from './lib/supabase.js';
 const LOCAL_KEY = 'mobile-liquid-glass-workspace-v1';
 const ID_MAP_KEY = 'mobile-liquid-glass-cloud-id-map-v1';
 const CLOUD_HYDRATED_KEY = 'mobile-liquid-glass-cloud-hydrated-v1';
+const DELETE_TOMBSTONE_KEY = 'mobile-liquid-glass-delete-tombstones-v1';
+const DELETE_TOMBSTONE_TTL = 10 * 60 * 1000;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const CLOUD_WRITE_QUEUES = new Map();
 
 function findAuthUserId() {
   if (!supabase) return 'anonymous';
@@ -62,6 +65,48 @@ function writeIdMap(userId, map) {
   try { localStorage.setItem(`${ID_MAP_KEY}:${userId}`, JSON.stringify(map)); } catch {}
 }
 
+function readDeleteTombstones(userId) {
+  try {
+    const raw = localStorage.getItem(`${DELETE_TOMBSTONE_KEY}:${userId}`);
+    const parsed = raw ? JSON.parse(raw) : {};
+    if (!parsed || typeof parsed !== 'object') return {};
+    const now = Date.now();
+    const active = {};
+    Object.entries(parsed).forEach(([key, timestamp]) => {
+      if (Number(timestamp) > now - DELETE_TOMBSTONE_TTL) active[key] = Number(timestamp);
+    });
+    if (Object.keys(active).length !== Object.keys(parsed).length) {
+      localStorage.setItem(`${DELETE_TOMBSTONE_KEY}:${userId}`, JSON.stringify(active));
+    }
+    return active;
+  } catch {
+    return {};
+  }
+}
+
+function markDeleted(userId, type, cloudId) {
+  try {
+    const key = `${type}:${cloudId}`;
+    const active = readDeleteTombstones(userId);
+    active[key] = Date.now();
+    localStorage.setItem(`${DELETE_TOMBSTONE_KEY}:${userId}`, JSON.stringify(active));
+  } catch {}
+}
+
+function isDeleted(userId, type, cloudId) {
+  const timestamp = Number(readDeleteTombstones(userId)[`${type}:${cloudId}`] || 0);
+  return timestamp > Date.now() - DELETE_TOMBSTONE_TTL;
+}
+
+function enqueueCloudWrite(userId, operation) {
+  const previous = CLOUD_WRITE_QUEUES.get(userId) || Promise.resolve();
+  const next = previous.catch(() => {}).then(operation);
+  CLOUD_WRITE_QUEUES.set(userId, next.finally(() => {
+    if (CLOUD_WRITE_QUEUES.get(userId) === next) CLOUD_WRITE_QUEUES.delete(userId);
+  }));
+  return next;
+}
+
 function scopedMapKey(type, localId, scope = '') {
   return scope ? `${type}:${scope}:${localId}` : `${type}:${localId}`;
 }
@@ -87,13 +132,13 @@ function cloudId(userId, type, localId, map, scope = '', occurrence = 0, usedIds
     }
   }
 
-  if (UUID_RE.test(normalizedLocalId) && !usedIds.has(normalizedLocalId)) {
+  if (UUID_RE.test(normalizedLocalId) && !usedIds.has(normalizedLocalId) && !isDeleted(userId, type, normalizedLocalId)) {
     usedIds.add(normalizedLocalId);
     return normalizedLocalId;
   }
 
   let next = crypto.randomUUID();
-  while (usedIds.has(next)) next = crypto.randomUUID();
+  while (usedIds.has(next) || isDeleted(userId, type, next)) next = crypto.randomUUID();
   map[occurrenceKey] = next;
   usedIds.add(next);
   return next;
@@ -267,45 +312,60 @@ export async function loadCloudWorkspace(userId) {
   return workspace;
 }
 
-export async function saveCloudWorkspace(userId, courses) {
-  if (!supabase || !userId || !isCloudHydrated(userId)) return;
-  const normalized = normalizeCoursesForCloud(userId, courses);
-  const desiredCourses = dedupeById(normalized.map(({ collections, sourceLocalId, ...course }) => course));
-  const desiredCollections = dedupeById(normalized.flatMap((course) => course.collections.map(({ notes, ...collection }) => collection)));
-  const desiredNotes = dedupeById(normalized.flatMap((course) => course.collections.flatMap((collection) => collection.notes)));
+export function saveCloudWorkspace(userId, courses) {
+  if (!supabase || !userId || !isCloudHydrated(userId)) return Promise.resolve();
+  return enqueueCloudWrite(userId, async () => {
+    const normalized = normalizeCoursesForCloud(userId, courses);
+    const desiredCourses = dedupeById(normalized.map(({ collections, sourceLocalId, ...course }) => course))
+      .filter((row) => !isDeleted(userId, 'course', row.id));
+    const desiredCollections = dedupeById(normalized.flatMap((course) => course.collections.map(({ notes, ...collection }) => collection)))
+      .filter((row) => !isDeleted(userId, 'collection', row.id));
+    const desiredNotes = dedupeById(normalized.flatMap((course) => course.collections.flatMap((collection) => collection.notes)))
+      .filter((row) => !isDeleted(userId, 'note', row.id));
 
-  if (desiredCourses.length) {
-    const { error } = await supabase.from('courses').upsert(desiredCourses, { onConflict: 'id' });
-    if (error) throw error;
-  }
-  if (desiredCollections.length) {
-    const { error } = await supabase.from('collections').upsert(desiredCollections, { onConflict: 'id' });
-    if (error) throw error;
-  }
-  if (desiredNotes.length) {
-    const { error } = await supabase.from('notes').upsert(desiredNotes, { onConflict: 'id' });
-    if (error) throw error;
-  }
+    if (desiredCourses.length) {
+      const { error } = await supabase.from('courses').upsert(desiredCourses, { onConflict: 'id' });
+      if (error) throw error;
+    }
+    if (desiredCollections.length) {
+      const { error } = await supabase.from('collections').upsert(desiredCollections, { onConflict: 'id' });
+      if (error) throw error;
+    }
+    if (desiredNotes.length) {
+      const { error } = await supabase.from('notes').upsert(desiredNotes, { onConflict: 'id' });
+      if (error) throw error;
+    }
 
-  // The hydrated workspace is the complete user-owned snapshot. Remove remote rows
-  // that are no longer present so deletions cannot reappear after refresh.
-  await deleteRowsMissingFromSnapshot('notes', userId, desiredNotes.map((row) => row.id));
-  await deleteRowsMissingFromSnapshot('collections', userId, desiredCollections.map((row) => row.id));
-  await deleteRowsMissingFromSnapshot('courses', userId, desiredCourses.map((row) => row.id));
+    await deleteRowsMissingFromSnapshot('notes', userId, desiredNotes.map((row) => row.id));
+    await deleteRowsMissingFromSnapshot('collections', userId, desiredCollections.map((row) => row.id));
+    await deleteRowsMissingFromSnapshot('courses', userId, desiredCourses.map((row) => row.id));
+  });
 }
 
-export async function deleteCloudNote(userId, noteId) {
-  if (!supabase || !userId) return;
+export function deleteCloudNote(userId, noteId) {
+  if (!supabase || !userId) return Promise.resolve();
   const cloudNoteId = resolveCloudId(userId, 'note', noteId);
-  if (!cloudNoteId) return;
-  const { error } = await supabase.from('notes').delete().eq('user_id', userId).eq('id', cloudNoteId);
-  if (error) throw error;
+  if (!cloudNoteId) return Promise.resolve();
+  markDeleted(userId, 'note', cloudNoteId);
+  return enqueueCloudWrite(userId, async () => {
+    const { error } = await supabase.from('notes').delete().eq('user_id', userId).eq('id', cloudNoteId);
+    if (error) throw error;
+    const { data, error: verifyError } = await supabase.from('notes').select('id').eq('user_id', userId).eq('id', cloudNoteId).limit(1);
+    if (verifyError) throw verifyError;
+    if (data?.length) throw new Error('Note deletion was not confirmed by Supabase.');
+  });
 }
 
-export async function deleteCloudCourse(userId, courseId) {
-  if (!supabase || !userId) return;
+export function deleteCloudCourse(userId, courseId) {
+  if (!supabase || !userId) return Promise.resolve();
   const cloudCourseId = resolveCloudId(userId, 'course', courseId);
-  if (!cloudCourseId) return;
-  const { error } = await supabase.from('courses').delete().eq('user_id', userId).eq('id', cloudCourseId);
-  if (error) throw error;
+  if (!cloudCourseId) return Promise.resolve();
+  markDeleted(userId, 'course', cloudCourseId);
+  return enqueueCloudWrite(userId, async () => {
+    const { error } = await supabase.from('courses').delete().eq('user_id', userId).eq('id', cloudCourseId);
+    if (error) throw error;
+    const { data, error: verifyError } = await supabase.from('courses').select('id').eq('user_id', userId).eq('id', cloudCourseId).limit(1);
+    if (verifyError) throw verifyError;
+    if (data?.length) throw new Error('Course deletion was not confirmed by Supabase.');
+  });
 }
