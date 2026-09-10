@@ -14,6 +14,7 @@ import './DashboardResponsive.css';
 import './AddCourseCompactResponsive.css';
 import './CourseWorkspaceSpacing.css';
 import './NotesEditorResponsive.css';
+import './MobileNoteEditorFrame.css';
 import './AndroidMobileHardening.css';
 import './FeatureBackgroundUnification.css';
 import './GlassSurfaceRuntimeLock.js';
