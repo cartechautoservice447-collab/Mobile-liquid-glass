@@ -72,7 +72,7 @@ function writeIdMap(userId, map) {
   try {
     localStorage.setItem(`${ID_MAP_KEY}:${userId}`, JSON.stringify(map));
   } catch {
-    // Local ID mapping is best-effort; cloud data remains authoritative.
+    // Best-effort local ID mapping.
   }
 }
 
@@ -149,9 +149,7 @@ function toMobileWorkspace(courses, collections, notes) {
 
   for (const course of courseMap.values()) {
     course.collections.sort((a, b) => a.createdAt - b.createdAt);
-    for (const collection of course.collections) {
-      collection.notes.sort((a, b) => b.updatedAt - a.updatedAt);
-    }
+    for (const collection of course.collections) collection.notes.sort((a, b) => b.updatedAt - a.updatedAt);
   }
 
   return Array.from(courseMap.values()).sort((a, b) => b.createdAt - a.createdAt);
@@ -160,14 +158,9 @@ function toMobileWorkspace(courses, collections, notes) {
 function normalizeCoursesForCloud(userId, courses) {
   const map = readIdMap(userId);
   const normalized = [];
-  const seenCourses = new Set();
-  const seenCollections = new Set();
-  const seenNotes = new Set();
 
   for (const course of Array.isArray(courses) ? courses : []) {
     const courseId = cloudId(userId, 'course', course.id, map);
-    if (seenCourses.has(courseId)) continue;
-    seenCourses.add(courseId);
     const normalizedCourse = {
       id: courseId,
       user_id: userId,
@@ -181,8 +174,6 @@ function normalizeCoursesForCloud(userId, courses) {
 
     for (const collection of Array.isArray(course.collections) ? course.collections : []) {
       const collectionId = cloudId(userId, 'collection', collection.id, map);
-      if (seenCollections.has(collectionId)) continue;
-      seenCollections.add(collectionId);
       const normalizedCollection = {
         id: collectionId,
         user_id: userId,
@@ -195,8 +186,6 @@ function normalizeCoursesForCloud(userId, courses) {
 
       for (const note of Array.isArray(collection.notes) ? collection.notes : []) {
         const noteId = cloudId(userId, 'note', note.id, map);
-        if (seenNotes.has(noteId)) continue;
-        seenNotes.add(noteId);
         normalizedCollection.notes.push({
           id: noteId,
           user_id: userId,
@@ -264,6 +253,11 @@ export async function loadCloudWorkspace(userId) {
   return workspace;
 }
 
+/**
+ * Upserts the current mobile-visible records into the shared Fluid Glass Studio
+ * tables. It deliberately never deletes rows that are absent from the mobile
+ * snapshot, so this app cannot erase shared notes/courses it does not know about.
+ */
 export async function saveCloudWorkspace(userId, courses) {
   if (!supabase || !userId || !isCloudHydrated(userId)) return;
 
@@ -271,36 +265,6 @@ export async function saveCloudWorkspace(userId, courses) {
   const desiredCourses = normalized.map(({ collections, ...course }) => course);
   const desiredCollections = normalized.flatMap((course) => course.collections.map(({ notes, ...collection }) => collection));
   const desiredNotes = normalized.flatMap((course) => course.collections.flatMap((collection) => collection.notes));
-
-  const [existingCoursesResult, existingCollectionsResult, existingNotesResult] = await Promise.all([
-    supabase.from('courses').select('id').eq('user_id', userId),
-    supabase.from('collections').select('id').eq('user_id', userId),
-    supabase.from('notes').select('id').eq('user_id', userId),
-  ]);
-  if (existingCoursesResult.error) throw existingCoursesResult.error;
-  if (existingCollectionsResult.error) throw existingCollectionsResult.error;
-  if (existingNotesResult.error) throw existingNotesResult.error;
-
-  const desiredCourseIds = new Set(desiredCourses.map((row) => row.id));
-  const desiredCollectionIds = new Set(desiredCollections.map((row) => row.id));
-  const desiredNoteIds = new Set(desiredNotes.map((row) => row.id));
-
-  const staleNoteIds = (existingNotesResult.data || []).map((row) => row.id).filter((id) => !desiredNoteIds.has(id));
-  const staleCollectionIds = (existingCollectionsResult.data || []).map((row) => row.id).filter((id) => !desiredCollectionIds.has(id));
-  const staleCourseIds = (existingCoursesResult.data || []).map((row) => row.id).filter((id) => !desiredCourseIds.has(id));
-
-  if (staleNoteIds.length) {
-    const { error } = await supabase.from('notes').delete().eq('user_id', userId).in('id', staleNoteIds);
-    if (error) throw error;
-  }
-  if (staleCollectionIds.length) {
-    const { error } = await supabase.from('collections').delete().eq('user_id', userId).in('id', staleCollectionIds);
-    if (error) throw error;
-  }
-  if (staleCourseIds.length) {
-    const { error } = await supabase.from('courses').delete().eq('user_id', userId).in('id', staleCourseIds);
-    if (error) throw error;
-  }
 
   if (desiredCourses.length) {
     const { error } = await supabase.from('courses').upsert(desiredCourses, { onConflict: 'id' });
@@ -314,4 +278,16 @@ export async function saveCloudWorkspace(userId, courses) {
     const { error } = await supabase.from('notes').upsert(desiredNotes, { onConflict: 'id' });
     if (error) throw error;
   }
+}
+
+export async function deleteCloudNote(userId, noteId) {
+  if (!supabase || !userId || !UUID_RE.test(String(noteId))) return;
+  const { error } = await supabase.from('notes').delete().eq('user_id', userId).eq('id', String(noteId));
+  if (error) throw error;
+}
+
+export async function deleteCloudCourse(userId, courseId) {
+  if (!supabase || !userId || !UUID_RE.test(String(courseId))) return;
+  const { error } = await supabase.from('courses').delete().eq('user_id', userId).eq('id', String(courseId));
+  if (error) throw error;
 }
