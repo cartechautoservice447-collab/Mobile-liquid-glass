@@ -16,6 +16,7 @@ import './CourseWorkspaceSpacing.css';
 import './NotesEditorResponsive.css';
 import './MobileNoteEditorFrame.css';
 import './MobileNoteEditorChrome.css';
+import './MobileNoteEditorHorizontalFit.css';
 import './AndroidMobileHardening.css';
 import './FeatureBackgroundUnification.css';
 import './GlassSurfaceRuntimeLock.js';
