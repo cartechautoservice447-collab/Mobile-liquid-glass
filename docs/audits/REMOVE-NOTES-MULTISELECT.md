@@ -1,0 +1,1 @@
+Removed the Notes multi-select / Select All deletion UI and restored the pre-feature Notes interface. Earlier cloud persistence and Supabase fixes remain intact.
