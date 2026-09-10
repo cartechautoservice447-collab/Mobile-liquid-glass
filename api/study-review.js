@@ -3,6 +3,7 @@ export default async function handler(req, res) {
     res.setHeader('Allow', 'POST');
     return res.status(405).json({ error: 'Method not allowed' });
   }
+j
 
   const apiKey = process.env.GEMINI_API_KEY;
 
