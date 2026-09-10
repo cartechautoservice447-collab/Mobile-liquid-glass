@@ -74,8 +74,6 @@ function cloudId(userId, type, localId, map, scope = '', occurrence = 0) {
   if (UUID_RE.test(normalizedLocalId)) return normalizedLocalId;
   if (UUID_RE.test(String(map[occurrenceKey] || ''))) return String(map[occurrenceKey]);
 
-  // Preserve legacy unscoped mappings for the first occurrence while migrating to
-  // parent-scoped keys so identical legacy IDs in different parents no longer collide.
   if (occurrence === 0 && scope) {
     const legacyKey = scopedMapKey(type, normalizedLocalId);
     if (UUID_RE.test(String(map[legacyKey] || ''))) {
@@ -276,4 +274,5 @@ export async function deleteCloudCourse(userId, courseId) {
   const cloudCourseId = resolveCloudId(userId, 'course', courseId);
   if (!cloudCourseId) return;
   const { error } = await supabase.from('courses').delete().eq('user_id', userId).eq('id', cloudCourseId);
+  if (error) throw error;
 }
