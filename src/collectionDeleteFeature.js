@@ -132,7 +132,7 @@ function injectStyles() {
     .collection-selection-wrap.collection-deleting>.glass-list-item{transition:none!important}
     .collection-delete-sparkles{position:absolute;inset:0;z-index:4;pointer-events:none;overflow:visible;clip-path:inset(0)}
     .collection-delete-sparkles i{position:absolute;left:50%;bottom:7px;width:5px;height:5px;border-radius:50%;opacity:0;background:rgba(255,255,255,.98);box-shadow:0 0 8px rgba(255,255,255,.95),0 0 16px rgba(181,147,255,.8),0 0 28px rgba(133,99,255,.42);will-change:transform,opacity;animation:collectionDeleteStar ${DELETE_ANIMATION_MS}ms cubic-bezier(.34,.7,.22,1) forwards}
-    @keyframes collectionDeleteStar{0%{opacity:0;transform:translate3d(-50%,7px,0) scale(.45)}10%{opacity:.96;transform:translate3d(-50%,0,0) scale(.95)}82%{opacity:.95;transform:translate3d(-50%,calc(-100% + 22px),0) scale(.78)}100%{opacity:0;transform:translate3d(-50%,calc(-100% + 10px),0) scale(.1)}}
+    @keyframes collectionDeleteStar{0%{opacity:0;transform:translate3d(-50%,0,0) scale(.45)}10%{opacity:.96;transform:translate3d(-50%,0,0) scale(.95)}82%{opacity:.95;transform:translate3d(-50%,calc(-1 * var(--star-travel)),0) scale(.78)}100%{opacity:0;transform:translate3d(-50%,calc(-1 * var(--star-travel)),0) scale(.1)}}
     @keyframes collectionDeleteErase{0%{opacity:1;clip-path:inset(0 0 0 0);transform:translate3d(0,0,0)}64%{opacity:1;clip-path:inset(0 0 54% 0);transform:translate3d(0,0,0)}86%{opacity:.42;clip-path:inset(0 0 84% 0);transform:translate3d(0,-1px,0)}100%{opacity:0;clip-path:inset(0 0 100% 0);transform:translate3d(0,-2px,0)}}
     .collection-selection-wrap.collection-layout-shift{will-change:transform;animation:collectionDeleteLift var(--collection-shift-ms,620ms) cubic-bezier(.22,.76,.2,1) both}
     @keyframes collectionDeleteLift{from{transform:translate3d(0,var(--collection-shift-y,0px),0)}to{transform:translate3d(0,0,0)}}
@@ -222,25 +222,19 @@ function getSparkleOverlay(wrapper) {
   const star = document.createElement('i');
   const height = Math.max(wrapper.getBoundingClientRect().height, 1);
   star.style.setProperty('--star-travel', `${Math.max(height - 18, 16)}px`);
-  star.style.animationName = 'collectionDeleteStar';
   sparkles.appendChild(star);
   return sparkles;
 }
 
 function captureLayout(items) {
-  return items.map((item) => ({
-    item,
-    rect: item.wrapper.getBoundingClientRect(),
-  }));
+  return items.map((item) => ({ item, rect: item.wrapper.getBoundingClientRect() }));
 }
 
 function animateRemainingIntoPlace(beforeLayout, removedItems) {
   const removedSet = new Set(removedItems.map((entry) => entry.wrapper));
   const activeBefore = beforeLayout.filter(({ item }) => !removedSet.has(item.wrapper));
-  const afterRects = new Map();
-  activeBefore.forEach(({ item }) => afterRects.set(item.wrapper, item.wrapper.getBoundingClientRect()));
   activeBefore.forEach(({ item, rect }) => {
-    const after = afterRects.get(item.wrapper);
+    const after = item.wrapper.getBoundingClientRect();
     if (!after || !item.wrapper.isConnected) return;
     const deltaY = rect.top - after.top;
     if (Math.abs(deltaY) < 0.5) return;
@@ -249,13 +243,11 @@ function animateRemainingIntoPlace(beforeLayout, removedItems) {
     item.wrapper.classList.remove('collection-layout-shift');
     void item.wrapper.offsetWidth;
     item.wrapper.classList.add('collection-layout-shift');
-    const clear = () => {
+    item.wrapper.addEventListener('animationend', () => {
       item.wrapper.classList.remove('collection-layout-shift');
       item.wrapper.style.removeProperty('--collection-shift-y');
       item.wrapper.style.removeProperty('--collection-shift-ms');
-      item.wrapper.removeEventListener('animationend', clear);
-    };
-    item.wrapper.addEventListener('animationend', clear, { once: true });
+    }, { once: true });
   });
 }
 
