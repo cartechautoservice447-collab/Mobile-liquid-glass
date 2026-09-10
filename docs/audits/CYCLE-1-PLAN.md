@@ -23,3 +23,8 @@ Create course → refresh → reopen → edit → refresh → create/edit/delete
 Change Engine Settings → refresh → verify the same profile values return from Supabase.
 
 The cycle closes only when the application behavior and remote database state agree.
+
+## Current implementation status
+
+- Part E code is committed and the `profiles.engine_settings` column has been applied to the production Supabase project.
+- Parts A–D are applied by the one-time repository patch workflow and must be verified from the resulting commit before the Cycle 1 gate is closed.
