@@ -3,10 +3,14 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabasePublishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
-export const isSupabaseConfigured = Boolean(supabaseUrl && supabasePublishableKey);
+function isUsableClientKey(value) {
+  return Boolean(value) && !value.startsWith('sb_secret_');
+}
+
+export const isSupabaseConfigured = Boolean(supabaseUrl && isUsableClientKey(supabasePublishableKey));
 
 function isNewSupabaseApiKey(value) {
-  return value.startsWith('sb_publishable_') || value.startsWith('sb_secret_');
+  return value.startsWith('sb_publishable_');
 }
 
 function createSupabaseFetch(supabaseKey) {
@@ -32,6 +36,7 @@ export const supabase = isSupabaseConfigured
   ? createClient(supabaseUrl, supabasePublishableKey, {
       global: { fetch: createSupabaseFetch(supabasePublishableKey) },
       auth: {
+        flowType: 'pkce',
         persistSession: true,
         autoRefreshToken: true,
         detectSessionInUrl: true,
