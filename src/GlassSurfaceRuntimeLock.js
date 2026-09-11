@@ -1,10 +1,9 @@
 /*
  * Single-source glass surface renderer for Course, Saved Notes, and Notes Editor.
  *
- * Type 1/2/3/4 are the existing Engine Settings languages. The three target
- * surfaces below use the same recipe and are hard-synced whenever the engine
- * theme changes or the route renders them. Component CSS is not allowed to
- * restore a permanent alternate glass treatment.
+ * Type 1/2/3/4 are the existing Engine Settings languages. The target
+ * surfaces use the same Fluid Glass material primitives: translucent water-gel
+ * fill, backdrop blur, satin highlight, refraction rim and liquid veil.
  */
 
 const STYLE_ID = 'mobile-liquid-glass-surface-runtime-lock';
@@ -32,6 +31,7 @@ const STYLE = `
   html[data-glass-theme] .app-root-layer .generated-editor-glass.collection-workspace {
     position: relative !important;
     box-sizing: border-box !important;
+    isolation: isolate !important;
     background-color: var(--glass-theme-bg) !important;
     background-image: var(--glass-theme-sheen) !important;
     backdrop-filter: blur(var(--glass-theme-blur)) saturate(var(--glass-theme-saturation)) contrast(105%) !important;
@@ -43,18 +43,37 @@ const STYLE = `
     filter: none !important;
   }
 
+  /* Exact Fluid GlassPanel edge recipe: refracted rim + liquid veil. */
   html[data-glass-theme] .app-root-layer .course-dashboard-card .course-open::before,
-  html[data-glass-theme] .app-root-layer .course-dashboard-card .course-open::after,
   html[data-glass-theme] .app-root-layer .collection-note-card::before,
-  html[data-glass-theme] .app-root-layer .collection-note-card::after,
-  html[data-glass-theme] .app-root-layer .generated-editor-glass.collection-workspace::before,
-  html[data-glass-theme] .app-root-layer .generated-editor-glass.collection-workspace::after {
-    content: none !important;
-    display: none !important;
-    filter: none !important;
-    background: none !important;
-    opacity: 0 !important;
+  html[data-glass-theme] .app-root-layer .generated-editor-glass.collection-workspace::before {
+    content: '' !important;
+    position: absolute !important;
+    inset: 0 !important;
+    z-index: 0 !important;
+    pointer-events: none !important;
+    border-radius: inherit !important;
+    border: 1px solid rgba(255,255,255,.35) !important;
+    mix-blend-mode: screen !important;
+    opacity: .25 !important;
+    filter: url(#liquid-refraction) !important;
+    background: transparent !important;
     box-shadow: none !important;
+  }
+
+  html[data-glass-theme] .app-root-layer .course-dashboard-card .course-open::after,
+  html[data-glass-theme] .app-root-layer .collection-note-card::after,
+  html[data-glass-theme] .app-root-layer .generated-editor-glass.collection-workspace::after {
+    content: '' !important;
+    position: absolute !important;
+    inset: 0 !important;
+    z-index: 0 !important;
+    pointer-events: none !important;
+    border-radius: inherit !important;
+    background: rgb(255 255 255 / var(--liquid-veil-alpha, .16)) !important;
+    box-shadow: none !important;
+    opacity: 1 !important;
+    filter: none !important;
   }
 
   html[data-glass-theme] .app-root-layer .course-dashboard-card .course-open > *,
