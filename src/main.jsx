@@ -21,6 +21,7 @@ import './MobileNoteEditorViewportFix.css';
 import './NoteEditorPremiumRefinement.css';
 import './AndroidMobileHardening.css';
 import './FeatureBackgroundUnification.css';
+import './MobileNoteCodeBlockFix.css';
 import './GlassSurfaceRuntimeLock.js';
 
 function handleWebAuthCallback() {
