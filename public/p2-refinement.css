@@ -1,6 +1,5 @@
 /* P2 safe refinement layer. Keep new global polish in one late-loaded file so feature CSS stays untouched. */
 
-/* Accessibility: consistent keyboard focus without changing pointer appearance. */
 button:focus-visible,
 a[href]:focus-visible,
 input:focus-visible,
@@ -12,49 +11,50 @@ textarea:focus-visible,
   box-shadow:0 0 0 4px rgba(102,179,255,.18)!important;
 }
 
-/* Keep the focus treatment usable in dark glass surfaces. */
 .dark button:focus-visible,
 .dark a[href]:focus-visible,
 .dark input:focus-visible,
 .dark select:focus-visible,
 .dark textarea:focus-visible,
-.dark [tabindex]:focus-visible{
-  outline-color:rgba(180,225,255,.98)!important;
-}
+.dark [tabindex]:focus-visible{outline-color:rgba(180,225,255,.98)!important}
 
-/* Respect the OS reduced-motion preference across all late-added polish layers. */
 @media(prefers-reduced-motion:reduce){
-  *,*::before,*::after{
-    scroll-behavior:auto!important;
-  }
+  *,*::before,*::after{scroll-behavior:auto!important}
   .glass-shimmer-progress::after,
   .depth-parallax-layer,
-  .liquid-stagger-enter{
-    animation:none!important;
-    transform:none!important;
-    will-change:auto!important;
-  }
+  .liquid-stagger-enter{animation:none!important;transform:none!important;will-change:auto!important}
 }
 
 /* High performance mode is intentionally lighter than Ultra while preserving the glass identity. */
-html[data-glass-performance="high"]{
-  --glass-theme-saturation:160%;
-}
-
-/* Disable continuous ambient effects in High mode; interaction and page transitions remain. */
+html[data-glass-performance="high"]{--glass-theme-saturation:160%}
 html[data-glass-performance="high"] .glass-shimmer-progress::after,
-html[data-glass-performance="high"] .depth-parallax-layer{
-  animation:none!important;
-  transform:none!important;
-  will-change:auto!important;
-}
+html[data-glass-performance="high"] .depth-parallax-layer{animation:none!important;transform:none!important;will-change:auto!important}
 
-/* Shorten View Transitions in High mode instead of disabling navigation motion entirely. */
 @supports (view-transition-name:none){
   html[data-glass-performance="high"] ::view-transition-group(liquid-glass-course),
-  html[data-glass-performance="high"] ::view-transition-group(root){
-    animation-duration:280ms!important;
-  }
+  html[data-glass-performance="high"] ::view-transition-group(root){animation-duration:280ms!important}
+}
+
+/* The performance setting is a first-class control: keep it visible and touch-safe on mobile. */
+.engine-settings-performance-section{
+  margin-top:0!important;
+  padding:12px!important;
+  border:1px solid rgba(195,233,255,.22)!important;
+  border-radius:16px!important;
+  background:linear-gradient(135deg,rgba(255,255,255,.12),rgba(112,172,255,.07))!important;
+  box-shadow:inset 0 1px rgba(255,255,255,.18),0 8px 24px rgba(15,30,90,.12)!important;
+}
+.engine-performance-switch-prominent{
+  width:100%!important;
+  display:grid!important;
+  grid-template-columns:1fr 1fr!important;
+  margin-top:10px!important;
+}
+.engine-performance-switch-prominent button{
+  min-height:42px!important;
+  justify-content:center!important;
+  font-weight:700!important;
+  touch-action:manipulation!important;
 }
 
 /* Unified glass notice styling for existing .message elements. */
@@ -73,27 +73,19 @@ html[data-glass-performance="high"] .depth-parallax-layer{
   -webkit-backdrop-filter:blur(16px) saturate(150%)!important;
 }
 
-/* Keep the compact mobile notice easy to read without blocking content. */
 @media(max-width:600px){
   .app-root-layer .message,
   .feature-screen > .message,
-  .screen > .message{
-    margin:9px 10px 0;
-    padding:10px 12px!important;
-    font-size:.82rem;
-    line-height:1.35;
-  }
+  .screen > .message{margin:9px 10px 0;padding:10px 12px!important;font-size:.82rem;line-height:1.35}
+  .engine-settings-performance-section{padding:11px!important;border-radius:15px!important}
+  .engine-performance-switch-prominent button{min-height:44px!important}
 }
 
-/* Reduce decorative pseudo-elements on smaller screens without removing interaction affordances. */
 @media(max-width:600px){
   html[data-glass-performance="high"] .app-root-layer .glass-card::after,
-  html[data-glass-performance="high"] .app-root-layer .full-glass-panel::after{
-    animation:none!important;
-  }
+  html[data-glass-performance="high"] .app-root-layer .full-glass-panel::after{animation:none!important}
 }
 
-/* Make the newly grouped settings headings read as a hierarchy without changing controls. */
 .engine-settings-section + .engine-settings-section{border-top-color:rgba(255,255,255,.08)}
 .engine-section-heading span{letter-spacing:.02em}
 .engine-section-heading small{max-width:46rem}
