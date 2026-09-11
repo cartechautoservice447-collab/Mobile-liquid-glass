@@ -27,6 +27,7 @@ function Slider({ label, value, min, max, step = 1, display, onChange }) {
         max={max}
         step={step}
         value={value}
+        aria-label={label}
         onChange={(event) => onChange(Number(event.target.value))}
       />
     </label>
@@ -40,7 +41,7 @@ function ToggleRow({ label, description, checked, onChange }) {
         <strong>{label}</strong>
         {description && <small>{description}</small>}
       </span>
-      <input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} />
+      <input type="checkbox" checked={checked} aria-label={label} onChange={(event) => onChange(event.target.checked)} />
       <span className="engine-switch" aria-hidden="true"><span /></span>
     </label>
   );
@@ -59,7 +60,7 @@ export default function EngineSettingsModal({ settings, setSetting, reset, close
               <p>Tune the glass, motion, background and text treatment. Changes are live and remembered.</p>
             </div>
           </div>
-          <button className="modal-close" onClick={close} aria-label="Close settings">×</button>
+          <button type="button" className="modal-close" onClick={close} aria-label="Close settings">×</button>
         </header>
 
         <div className="engine-settings-scroll">
@@ -79,10 +80,10 @@ export default function EngineSettingsModal({ settings, setSetting, reset, close
               ))}
             </div>
             <div className="engine-option-row">
-              <span><strong>Performance mode</strong><small>Ultra keeps the richest glass treatment; High is lighter.</small></span>
+              <span><strong>Performance mode</strong><small>Ultra keeps the richest glass treatment; High is lighter and disables the most expensive ambient motion.</small></span>
               <div className="engine-performance-switch">
-                <button className={settings.performance === 'high' ? 'active' : ''} onClick={() => setSetting('performance', 'high')} aria-pressed={settings.performance === 'high'}><Zap size={13} /> High</button>
-                <button className={settings.performance === 'ultra' ? 'active' : ''} onClick={() => setSetting('performance', 'ultra')} aria-pressed={settings.performance === 'ultra'}><Zap size={13} /> Ultra</button>
+                <button type="button" className={settings.performance === 'high' ? 'active' : ''} onClick={() => setSetting('performance', 'high')} aria-pressed={settings.performance === 'high'}><Zap size={13} /> High</button>
+                <button type="button" className={settings.performance === 'ultra' ? 'active' : ''} onClick={() => setSetting('performance', 'ultra')} aria-pressed={settings.performance === 'ultra'}><Zap size={13} /> Ultra</button>
               </div>
             </div>
           </section>
@@ -108,8 +109,8 @@ export default function EngineSettingsModal({ settings, setSetting, reset, close
           <section className="engine-settings-section">
             <div className="engine-section-heading"><span>Appearance</span><small>Theme and background stage controls.</small></div>
             <div className="engine-theme-pair">
-              <button className={settings.theme === 'light' ? 'active' : ''} onClick={() => setSetting('theme', 'light')} aria-pressed={settings.theme === 'light'}><Sun size={15} /> Day</button>
-              <button className={settings.theme === 'dark' ? 'active' : ''} onClick={() => setSetting('theme', 'dark')} aria-pressed={settings.theme === 'dark'}><Moon size={15} /> Night</button>
+              <button type="button" className={settings.theme === 'light' ? 'active' : ''} onClick={() => setSetting('theme', 'light')} aria-pressed={settings.theme === 'light'}><Sun size={15} /> Day</button>
+              <button type="button" className={settings.theme === 'dark' ? 'active' : ''} onClick={() => setSetting('theme', 'dark')} aria-pressed={settings.theme === 'dark'}><Moon size={15} /> Night</button>
             </div>
             <ToggleRow label="Pure black" description="Force a flat black canvas behind the glass." checked={settings.pureBlack} onChange={(value) => setSetting('pureBlack', value)} />
             <ToggleRow label="Background theme" description="Show the blue/violet stage layer and allow its opacity and brightness to be tuned." checked={settings.backgroundThemeEnabled} onChange={(value) => setSetting('backgroundThemeEnabled', value)} />
@@ -121,20 +122,24 @@ export default function EngineSettingsModal({ settings, setSetting, reset, close
           </section>
 
           <section className="engine-settings-section">
-            <div className="engine-section-heading"><span>Liquid physics</span><small>Transparency controls how much of the stage passes through; Lens adds optical bending without changing transparency.</small></div>
+            <div className="engine-section-heading"><span>Optics</span><small>Control how light passes through the glass and how strongly the lens bends the scene.</small></div>
             <Slider label="Liquid density" value={settings.liquidDensity} min={0} max={40} display={`${settings.liquidDensity}px`} onChange={(value) => setSetting('liquidDensity', value)} />
             <Slider label="Liquid transparency" value={settings.liquidTransparency} min={0} max={100} display={`${settings.liquidTransparency}%`} onChange={(value) => setSetting('liquidTransparency', value)} />
             <Slider label="Glass lens" value={settings.liquidLens} min={0} max={100} display={`${settings.liquidLens}%`} onChange={(value) => setSetting('liquidLens', value)} />
             <Slider label="Liquid clearness" value={settings.liquidClearness} min={0} max={100} display={`${settings.liquidClearness} idx`} onChange={(value) => setSetting('liquidClearness', value)} />
             <Slider label="Liquid gel" value={settings.liquidGel} min={0} max={100} display={`${settings.liquidGel}%`} onChange={(value) => setSetting('liquidGel', value)} />
+          </section>
+
+          <section className="engine-settings-section">
+            <div className="engine-section-heading"><span>Motion</span><small>Control the spring response used by interactive glass movement.</small></div>
             <Slider label="Bounce stiffness" value={settings.bounceStiffness} min={100} max={500} step={5} display={settings.bounceStiffness} onChange={(value) => setSetting('bounceStiffness', value)} />
             <Slider label="Bounce damping" value={settings.bounceDamping} min={10} max={40} display={settings.bounceDamping} onChange={(value) => setSetting('bounceDamping', value)} />
           </section>
         </div>
 
         <footer className="engine-settings-footer">
-          <button className="engine-reset-button" onClick={reset}><RotateCcw size={15} /> Reset defaults</button>
-          <button className="primary-button engine-done-button" onClick={close}>Done</button>
+          <button type="button" className="engine-reset-button" onClick={reset}><RotateCcw size={15} /> Reset defaults</button>
+          <button type="button" className="primary-button engine-done-button" onClick={close}>Done</button>
         </footer>
       </section>
     </div>
