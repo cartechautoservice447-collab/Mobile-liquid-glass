@@ -11,6 +11,7 @@ const TARGETS = [
   '.course-dashboard-card .course-open',
   '.collection-note-card',
   '.generated-editor-glass.collection-workspace',
+  '.mobile-note-editor.generated-editor-glass',
 ];
 const TARGET_SELECTOR = TARGETS.join(',');
 
@@ -28,7 +29,8 @@ const STYLE = `
 
   html[data-glass-theme] .app-root-layer .course-dashboard-card .course-open,
   html[data-glass-theme] .app-root-layer .collection-note-card,
-  html[data-glass-theme] .app-root-layer .generated-editor-glass.collection-workspace {
+  html[data-glass-theme] .app-root-layer .generated-editor-glass.collection-workspace,
+  html[data-glass-theme] .app-root-layer .mobile-note-editor.generated-editor-glass {
     position: relative !important;
     box-sizing: border-box !important;
     isolation: isolate !important;
@@ -46,7 +48,8 @@ const STYLE = `
   /* Exact Fluid GlassPanel edge recipe: refracted rim + liquid veil. */
   html[data-glass-theme] .app-root-layer .course-dashboard-card .course-open::before,
   html[data-glass-theme] .app-root-layer .collection-note-card::before,
-  html[data-glass-theme] .app-root-layer .generated-editor-glass.collection-workspace::before {
+  html[data-glass-theme] .app-root-layer .generated-editor-glass.collection-workspace::before,
+  html[data-glass-theme] .app-root-layer .mobile-note-editor.generated-editor-glass::before {
     content: '' !important;
     position: absolute !important;
     inset: 0 !important;
@@ -63,7 +66,8 @@ const STYLE = `
 
   html[data-glass-theme] .app-root-layer .course-dashboard-card .course-open::after,
   html[data-glass-theme] .app-root-layer .collection-note-card::after,
-  html[data-glass-theme] .app-root-layer .generated-editor-glass.collection-workspace::after {
+  html[data-glass-theme] .app-root-layer .generated-editor-glass.collection-workspace::after,
+  html[data-glass-theme] .app-root-layer .mobile-note-editor.generated-editor-glass::after {
     content: '' !important;
     position: absolute !important;
     inset: 0 !important;
@@ -78,14 +82,18 @@ const STYLE = `
 
   html[data-glass-theme] .app-root-layer .course-dashboard-card .course-open > *,
   html[data-glass-theme] .app-root-layer .collection-note-card > *,
-  html[data-glass-theme] .app-root-layer .generated-editor-glass.collection-workspace > * {
+  html[data-glass-theme] .app-root-layer .generated-editor-glass.collection-workspace > *,
+  html[data-glass-theme] .app-root-layer .mobile-note-editor.generated-editor-glass > * {
     position: relative !important;
     z-index: 1 !important;
   }
 
   html[data-glass-theme] .app-root-layer .generated-editor-glass.collection-workspace .generated-editor-topbar,
   html[data-glass-theme] .app-root-layer .generated-editor-glass.collection-workspace .generated-format-toolbar,
-  html[data-glass-theme] .app-root-layer .generated-editor-glass.collection-workspace .generated-controls {
+  html[data-glass-theme] .app-root-layer .generated-editor-glass.collection-workspace .generated-controls,
+  html[data-glass-theme] .app-root-layer .mobile-note-editor.generated-editor-glass .generated-editor-topbar,
+  html[data-glass-theme] .app-root-layer .mobile-note-editor.generated-editor-glass .generated-format-toolbar,
+  html[data-glass-theme] .app-root-layer .mobile-note-editor.generated-editor-glass .generated-controls {
     position: relative !important;
     z-index: 2 !important;
   }
@@ -162,12 +170,10 @@ function hardSyncTargets(targets) {
   const surfaces = targets || document.querySelectorAll(TARGET_SELECTOR);
   surfaces.forEach((surface) => {
     if (!(surface instanceof HTMLElement)) return;
-    const isCollectionWorkspace = surface.classList.contains('generated-editor-glass')
-      && surface.classList.contains('collection-workspace');
-    const background = isCollectionWorkspace ? 'var(--feature-stage-background)' : recipe.bg;
-    const image = isCollectionWorkspace ? 'var(--feature-stage-background)' : recipe.sheen;
+    const background = recipe.bg;
+    const image = recipe.sheen;
 
-    surface.style.setProperty('background-color', isCollectionWorkspace ? 'transparent' : background, 'important');
+    surface.style.setProperty('background-color', background, 'important');
     surface.style.setProperty('background-image', image, 'important');
     surface.style.setProperty('background-repeat', 'no-repeat', 'important');
     surface.style.setProperty('background-size', 'cover', 'important');
