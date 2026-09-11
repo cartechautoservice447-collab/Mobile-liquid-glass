@@ -15,6 +15,8 @@ const TARGETS = [
 ];
 const TARGET_SELECTOR = TARGETS.join(',');
 
+const FLUID_GEL_SHADOW = 'inset 0 calc(1px + var(--liquid-gel,.55) * 1.5px) calc(2px + var(--liquid-gel,.55) * 3px) 0 rgba(255,255,255,calc(.35 + var(--liquid-gel,.55) * .3)),inset 0 calc(-2px - var(--liquid-gel,.55) * 3px) calc(4px + var(--liquid-gel,.55) * 6px) 0 rgba(0,0,0,calc(.16 + var(--liquid-gel,.55) * .2)),0 calc(8px + var(--liquid-gel,.55) * 10px) calc(32px + var(--liquid-gel,.55) * 24px) 0 rgba(0,0,0,calc(.2 + var(--liquid-gel,.55) * .22))';
+
 const STYLE = `
   html[data-glass-theme] .app-root-layer .course-dashboard-card {
     background: transparent !important;
@@ -111,7 +113,7 @@ const THEME_RECIPES = {
     border: 'rgba(255,255,255,.22)',
     topBorder: 'rgba(255,255,255,.40)',
     radius: 'calc(18px + var(--liquid-gel,.55) * 26px)',
-    shadow: 'inset 0 1px 2px rgba(255,255,255,.35),inset 0 -2px 4px rgba(0,0,0,.18),0 8px 32px rgba(0,0,0,.22)',
+    shadow: FLUID_GEL_SHADOW,
     blur: 'var(--liquid-density,12px)',
     saturation: '200%',
   },
@@ -121,7 +123,7 @@ const THEME_RECIPES = {
     border: 'rgba(210,239,255,.24)',
     topBorder: 'rgba(255,255,255,.46)',
     radius: 'calc(18px + var(--liquid-gel,.55) * 26px)',
-    shadow: 'inset 0 1px 2px rgba(255,255,255,.48),inset 0 -3px 7px rgba(8,12,50,.20),0 10px 30px rgba(0,0,0,.24)',
+    shadow: FLUID_GEL_SHADOW,
     blur: 'var(--liquid-density,12px)',
     saturation: '200%',
   },
@@ -131,7 +133,7 @@ const THEME_RECIPES = {
     border: 'rgba(190,235,255,.14)',
     topBorder: 'rgba(255,255,255,.28)',
     radius: '16px',
-    shadow: 'inset 0 1px 1px rgba(255,255,255,.16),inset 0 -2px 6px rgba(0,0,0,.12),0 10px 26px rgba(0,0,0,.14)',
+    shadow: FLUID_GEL_SHADOW,
     blur: 'calc(var(--liquid-density,12px) * .9)',
     saturation: '180%',
   },
@@ -141,7 +143,7 @@ const THEME_RECIPES = {
     border: 'rgba(220,240,255,.30)',
     topBorder: 'rgba(255,255,255,.52)',
     radius: 'calc(18px + var(--liquid-gel,.55) * 26px)',
-    shadow: 'inset 0 1px 2px rgba(255,255,255,.50),inset 0 -3px 7px rgba(10,14,55,.22),0 9px 28px rgba(0,0,0,.28)',
+    shadow: FLUID_GEL_SHADOW,
     blur: 'var(--liquid-density,12px)',
     saturation: '200%',
   },
@@ -170,11 +172,8 @@ function hardSyncTargets(targets) {
   const surfaces = targets || document.querySelectorAll(TARGET_SELECTOR);
   surfaces.forEach((surface) => {
     if (!(surface instanceof HTMLElement)) return;
-    const background = recipe.bg;
-    const image = recipe.sheen;
-
-    surface.style.setProperty('background-color', background, 'important');
-    surface.style.setProperty('background-image', image, 'important');
+    surface.style.setProperty('background-color', recipe.bg, 'important');
+    surface.style.setProperty('background-image', recipe.sheen, 'important');
     surface.style.setProperty('background-repeat', 'no-repeat', 'important');
     surface.style.setProperty('background-size', 'cover', 'important');
     surface.style.setProperty('background-position', 'center', 'important');
