@@ -1,22 +1,22 @@
 import { useEffect, useState } from 'react';
 
-const getClearness = () => {
-  const value = Number.parseFloat(document.documentElement.style.getPropertyValue('--liquid-clearness'));
+const getLens = () => {
+  const value = Number.parseFloat(document.documentElement.style.getPropertyValue('--liquid-lens'));
   return Number.isFinite(value) ? Math.min(1, Math.max(0, value)) : 0.35;
 };
 
 export default function LiquidRefractionFilter() {
-  const [clearness, setClearness] = useState(getClearness);
+  const [lens, setLens] = useState(getLens);
 
   useEffect(() => {
-    const sync = () => setClearness(getClearness());
+    const sync = () => setLens(getLens());
     sync();
     window.addEventListener('glass-settings-changed', sync);
     return () => window.removeEventListener('glass-settings-changed', sync);
   }, []);
 
-  const frequency = (0.006 + (1 - clearness) * 0.02).toFixed(4);
-  const scale = Number((1 + (1 - clearness) * 5).toFixed(2));
+  const frequency = (0.006 + (1 - lens) * 0.018).toFixed(4);
+  const scale = Number((lens * 5).toFixed(2));
 
   return (
     <svg aria-hidden="true" className="liquid-refraction-defs" width="0" height="0" focusable="false">
