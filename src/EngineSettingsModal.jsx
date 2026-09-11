@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Moon, RotateCcw, Settings2, Sun, Zap } from 'lucide-react';
 
 const CLARITY_OPTIONS = [
@@ -48,6 +49,14 @@ function ToggleRow({ label, description, checked, onChange }) {
 }
 
 export default function EngineSettingsModal({ settings, setSetting, reset, close }) {
+  useEffect(() => {
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') close();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [close]);
+
   return (
     <div className="modal-backdrop engine-settings-backdrop" onClick={close}>
       <section className="engine-settings-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="engine-settings-title">
