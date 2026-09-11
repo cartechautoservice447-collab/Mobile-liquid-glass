@@ -121,9 +121,10 @@ export default function EngineSettingsModal({ settings, setSetting, reset, close
           </section>
 
           <section className="engine-settings-section">
-            <div className="engine-section-heading"><span>Liquid physics</span><small>These values map directly to the reference engine ranges.</small></div>
+            <div className="engine-section-heading"><span>Liquid physics</span><small>Transparency controls how much of the stage passes through; Lens adds optical bending without changing transparency.</small></div>
             <Slider label="Liquid density" value={settings.liquidDensity} min={0} max={40} display={`${settings.liquidDensity}px`} onChange={(value) => setSetting('liquidDensity', value)} />
-            <Slider label="Liquid transparency" value={settings.liquidTransparency} min={5} max={95} display={`${settings.liquidTransparency}%`} onChange={(value) => setSetting('liquidTransparency', value)} />
+            <Slider label="Liquid transparency" value={settings.liquidTransparency} min={0} max={100} display={`${settings.liquidTransparency}%`} onChange={(value) => setSetting('liquidTransparency', value)} />
+            <Slider label="Glass lens" value={settings.liquidLens} min={0} max={100} display={`${settings.liquidLens}%`} onChange={(value) => setSetting('liquidLens', value)} />
             <Slider label="Liquid clearness" value={settings.liquidClearness} min={0} max={100} display={`${settings.liquidClearness} idx`} onChange={(value) => setSetting('liquidClearness', value)} />
             <Slider label="Liquid gel" value={settings.liquidGel} min={0} max={100} display={`${settings.liquidGel}%`} onChange={(value) => setSetting('liquidGel', value)} />
             <Slider label="Bounce stiffness" value={settings.bounceStiffness} min={100} max={500} step={5} display={settings.bounceStiffness} onChange={(value) => setSetting('bounceStiffness', value)} />
