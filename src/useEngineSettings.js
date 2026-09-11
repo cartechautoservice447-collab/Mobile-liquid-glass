@@ -14,6 +14,7 @@ export const ENGINE_DEFAULTS = {
   fullDarkBackground: false,
   liquidDensity: 12,
   liquidTransparency: 45,
+  liquidLens: 35,
   liquidClearness: 35,
   liquidGel: 55,
   bounceStiffness: 200,
@@ -58,7 +59,8 @@ const normalizeSettings = (raw = {}) => ({
   backgroundBrightness: clamp(raw.backgroundBrightness, 0, 200, ENGINE_DEFAULTS.backgroundBrightness),
   fullDarkBackground: Boolean(raw.fullDarkBackground),
   liquidDensity: clamp(raw.liquidDensity, 0, 40, ENGINE_DEFAULTS.liquidDensity),
-  liquidTransparency: clamp(raw.liquidTransparency, 5, 95, ENGINE_DEFAULTS.liquidTransparency),
+  liquidTransparency: clamp(raw.liquidTransparency, 0, 100, ENGINE_DEFAULTS.liquidTransparency),
+  liquidLens: clamp(raw.liquidLens, 0, 100, ENGINE_DEFAULTS.liquidLens),
   liquidClearness: clamp(raw.liquidClearness, 0, 100, ENGINE_DEFAULTS.liquidClearness),
   liquidGel: clamp(raw.liquidGel, 0, 100, ENGINE_DEFAULTS.liquidGel),
   bounceStiffness: clamp(raw.bounceStiffness, 100, 500, ENGINE_DEFAULTS.bounceStiffness),
@@ -79,6 +81,7 @@ function readLocalSettings(scope) {
     fullDarkBackground: readStored(scopeKey(scope, 'full-dark-background'), String(ENGINE_DEFAULTS.fullDarkBackground)) === 'true',
     liquidDensity: readStored(scopeKey(scope, 'liquid-density'), ENGINE_DEFAULTS.liquidDensity),
     liquidTransparency: readStored(scopeKey(scope, 'liquid-transparency'), ENGINE_DEFAULTS.liquidTransparency),
+    liquidLens: readStored(scopeKey(scope, 'liquid-lens'), ENGINE_DEFAULTS.liquidLens),
     liquidClearness: readStored(scopeKey(scope, 'liquid-clearness'), ENGINE_DEFAULTS.liquidClearness),
     liquidGel: readStored(scopeKey(scope, 'liquid-gel'), ENGINE_DEFAULTS.liquidGel),
     bounceStiffness: readStored(scopeKey(scope, 'bounce-stiffness'), ENGINE_DEFAULTS.bounceStiffness),
@@ -100,6 +103,7 @@ function cacheSettings(scope, settings) {
     ['full-dark-background', settings.fullDarkBackground],
     ['liquid-density', settings.liquidDensity],
     ['liquid-transparency', settings.liquidTransparency],
+    ['liquid-lens', settings.liquidLens],
     ['liquid-clearness', settings.liquidClearness],
     ['liquid-gel', settings.liquidGel],
     ['bounce-stiffness', settings.bounceStiffness],
@@ -171,6 +175,7 @@ export default function useEngineSettings(userId) {
     document.documentElement.dataset.glassTheme = settings.glassTheme;
 
     const transparency = settings.liquidTransparency / 100;
+    const lens = settings.liquidLens / 100;
     const density = settings.liquidDensity;
     const clearness = settings.liquidClearness / 100;
     const gel = settings.liquidGel / 100;
@@ -181,6 +186,7 @@ export default function useEngineSettings(userId) {
     root.style.setProperty('--liquid-glass-dark-alpha', String(transparency * 0.16));
     root.style.setProperty('--liquid-veil-alpha', String(transparency * 0.36));
     root.style.setProperty('--liquid-dark-veil-alpha', String(transparency <= 0.45 ? 0.0775 + 0.45 * transparency : 0.46 - 0.4 * transparency));
+    root.style.setProperty('--liquid-lens', String(lens));
     root.style.setProperty('--liquid-clearness', String(clearness));
     root.style.setProperty('--liquid-gel', String(gel));
     root.style.setProperty('--liquid-bounce', String(settings.bounceStiffness));
@@ -221,7 +227,8 @@ export default function useEngineSettings(userId) {
       if (key === 'backgroundOpacity') return { ...current, backgroundOpacity: clamp(value, 0, 100, current.backgroundOpacity) };
       if (key === 'backgroundBrightness') return { ...current, backgroundBrightness: clamp(value, 0, 200, current.backgroundBrightness) };
       if (key === 'liquidDensity') return { ...current, liquidDensity: clamp(value, 0, 40, current.liquidDensity) };
-      if (key === 'liquidTransparency') return { ...current, liquidTransparency: clamp(value, 5, 95, current.liquidTransparency) };
+      if (key === 'liquidTransparency') return { ...current, liquidTransparency: clamp(value, 0, 100, current.liquidTransparency) };
+      if (key === 'liquidLens') return { ...current, liquidLens: clamp(value, 0, 100, current.liquidLens) };
       if (key === 'liquidClearness') return { ...current, liquidClearness: clamp(value, 0, 100, current.liquidClearness) };
       if (key === 'liquidGel') return { ...current, liquidGel: clamp(value, 0, 100, current.liquidGel) };
       if (key === 'bounceStiffness') return { ...current, bounceStiffness: clamp(value, 100, 500, current.bounceStiffness) };
