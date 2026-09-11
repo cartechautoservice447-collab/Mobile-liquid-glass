@@ -1,9 +1,10 @@
 /*
  * Single-source glass surface renderer for Course, Saved Notes, and Notes Editor.
  *
- * Type 1/2/3/4 are the existing Engine Settings languages. The target
- * surfaces use the same Fluid Glass material primitives: translucent water-gel
- * fill, backdrop blur, satin highlight, refraction rim and liquid veil.
+ * The material recipe mirrors the original Fluid GlassPanel primitives. Type
+ * 1/2/3/4 remain Mobile-specific theme languages, but the underlying liquid
+ * physics (density, gel radius, gel-driven shadow, clearness refraction, veil)
+ * stay authoritative and live from the Liquid Glass engine variables.
  */
 
 const STYLE_ID = 'mobile-liquid-glass-surface-runtime-lock';
@@ -14,8 +15,6 @@ const TARGETS = [
   '.mobile-note-editor.generated-editor-glass',
 ];
 const TARGET_SELECTOR = TARGETS.join(',');
-
-const FLUID_GEL_SHADOW = 'inset 0 calc(1px + var(--liquid-gel,.55) * 1.5px) calc(2px + var(--liquid-gel,.55) * 3px) 0 rgba(255,255,255,calc(.35 + var(--liquid-gel,.55) * .3)),inset 0 calc(-2px - var(--liquid-gel,.55) * 3px) calc(4px + var(--liquid-gel,.55) * 6px) 0 rgba(0,0,0,calc(.16 + var(--liquid-gel,.55) * .2)),0 calc(8px + var(--liquid-gel,.55) * 10px) calc(32px + var(--liquid-gel,.55) * 24px) 0 rgba(0,0,0,calc(.2 + var(--liquid-gel,.55) * .22))';
 
 const STYLE = `
   html[data-glass-theme] .app-root-layer .course-dashboard-card {
@@ -45,6 +44,8 @@ const STYLE = `
     border-radius: var(--glass-theme-radius) !important;
     box-shadow: var(--glass-theme-shadow) !important;
     filter: none !important;
+    will-change: transform !important;
+    overflow: hidden !important;
   }
 
   /* Exact Fluid GlassPanel edge recipe: refracted rim + liquid veil. */
@@ -113,7 +114,6 @@ const THEME_RECIPES = {
     border: 'rgba(255,255,255,.22)',
     topBorder: 'rgba(255,255,255,.40)',
     radius: 'calc(18px + var(--liquid-gel,.55) * 26px)',
-    shadow: FLUID_GEL_SHADOW,
     blur: 'var(--liquid-density,12px)',
     saturation: '200%',
   },
@@ -123,7 +123,6 @@ const THEME_RECIPES = {
     border: 'rgba(210,239,255,.24)',
     topBorder: 'rgba(255,255,255,.46)',
     radius: 'calc(18px + var(--liquid-gel,.55) * 26px)',
-    shadow: FLUID_GEL_SHADOW,
     blur: 'var(--liquid-density,12px)',
     saturation: '200%',
   },
@@ -132,8 +131,7 @@ const THEME_RECIPES = {
     sheen: 'linear-gradient(180deg,rgba(255,255,255,.10),rgba(255,255,255,.025))',
     border: 'rgba(190,235,255,.14)',
     topBorder: 'rgba(255,255,255,.28)',
-    radius: '16px',
-    shadow: FLUID_GEL_SHADOW,
+    radius: 'calc(18px + var(--liquid-gel,.55) * 26px)',
     blur: 'calc(var(--liquid-density,12px) * .9)',
     saturation: '180%',
   },
@@ -143,7 +141,6 @@ const THEME_RECIPES = {
     border: 'rgba(220,240,255,.30)',
     topBorder: 'rgba(255,255,255,.52)',
     radius: 'calc(18px + var(--liquid-gel,.55) * 26px)',
-    shadow: FLUID_GEL_SHADOW,
     blur: 'var(--liquid-density,12px)',
     saturation: '200%',
   },
@@ -154,15 +151,26 @@ function activeRecipe() {
   return THEME_RECIPES[key] || THEME_RECIPES['type-1'];
 }
 
+function readGel() {
+  const value = Number.parseFloat(document.documentElement.style.getPropertyValue('--liquid-gel'));
+  return Number.isFinite(value) ? Math.min(1, Math.max(0, value)) : 0.55;
+}
+
+function fluidGlassShadow(gel) {
+  return `inset 0 ${1 + gel * 1.5}px ${2 + gel * 3}px 0 rgba(255,255,255,${0.35 + gel * 0.3}),inset 0 -${2 + gel * 3}px ${4 + gel * 6}px 0 rgba(0,0,0,${0.16 + gel * 0.2}),0 ${8 + gel * 10}px ${32 + gel * 24}px 0 rgba(0,0,0,${0.2 + gel * 0.22})`;
+}
+
 function syncThemeVariables() {
   const root = document.documentElement;
   const recipe = activeRecipe();
+  const shadow = fluidGlassShadow(readGel());
   root.style.setProperty('--glass-theme-bg', recipe.bg);
   root.style.setProperty('--glass-theme-sheen', recipe.sheen);
   root.style.setProperty('--glass-theme-border', recipe.border);
   root.style.setProperty('--glass-theme-top-border', recipe.topBorder);
   root.style.setProperty('--glass-theme-radius', recipe.radius);
-  root.style.setProperty('--glass-theme-shadow', recipe.shadow);
+  root.style.setProperty('--fluid-glass-shadow', shadow);
+  root.style.setProperty('--glass-theme-shadow', shadow);
   root.style.setProperty('--glass-theme-blur', recipe.blur);
   root.style.setProperty('--glass-theme-saturation', recipe.saturation);
 }
@@ -170,6 +178,7 @@ function syncThemeVariables() {
 function hardSyncTargets(targets) {
   const recipe = activeRecipe();
   const surfaces = targets || document.querySelectorAll(TARGET_SELECTOR);
+  const shadow = fluidGlassShadow(readGel());
   surfaces.forEach((surface) => {
     if (!(surface instanceof HTMLElement)) return;
     surface.style.setProperty('background-color', recipe.bg, 'important');
@@ -182,7 +191,7 @@ function hardSyncTargets(targets) {
     surface.style.setProperty('border', `1px solid ${recipe.border}`, 'important');
     surface.style.setProperty('border-top-color', recipe.topBorder, 'important');
     surface.style.setProperty('border-radius', recipe.radius, 'important');
-    surface.style.setProperty('box-shadow', recipe.shadow, 'important');
+    surface.style.setProperty('box-shadow', shadow, 'important');
     surface.style.setProperty('filter', 'none', 'important');
   });
 }
