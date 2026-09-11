@@ -39,25 +39,6 @@ textarea:focus-visible,
 /* High performance mode is intentionally lighter than Ultra while preserving the glass identity. */
 html[data-glass-performance="high"]{
   --glass-theme-saturation:160%;
-  --glass-theme-blur-factor:.74;
-}
-
-html[data-glass-performance="high"] .app-root-layer .glass-card:not(.course-dashboard-card),
-html[data-glass-performance="high"] .app-root-layer .full-glass-panel,
-html[data-glass-performance="high"] .app-root-layer .glass-inner,
-html[data-glass-performance="high"] .app-root-layer .dashboard-header,
-html[data-glass-performance="high"] .app-root-layer .action-card,
-html[data-glass-performance="high"] .app-root-layer .add-course-bar,
-html[data-glass-performance="high"] .app-root-layer .course-open,
-html[data-glass-performance="high"] .app-root-layer .course-workspace-progress,
-html[data-glass-performance="high"] .app-root-layer .course-tool-folder,
-html[data-glass-performance="high"] .app-root-layer .course-folder-card,
-html[data-glass-performance="high"] .app-root-layer .glass-list-item,
-html[data-glass-performance="high"] .app-root-layer .collection-note-card,
-html[data-glass-performance="high"] .app-root-layer .generated-editor-glass,
-html[data-glass-performance="high"] .app-root-layer .course-folder-panel{
-  backdrop-filter:blur(calc(var(--glass-theme-blur,12px) * var(--glass-theme-blur-factor))) saturate(var(--glass-theme-saturation)) contrast(105%)!important;
-  -webkit-backdrop-filter:blur(calc(var(--glass-theme-blur,12px) * var(--glass-theme-blur-factor))) saturate(var(--glass-theme-saturation)) contrast(105%)!important;
 }
 
 /* Disable continuous ambient effects in High mode; interaction and page transitions remain. */
@@ -92,7 +73,7 @@ html[data-glass-performance="high"] .depth-parallax-layer{
   -webkit-backdrop-filter:blur(16px) saturate(150%)!important;
 }
 
-/* Keep the compact mobile toast non-blocking and easy to read. */
+/* Keep the compact mobile notice easy to read without blocking content. */
 @media(max-width:600px){
   .app-root-layer .message,
   .feature-screen > .message,
