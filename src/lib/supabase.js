@@ -59,12 +59,3 @@ if (supabase) {
     },
   });
 }
-
-if (typeof window !== 'undefined') {
-  queueMicrotask(() => {
-    import('../collectionDeleteCore.js').catch(() => {});
-    import('../collectionDeleteLongPress.js').catch(() => {});
-    import('../collectionDeleteLongPressFix.js').catch(() => {});
-    import('../MobileNoteEditorPremiumLoader.js').catch(() => {});
-  });
-}
