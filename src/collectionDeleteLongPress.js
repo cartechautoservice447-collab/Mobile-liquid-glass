@@ -194,7 +194,6 @@ const removeVisualDeleteState = (items) => {
 const animateAndDelete = async (selected, courseName, userId) => {
   if (busyState()) return;
   setBusyState(true);
-  let deletedCloudIds = [];
   try {
     const courses = readWorkspace(userId); const course = courseForPage(courseName, courses);
     if (!course) return;
@@ -205,8 +204,7 @@ const animateAndDelete = async (selected, courseName, userId) => {
       resolved = await resolveCloudIds(selected, course, userId);
       const unresolved = resolved.filter((entry) => !entry.cloudId);
       if (unresolved.length) throw new Error(`Unable to match: ${unresolved.map((entry) => entry.name).join(', ')}`);
-      deletedCloudIds = resolved.map((entry) => entry.cloudId);
-      markDeleted(userId, deletedCloudIds);
+      markDeleted(userId, resolved.map((entry) => entry.cloudId));
     }
 
     const wrappers = currentItems();
@@ -261,15 +259,10 @@ const animateAndDelete = async (selected, courseName, userId) => {
     writeWorkspace(userId, nextCourses);
     window.dispatchEvent(new CustomEvent('collection-delete-completed', { detail: { courseId: course.id, collectionIds: [...deletedLocalIds] } }));
     activeController?.cleanup?.();
-  } catch (error) {
-    if (deletedCloudIds.length && cloudEnabledForError(userId, error)) clearTombstones(userId, deletedCloudIds);
-    throw error;
   } finally {
     setBusyState(false);
   }
 };
-
-const cloudEnabledForError = (userId, error) => Boolean(supabase && userId && userId !== 'anonymous' && !String(error?.message || '').startsWith('Unknown deletion error.'));
 
 let isBusy = false; function busyState(){ return isBusy; } function setBusyState(value){ isBusy=value; }
 let currentItems = () => [];
