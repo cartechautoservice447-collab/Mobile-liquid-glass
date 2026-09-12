@@ -3,6 +3,7 @@ import { supabase } from './lib/supabase.js';
 const LOCAL_KEY = 'mobile-liquid-glass-workspace-v1';
 const ID_MAP_KEY = 'mobile-liquid-glass-cloud-id-map-v1';
 const CLOUD_HYDRATED_KEY = 'mobile-liquid-glass-cloud-hydrated-v1';
+const LOCAL_DIRTY_KEY = 'mobile-liquid-glass-local-dirty-v1';
 const DELETE_TOMBSTONE_KEY = 'mobile-liquid-glass-delete-tombstones-v1';
 const DELETE_TOMBSTONE_TTL = 24 * 60 * 60 * 1000;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -34,8 +35,12 @@ function findAuthUserId() {
 
 function localStorageKey() { return `${LOCAL_KEY}:${findAuthUserId()}`; }
 function hydrationKey(userId) { return `${CLOUD_HYDRATED_KEY}:${userId}`; }
+function dirtyKey(userId) { return `${LOCAL_DIRTY_KEY}:${userId}`; }
 function isCloudHydrated(userId) { try { return localStorage.getItem(hydrationKey(userId)) === '1'; } catch { return false; } }
 function markCloudHydrated(userId) { try { localStorage.setItem(hydrationKey(userId), '1'); } catch {} }
+function isLocalWorkspaceDirty(userId) { try { return localStorage.getItem(dirtyKey(userId)) === '1'; } catch { return false; } }
+function markLocalWorkspaceDirty(userId) { try { localStorage.setItem(dirtyKey(userId), '1'); } catch {} }
+function clearLocalWorkspaceDirty(userId) { try { localStorage.removeItem(dirtyKey(userId)); } catch {} }
 function loadGenerationKey(userId) { return String(userId); }
 function currentLoadGeneration(userId) { return CLOUD_LOAD_GENERATIONS.get(loadGenerationKey(userId)) || 0; }
 function bumpLoadGeneration(userId) {
@@ -195,23 +200,47 @@ function normalizeCoursesForCloud(userId, courses) {
   return normalized;
 }
 
-export function readLocalWorkspace() {
+function readLocalWorkspaceForUser(userId) {
   try {
-    const raw = localStorage.getItem(localStorageKey());
+    const raw = localStorage.getItem(`${LOCAL_KEY}:${userId}`);
     const parsed = raw ? JSON.parse(raw) : null;
     if (Array.isArray(parsed?.courses)) return parsed.courses;
-    if (findAuthUserId() === 'anonymous') {
+    if (userId === 'anonymous') {
       const legacy = JSON.parse(localStorage.getItem(LOCAL_KEY) || 'null');
       return Array.isArray(legacy?.courses) ? legacy.courses : null;
     }
   } catch {}
   return null;
 }
-export function writeLocalWorkspace(courses) { try { localStorage.setItem(localStorageKey(), JSON.stringify({ version: 3, courses })); } catch {} }
+
+function writeLocalWorkspaceForUser(userId, courses) {
+  try { localStorage.setItem(`${LOCAL_KEY}:${userId}`, JSON.stringify({ version: 3, courses })); } catch {}
+}
+
+function hasWorkspaceData(courses) {
+  return Array.isArray(courses) && courses.some((course) =>
+    Array.isArray(course?.collections) && course.collections.length > 0
+  );
+}
+
+export function readLocalWorkspace(userId = findAuthUserId()) {
+  return readLocalWorkspaceForUser(userId);
+}
+
+export function writeLocalWorkspace(courses, userId = findAuthUserId()) {
+  writeLocalWorkspaceForUser(userId, courses);
+  if (userId) markLocalWorkspaceDirty(userId);
+}
+
+export function clearLocalWorkspaceDirtyFlag(userId) {
+  clearLocalWorkspaceDirty(userId);
+}
 
 export async function loadCloudWorkspace(userId) {
   if (!supabase || !userId) return null;
   const generation = currentLoadGeneration(userId);
+  const localWorkspace = readLocalWorkspaceForUser(userId);
+  const localDirty = isLocalWorkspaceDirty(userId);
   const [coursesResult, collectionsResult, notesResult] = await Promise.all([
     supabase.from('courses').select('id,name,description,color,created_at,updated_at').eq('user_id', userId).order('created_at', { ascending: false }),
     supabase.from('collections').select('id,course_id,name,created_at,updated_at').eq('user_id', userId).order('created_at', { ascending: true }),
@@ -221,6 +250,37 @@ export async function loadCloudWorkspace(userId) {
   if (collectionsResult.error) throw collectionsResult.error;
   if (notesResult.error) throw notesResult.error;
   if (generation !== currentLoadGeneration(userId)) return null;
+
+  const cloudHasRows = Boolean(
+    coursesResult.data?.length ||
+    collectionsResult.data?.length ||
+    notesResult.data?.length
+  );
+
+  // Never replace a known local working copy with an empty cloud snapshot.
+  if (!cloudHasRows && hasWorkspaceData(localWorkspace)) {
+    markCloudHydrated(userId);
+    try {
+      await saveCloudWorkspace(userId, localWorkspace);
+      clearLocalWorkspaceDirty(userId);
+    } catch {
+      markLocalWorkspaceDirty(userId);
+    }
+    return localWorkspace;
+  }
+
+  // Explicitly unsynced local changes win over a late cloud hydration.
+  if (localDirty && hasWorkspaceData(localWorkspace)) {
+    markCloudHydrated(userId);
+    try {
+      await saveCloudWorkspace(userId, localWorkspace);
+      clearLocalWorkspaceDirty(userId);
+    } catch {
+      markLocalWorkspaceDirty(userId);
+    }
+    return localWorkspace;
+  }
+
   const tombstones = readDeleteTombstones(userId);
   const visibleCourses = (coursesResult.data || []).filter((row) => !tombstones[`course:${row.id}`]);
   const visibleCollections = (collectionsResult.data || []).filter((row) => !tombstones[`collection:${row.id}`] && visibleCourses.some((course) => course.id === row.course_id));
@@ -228,6 +288,9 @@ export async function loadCloudWorkspace(userId) {
   const visibleCollectionIds = new Set(visibleCollections.map((row) => row.id));
   const visibleNotes = (notesResult.data || []).filter((row) => !tombstones[`note:${row.id}`] && visibleCourseIds.has(row.course_id) && (!row.collection_id || visibleCollectionIds.has(row.collection_id)));
   const workspace = toMobileWorkspace(visibleCourses, visibleCollections, visibleNotes);
+
+  writeLocalWorkspaceForUser(userId, workspace);
+  clearLocalWorkspaceDirty(userId);
   markCloudHydrated(userId);
   return workspace;
 }
@@ -260,6 +323,7 @@ export function saveCloudWorkspace(userId, courses) {
     if (desiredNotes.length) { const { error } = await supabase.from('notes').upsert(desiredNotes, { onConflict: 'id' }); if (error) throw error; }
     await deleteRowsMissingFromSnapshot('collections', userId, desiredCollections.map((row) => row.id));
     await deleteRowsMissingFromSnapshot('courses', userId, desiredCourses.map((row) => row.id));
+    clearLocalWorkspaceDirty(userId);
   });
 }
 
