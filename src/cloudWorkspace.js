@@ -33,7 +33,7 @@ function findAuthUserId() {
   return 'anonymous';
 }
 
-function localStorageKey() { return `${LOCAL_KEY}:${findAuthUserId()}`; }
+function localStorageKey(userId = findAuthUserId()) { return `${LOCAL_KEY}:${userId}`; }
 function hydrationKey(userId) { return `${CLOUD_HYDRATED_KEY}:${userId}`; }
 function dirtyKey(userId) { return `${LOCAL_DIRTY_KEY}:${userId}`; }
 function isCloudHydrated(userId) { try { return localStorage.getItem(hydrationKey(userId)) === '1'; } catch { return false; } }
@@ -83,9 +83,10 @@ function isDeleted(userId, type, cloudId) { return Boolean(readDeleteTombstones(
 function enqueueCloudWrite(userId, operation) {
   const previous = CLOUD_WRITE_QUEUES.get(userId) || Promise.resolve();
   const next = previous.catch(() => {}).then(operation);
-  CLOUD_WRITE_QUEUES.set(userId, next.finally(() => {
-    if (CLOUD_WRITE_QUEUES.get(userId) === next) CLOUD_WRITE_QUEUES.delete(userId);
-  }));
+  const tracked = next.finally(() => {
+    if (CLOUD_WRITE_QUEUES.get(userId) === tracked) CLOUD_WRITE_QUEUES.delete(userId);
+  });
+  CLOUD_WRITE_QUEUES.set(userId, tracked);
   return next;
 }
 
@@ -202,7 +203,7 @@ function normalizeCoursesForCloud(userId, courses) {
 
 function readLocalWorkspaceForUser(userId) {
   try {
-    const raw = localStorage.getItem(`${LOCAL_KEY}:${userId}`);
+    const raw = localStorage.getItem(localStorageKey(userId));
     const parsed = raw ? JSON.parse(raw) : null;
     if (Array.isArray(parsed?.courses)) return parsed.courses;
     if (userId === 'anonymous') {
@@ -214,13 +215,11 @@ function readLocalWorkspaceForUser(userId) {
 }
 
 function writeLocalWorkspaceForUser(userId, courses) {
-  try { localStorage.setItem(`${LOCAL_KEY}:${userId}`, JSON.stringify({ version: 3, courses })); } catch {}
+  try { localStorage.setItem(localStorageKey(userId), JSON.stringify({ version: 3, courses })); } catch {}
 }
 
 function hasWorkspaceData(courses) {
-  return Array.isArray(courses) && courses.some((course) =>
-    Array.isArray(course?.collections) && course.collections.length > 0
-  );
+  return Array.isArray(courses) && courses.length > 0;
 }
 
 export function readLocalWorkspace(userId = findAuthUserId()) {
@@ -251,14 +250,16 @@ export async function loadCloudWorkspace(userId) {
   if (notesResult.error) throw notesResult.error;
   if (generation !== currentLoadGeneration(userId)) return null;
 
-  const cloudHasRows = Boolean(
-    coursesResult.data?.length ||
-    collectionsResult.data?.length ||
-    notesResult.data?.length
-  );
+  const cloudCourses = coursesResult.data || [];
+  const cloudCollections = collectionsResult.data || [];
+  const cloudNotes = notesResult.data || [];
+  const cloudCourseIds = new Set(cloudCourses.map((row) => String(row.id)));
+  const cloudCollectionIds = new Set(cloudCollections.map((row) => String(row.id)));
+  const cloudSnapshotIsStructurallyComplete =
+    cloudCollections.every((row) => cloudCourseIds.has(String(row.course_id))) &&
+    cloudNotes.every((row) => cloudCourseIds.has(String(row.course_id)) && (!row.collection_id || cloudCollectionIds.has(String(row.collection_id))));
 
-  // Never replace a known local working copy with an empty cloud snapshot.
-  if (!cloudHasRows && hasWorkspaceData(localWorkspace)) {
+  if (!cloudSnapshotIsStructurallyComplete && Array.isArray(localWorkspace)) {
     markCloudHydrated(userId);
     try {
       await saveCloudWorkspace(userId, localWorkspace);
@@ -269,8 +270,21 @@ export async function loadCloudWorkspace(userId) {
     return localWorkspace;
   }
 
-  // Explicitly unsynced local changes win over a late cloud hydration.
-  if (localDirty && hasWorkspaceData(localWorkspace)) {
+  // Explicitly unsynced local changes, including an intentionally empty workspace,
+  // always win over a late cloud snapshot. This prevents deleted data from returning.
+  if (localDirty && Array.isArray(localWorkspace)) {
+    markCloudHydrated(userId);
+    try {
+      await saveCloudWorkspace(userId, localWorkspace);
+      clearLocalWorkspaceDirty(userId);
+    } catch {
+      markLocalWorkspaceDirty(userId);
+    }
+    return localWorkspace;
+  }
+
+  const cloudHasRows = Boolean(cloudCourses.length || cloudCollections.length || cloudNotes.length);
+  if (!cloudHasRows && Array.isArray(localWorkspace) && hasWorkspaceData(localWorkspace)) {
     markCloudHydrated(userId);
     try {
       await saveCloudWorkspace(userId, localWorkspace);
@@ -282,11 +296,11 @@ export async function loadCloudWorkspace(userId) {
   }
 
   const tombstones = readDeleteTombstones(userId);
-  const visibleCourses = (coursesResult.data || []).filter((row) => !tombstones[`course:${row.id}`]);
-  const visibleCollections = (collectionsResult.data || []).filter((row) => !tombstones[`collection:${row.id}`] && visibleCourses.some((course) => course.id === row.course_id));
+  const visibleCourses = cloudCourses.filter((row) => !tombstones[`course:${row.id}`]);
+  const visibleCollections = cloudCollections.filter((row) => !tombstones[`collection:${row.id}`] && visibleCourses.some((course) => course.id === row.course_id));
   const visibleCourseIds = new Set(visibleCourses.map((row) => row.id));
   const visibleCollectionIds = new Set(visibleCollections.map((row) => row.id));
-  const visibleNotes = (notesResult.data || []).filter((row) => !tombstones[`note:${row.id}`] && visibleCourseIds.has(row.course_id) && (!row.collection_id || visibleCollectionIds.has(row.collection_id)));
+  const visibleNotes = cloudNotes.filter((row) => !tombstones[`note:${row.id}`] && visibleCourseIds.has(row.course_id) && (!row.collection_id || visibleCollectionIds.has(row.collection_id)));
   const workspace = toMobileWorkspace(visibleCourses, visibleCollections, visibleNotes);
 
   writeLocalWorkspaceForUser(userId, workspace);
@@ -296,7 +310,8 @@ export async function loadCloudWorkspace(userId) {
 }
 
 export function saveCloudWorkspace(userId, courses) {
-  if (!supabase || !userId || !isCloudHydrated(userId)) return Promise.resolve();
+  if (!supabase || !userId) return Promise.resolve();
+  if (userId !== 'anonymous' && !isCloudHydrated(userId)) return Promise.reject(new Error('Workspace cloud sync is not hydrated yet.'));
   return enqueueCloudWrite(userId, async () => {
     const normalized = normalizeCoursesForCloud(userId, courses);
     const desiredCourses = dedupeById(normalized.map(({ collections, sourceLocalId, ...course }) => course)).filter((row) => !isDeleted(userId, 'course', row.id));
