@@ -8,7 +8,6 @@ import { configureSharedNotifications } from './sharedNotifications.js';
 import { supabase, getMobileWebAuthRedirect } from './lib/supabase.js';
 import './collectionDeleteFeature.js';
 import './collectionDeletePolish.js';
-import './collectionDeleteCore.js';
 import './collectionDeleteLongPress.js';
 import './collectionDeleteLongPressFix.js';
 import LiquidEnvironment from './LiquidEnvironment.jsx';
