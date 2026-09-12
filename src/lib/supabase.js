@@ -62,8 +62,7 @@ if (supabase) {
 
 if (typeof window !== 'undefined') {
   queueMicrotask(() => {
-    import('../collectionDeleteFeature.js').catch(() => {});
-    import('../collectionDeletePolish.js').catch(() => {});
+    import('../collectionDeleteCore.js').catch(() => {});
     import('../collectionDeleteLongPress.js').catch(() => {});
     import('../collectionDeleteLongPressFix.js').catch(() => {});
     import('../MobileNoteEditorPremiumLoader.js').catch(() => {});
