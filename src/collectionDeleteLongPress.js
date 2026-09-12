@@ -191,7 +191,17 @@ const animateAndDelete = async (selected, courseName, userId) => {
     if (unresolved.length) throw new Error(`Unable to match: ${unresolved.map((entry) => entry.name).join(', ')}`);
     deletedCloudIds = resolved.map((entry) => entry.cloudId);
     markDeleted(userId, deletedCloudIds);
-    const wrappers = currentItems(); const selectedItems = wrappers.filter((item) => selected.some((entry) => String(entry.localId) === String(item.localId)));
+
+    await Promise.all(resolved.map(async (entry) => {
+      const { error } = await supabase.from('collections').delete().eq('user_id', userId).eq('id', entry.cloudId);
+      if (error) throw error;
+      const { data, error: verifyError } = await supabase.from('collections').select('id').eq('user_id', userId).eq('id', entry.cloudId).limit(1);
+      if (verifyError) throw verifyError;
+      if (data?.length) throw new Error(`Collection deletion was not confirmed for ${entry.name}.`);
+    }));
+
+    const wrappers = currentItems();
+    const selectedItems = wrappers.filter((item) => selected.some((entry) => String(entry.localId) === String(item.localId)));
     const beforeLayout = currentItems().map((item) => ({ item, rect: item.wrapper.getBoundingClientRect() }));
     selectedItems.forEach((item) => {
       const height = Math.max(item.wrapper.getBoundingClientRect().height, 1); item.wrapper.style.setProperty('--star-travel', `${Math.max(height - 14, 16)}px`); item.wrapper.classList.add('collection-deleting');
@@ -203,8 +213,8 @@ const animateAndDelete = async (selected, courseName, userId) => {
     const nextCourses = courses.map((entry) => entry.id !== course.id ? entry : { ...entry, collections: entry.collections.filter((collection) => !resolved.some((item) => String(item.localId) === String(collection.id))) });
     writeWorkspace(userId, nextCourses);
     window.dispatchEvent(new CustomEvent('collection-delete-completed', { detail: { courseId: course.id, collectionIds: selected.map((entry) => entry.localId) } }));
-    const results = await Promise.all(resolved.map(async (entry) => { const { error } = await supabase.from('collections').delete().eq('user_id', userId).eq('id', entry.cloudId); if (error) throw error; const { data, error: verifyError } = await supabase.from('collections').select('id').eq('user_id', userId).eq('id', entry.cloudId).limit(1); if (verifyError) throw verifyError; if (data?.length) throw new Error(`Collection deletion was not confirmed for ${entry.name}.`); return entry; }));
-    if (results.length) clearTombstones(userId, deletedCloudIds);
+    // Keep the collection tombstone active for its TTL so an older queued cloud snapshot
+    // cannot recreate this collection after the remote deletion succeeds.
   } catch (error) {
     if (deletedCloudIds.length) clearTombstones(userId, deletedCloudIds);
     throw error;
