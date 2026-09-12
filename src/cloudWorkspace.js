@@ -238,7 +238,7 @@ export function clearLocalWorkspaceDirtyFlag(userId) {
 
 export async function loadCloudWorkspace(userId) {
   if (!supabase || !userId) return null;
-  const generation = currentLoadGeneration(userId);
+  const generation = bumpLoadGeneration(userId);
   const localWorkspace = readLocalWorkspaceForUser(userId);
   const localDirty = isLocalWorkspaceDirty(userId);
   const [coursesResult, collectionsResult, notesResult] = await Promise.all([
