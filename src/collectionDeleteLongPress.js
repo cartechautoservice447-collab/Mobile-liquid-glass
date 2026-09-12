@@ -11,8 +11,10 @@ const DELETE_ANIMATION_MS = 1120;
 let initialized = false;
 let pageObserver = null;
 let activeController = null;
+let hydratedUserId = '';
 
 const getUserId = () => {
+  if (hydratedUserId) return hydratedUserId;
   try {
     for (let i = 0; i < localStorage.length; i += 1) {
       const key = localStorage.key(i);
@@ -30,7 +32,7 @@ const getUserId = () => {
       }
     }
   } catch {}
-  return '';
+  return 'anonymous';
 };
 
 const readWorkspace = (userId) => {
@@ -179,49 +181,95 @@ const animateRemaining = (beforeLayout, removedItems) => {
   });
 };
 
+const wait = (ms) => new Promise((resolve) => window.setTimeout(resolve, ms));
+
+const removeVisualDeleteState = (items) => {
+  items.forEach((item) => {
+    item.wrapper.classList.remove('collection-deleting', 'longpress-selected');
+    item.wrapper.querySelector('.collection-longpress-particles')?.remove();
+    item.wrapper.style.removeProperty('--star-travel');
+  });
+};
+
 const animateAndDelete = async (selected, courseName, userId) => {
-  if (busyState() || !supabase) return;
+  if (busyState()) return;
   setBusyState(true);
   let deletedCloudIds = [];
   try {
     const courses = readWorkspace(userId); const course = courseForPage(courseName, courses);
     if (!course) return;
-    const resolved = await resolveCloudIds(selected, course, userId);
-    const unresolved = resolved.filter((entry) => !entry.cloudId);
-    if (unresolved.length) throw new Error(`Unable to match: ${unresolved.map((entry) => entry.name).join(', ')}`);
-    deletedCloudIds = resolved.map((entry) => entry.cloudId);
-    markDeleted(userId, deletedCloudIds);
+    const cloudEnabled = Boolean(supabase && userId && userId !== 'anonymous');
+    let resolved = selected.map((entry) => ({ ...entry, cloudId: entry.localId }));
 
-    await Promise.all(resolved.map(async (entry) => {
-      const { error } = await supabase.from('collections').delete().eq('user_id', userId).eq('id', entry.cloudId);
-      if (error) throw error;
-      const { data, error: verifyError } = await supabase.from('collections').select('id').eq('user_id', userId).eq('id', entry.cloudId).limit(1);
-      if (verifyError) throw verifyError;
-      if (data?.length) throw new Error(`Collection deletion was not confirmed for ${entry.name}.`);
-    }));
+    if (cloudEnabled) {
+      resolved = await resolveCloudIds(selected, course, userId);
+      const unresolved = resolved.filter((entry) => !entry.cloudId);
+      if (unresolved.length) throw new Error(`Unable to match: ${unresolved.map((entry) => entry.name).join(', ')}`);
+      deletedCloudIds = resolved.map((entry) => entry.cloudId);
+      markDeleted(userId, deletedCloudIds);
+    }
 
     const wrappers = currentItems();
     const selectedItems = wrappers.filter((item) => selected.some((entry) => String(entry.localId) === String(item.localId)));
     const beforeLayout = currentItems().map((item) => ({ item, rect: item.wrapper.getBoundingClientRect() }));
     selectedItems.forEach((item) => {
-      const height = Math.max(item.wrapper.getBoundingClientRect().height, 1); item.wrapper.style.setProperty('--star-travel', `${Math.max(height - 14, 16)}px`); item.wrapper.classList.add('collection-deleting');
-      const particles = document.createElement('span'); particles.className = 'collection-longpress-particles'; for (let i = 0; i < 7; i += 1) particles.appendChild(document.createElement('i')); item.wrapper.appendChild(particles);
+      const height = Math.max(item.wrapper.getBoundingClientRect().height, 1);
+      item.wrapper.style.setProperty('--star-travel', `${Math.max(height - 14, 16)}px`);
+      item.wrapper.classList.add('collection-deleting');
+      const particles = document.createElement('span');
+      particles.className = 'collection-longpress-particles';
+      for (let i = 0; i < 7; i += 1) particles.appendChild(document.createElement('i'));
+      item.wrapper.appendChild(particles);
     });
-    await new Promise((resolve) => window.setTimeout(resolve, DELETE_ANIMATION_MS + 20));
+
+    const remoteResultsPromise = cloudEnabled
+      ? Promise.allSettled(resolved.map(async (entry) => {
+          const { error } = await supabase.from('collections').delete().eq('user_id', userId).eq('id', entry.cloudId);
+          if (error) throw error;
+          const { data, error: verifyError } = await supabase.from('collections').select('id').eq('user_id', userId).eq('id', entry.cloudId).limit(1);
+          if (verifyError) throw verifyError;
+          if (data?.length) throw new Error(`Collection deletion was not confirmed for ${entry.name}.`);
+          return entry;
+        }))
+      : Promise.resolve([]);
+
+    const [remoteResults] = await Promise.all([remoteResultsPromise, wait(DELETE_ANIMATION_MS + 20)]);
+
+    if (cloudEnabled) {
+      const succeeded = remoteResults.filter((result) => result.status === 'fulfilled').map((result) => result.value);
+      const failed = remoteResults.filter((result) => result.status === 'rejected');
+      if (failed.length) {
+        const succeededIds = new Set(succeeded.map((entry) => String(entry.localId)));
+        const failedCloudIds = resolved.filter((entry) => !succeededIds.has(String(entry.localId))).map((entry) => entry.cloudId).filter(Boolean);
+        if (failedCloudIds.length) clearTombstones(userId, failedCloudIds);
+        const successfulItems = selectedItems.filter((item) => succeededIds.has(String(item.localId)));
+        const failedItems = selectedItems.filter((item) => !succeededIds.has(String(item.localId)));
+        successfulItems.forEach((item) => item.wrapper.remove());
+        removeVisualDeleteState(failedItems);
+        animateRemaining(beforeLayout, successfulItems);
+        const nextCourses = courses.map((entry) => entry.id !== course.id ? entry : { ...entry, collections: entry.collections.filter((collection) => !succeededIds.has(String(collection.id))) });
+        writeWorkspace(userId, nextCourses);
+        const errorMessage = failed.map((result) => result.reason?.message || 'Unknown deletion error.').join(' ');
+        throw new Error(errorMessage || 'Some collection deletions failed.');
+      }
+    }
+
     selectedItems.forEach((item) => item.wrapper.remove());
     animateRemaining(beforeLayout, selectedItems);
-    const nextCourses = courses.map((entry) => entry.id !== course.id ? entry : { ...entry, collections: entry.collections.filter((collection) => !resolved.some((item) => String(item.localId) === String(collection.id))) });
+    const deletedLocalIds = new Set(resolved.map((item) => String(item.localId)));
+    const nextCourses = courses.map((entry) => entry.id !== course.id ? entry : { ...entry, collections: entry.collections.filter((collection) => !deletedLocalIds.has(String(collection.id))) });
     writeWorkspace(userId, nextCourses);
-    window.dispatchEvent(new CustomEvent('collection-delete-completed', { detail: { courseId: course.id, collectionIds: selected.map((entry) => entry.localId) } }));
-    // Keep the collection tombstone active for its TTL so an older queued cloud snapshot
-    // cannot recreate this collection after the remote deletion succeeds.
+    window.dispatchEvent(new CustomEvent('collection-delete-completed', { detail: { courseId: course.id, collectionIds: [...deletedLocalIds] } }));
+    activeController?.cleanup?.();
   } catch (error) {
-    if (deletedCloudIds.length) clearTombstones(userId, deletedCloudIds);
+    if (deletedCloudIds.length && cloudEnabledForError(userId, error)) clearTombstones(userId, deletedCloudIds);
     throw error;
   } finally {
     setBusyState(false);
   }
 };
+
+const cloudEnabledForError = (userId, error) => Boolean(supabase && userId && userId !== 'anonymous' && !String(error?.message || '').startsWith('Unknown deletion error.'));
 
 let isBusy = false; function busyState(){ return isBusy; } function setBusyState(value){ isBusy=value; }
 let currentItems = () => [];
@@ -231,7 +279,7 @@ function enhance() {
   const heading = Array.from(document.querySelectorAll('h1')).find((el) => el.textContent.trim() === 'Collections');
   const list = document.querySelector('.collections-list'); const header = heading?.closest('header');
   if (!heading || !list || !header) return;
-  const userId = getUserId(); if (!userId) return;
+  const userId = getUserId();
   const rows = Array.from(list.querySelectorAll(':scope > .collection-selection-wrap'));
   if (!rows.length) return;
   if (activeController?.header === header) return;
@@ -254,7 +302,7 @@ function enhance() {
     trigger.addEventListener('touchend', triggerBlock, true);
   }
   function triggerBlock(event){ event.stopImmediatePropagation(); }
-  function triggerClick(event){ event.preventDefault(); event.stopImmediatePropagation(); if (isBusy || !selected.size) return; const chosen=items.filter((item)=>selected.has(item.localId)); const modal=createModal(chosen.map((item)=>item.name),()=>{ modal.remove(); },async()=>{ modal.remove(); try{ await animateAndDelete(chosen.map((item)=>({localId:item.localId,name:item.name})),header.querySelector('.eyebrow')?.textContent?.trim()||'',userId); selectionMode=false; selected.clear(); items.forEach((item)=>item.wrapper.classList.remove('longpress-selected')); }catch(error){ window.alert(`Collection deletion failed: ${error?.message||'Unknown error.'}`);} }); document.body.appendChild(modal); }
+  function triggerClick(event){ event.preventDefault(); event.stopImmediatePropagation(); if (isBusy || !selected.size) return; const chosen=items.filter((item)=>selected.has(item.localId)); const modal=createModal(chosen.map((item)=>item.name),()=>{ modal.remove(); },async()=>{ modal.remove(); try{ await animateAndDelete(chosen.map((item)=>({localId:item.localId,name:item.name})),header.querySelector('.eyebrow')?.textContent?.trim()||'',userId); selectionMode=false; selected.clear(); items.forEach((item)=>item.wrapper.classList.remove('longpress-selected')); }catch(error){ window.alert(`Collection deletion failed: ${error?.message||'Unknown error.'}`); selectionMode=true; } }); document.body.appendChild(modal); }
   const choose = (item) => { if (!selectionMode) { selectionMode = true; } if (selected.has(item.localId)) selected.delete(item.localId); else selected.add(item.localId); item.wrapper.classList.toggle('longpress-selected', selected.has(item.localId)); if (!selected.size) selectionMode=false; };
   const clearPress = () => { if (longPress) { window.clearTimeout(longPress.timer); longPress=null; } };
   items.forEach((item) => {
@@ -264,13 +312,23 @@ function enhance() {
     item.wrapper.addEventListener('pointerdown', start, true); item.wrapper.addEventListener('pointermove', move, true); item.wrapper.addEventListener('pointerup', end, true); item.wrapper.addEventListener('pointercancel', end, true);
     item.wrapper.addEventListener('click', (event) => { if (!selectionMode) return; event.preventDefault(); event.stopImmediatePropagation(); choose(item); }, true);
   });
-  controller.cleanup = () => { clearPress(); if (trigger) { trigger.removeEventListener('click',triggerClick,true); trigger.removeEventListener('pointerdown',triggerBlock,true); trigger.removeEventListener('pointerup',triggerBlock,true); trigger.removeEventListener('pointercancel',triggerBlock,true); trigger.removeEventListener('touchend',triggerBlock,true); } items.forEach((item)=>item.wrapper.replaceWith(item.wrapper.cloneNode(true))); if (activeController===controller) activeController=null; };
+  controller.cleanup = () => { clearPress(); if (trigger) { trigger.removeEventListener('click',triggerClick,true); trigger.removeEventListener('pointerdown',triggerBlock,true); trigger.removeEventListener('pointerup',triggerBlock,true); trigger.removeEventListener('pointercancel',triggerBlock,true); trigger.removeEventListener('touchend',triggerBlock,true); } items.forEach((item)=>item.wrapper.isConnected && item.wrapper.replaceWith(item.wrapper.cloneNode(true))); if (activeController===controller) activeController=null; };
 }
 
 function start() {
   if (initialized || typeof document === 'undefined') return; initialized = true; styles();
   const run = () => { try { enhance(); } catch {} };
   run(); pageObserver = new MutationObserver(run); pageObserver.observe(document.body,{childList:true,subtree:true});
+  try {
+    supabase?.auth?.onAuthStateChange?.((_event, session) => {
+      hydratedUserId = session?.user?.id ? String(session.user.id) : 'anonymous';
+      window.setTimeout(run, 0);
+    });
+    void supabase?.auth?.getSession?.().then(({ data }) => {
+      hydratedUserId = data?.session?.user?.id ? String(data.session.user.id) : 'anonymous';
+      run();
+    }).catch(() => {});
+  } catch {}
 }
 
 start();
