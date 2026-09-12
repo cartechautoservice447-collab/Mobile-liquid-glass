@@ -4,6 +4,7 @@ const LOCAL_KEY = 'mobile-liquid-glass-workspace-v1';
 const ID_MAP_KEY = 'mobile-liquid-glass-cloud-id-map-v1';
 const CLOUD_HYDRATED_KEY = 'mobile-liquid-glass-cloud-hydrated-v1';
 const LOCAL_DIRTY_KEY = 'mobile-liquid-glass-local-dirty-v1';
+const SYNC_ERROR_KEY = 'mobile-liquid-glass-cloud-sync-error-v1';
 const DELETE_TOMBSTONE_KEY = 'mobile-liquid-glass-delete-tombstones-v1';
 const DELETE_TOMBSTONE_TTL = 24 * 60 * 60 * 1000;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -36,11 +37,18 @@ function findAuthUserId() {
 function localStorageKey(userId = findAuthUserId()) { return `${LOCAL_KEY}:${userId}`; }
 function hydrationKey(userId) { return `${CLOUD_HYDRATED_KEY}:${userId}`; }
 function dirtyKey(userId) { return `${LOCAL_DIRTY_KEY}:${userId}`; }
+function syncErrorKey(userId) { return `${SYNC_ERROR_KEY}:${userId}`; }
 function isCloudHydrated(userId) { try { return localStorage.getItem(hydrationKey(userId)) === '1'; } catch { return false; } }
 function markCloudHydrated(userId) { try { localStorage.setItem(hydrationKey(userId), '1'); } catch {} }
 function isLocalWorkspaceDirty(userId) { try { return localStorage.getItem(dirtyKey(userId)) === '1'; } catch { return false; } }
 function markLocalWorkspaceDirty(userId) { try { localStorage.setItem(dirtyKey(userId), '1'); } catch {} }
-function clearLocalWorkspaceDirty(userId) { try { localStorage.removeItem(dirtyKey(userId)); } catch {} }
+function hasSyncError(userId) { try { return Boolean(localStorage.getItem(syncErrorKey(userId))); } catch { return false; } }
+function markSyncError(userId, error) { try { localStorage.setItem(syncErrorKey(userId), String(error?.message || error || 'Cloud sync failed.')); } catch {} }
+function clearSyncError(userId) { try { localStorage.removeItem(syncErrorKey(userId)); } catch {} }
+function clearLocalWorkspaceDirty(userId) {
+  if (hasSyncError(userId)) return;
+  try { localStorage.removeItem(dirtyKey(userId)); } catch {}
+}
 function loadGenerationKey(userId) { return String(userId); }
 function currentLoadGeneration(userId) { return CLOUD_LOAD_GENERATIONS.get(loadGenerationKey(userId)) || 0; }
 function bumpLoadGeneration(userId) {
@@ -261,12 +269,8 @@ export async function loadCloudWorkspace(userId) {
 
   if (!cloudSnapshotIsStructurallyComplete && Array.isArray(localWorkspace)) {
     markCloudHydrated(userId);
-    try {
-      await saveCloudWorkspace(userId, localWorkspace);
-      clearLocalWorkspaceDirty(userId);
-    } catch {
-      markLocalWorkspaceDirty(userId);
-    }
+    const sync = await saveCloudWorkspace(userId, localWorkspace);
+    if (!sync?.synced) markLocalWorkspaceDirty(userId); else clearLocalWorkspaceDirty(userId);
     return localWorkspace;
   }
 
@@ -274,24 +278,16 @@ export async function loadCloudWorkspace(userId) {
   // always win over a late cloud snapshot. This prevents deleted data from returning.
   if (localDirty && Array.isArray(localWorkspace)) {
     markCloudHydrated(userId);
-    try {
-      await saveCloudWorkspace(userId, localWorkspace);
-      clearLocalWorkspaceDirty(userId);
-    } catch {
-      markLocalWorkspaceDirty(userId);
-    }
+    const sync = await saveCloudWorkspace(userId, localWorkspace);
+    if (!sync?.synced) markLocalWorkspaceDirty(userId); else clearLocalWorkspaceDirty(userId);
     return localWorkspace;
   }
 
   const cloudHasRows = Boolean(cloudCourses.length || cloudCollections.length || cloudNotes.length);
   if (!cloudHasRows && Array.isArray(localWorkspace) && hasWorkspaceData(localWorkspace)) {
     markCloudHydrated(userId);
-    try {
-      await saveCloudWorkspace(userId, localWorkspace);
-      clearLocalWorkspaceDirty(userId);
-    } catch {
-      markLocalWorkspaceDirty(userId);
-    }
+    const sync = await saveCloudWorkspace(userId, localWorkspace);
+    if (!sync?.synced) markLocalWorkspaceDirty(userId); else clearLocalWorkspaceDirty(userId);
     return localWorkspace;
   }
 
@@ -304,14 +300,20 @@ export async function loadCloudWorkspace(userId) {
   const workspace = toMobileWorkspace(visibleCourses, visibleCollections, visibleNotes);
 
   writeLocalWorkspaceForUser(userId, workspace);
+  clearSyncError(userId);
   clearLocalWorkspaceDirty(userId);
   markCloudHydrated(userId);
   return workspace;
 }
 
 export function saveCloudWorkspace(userId, courses) {
-  if (!supabase || !userId) return Promise.resolve();
-  if (userId !== 'anonymous' && !isCloudHydrated(userId)) return Promise.reject(new Error('Workspace cloud sync is not hydrated yet.'));
+  if (!supabase || !userId) return Promise.resolve({ synced: false, skipped: true });
+  if (userId !== 'anonymous' && !isCloudHydrated(userId)) {
+    const error = new Error('Workspace cloud sync is not hydrated yet.');
+    markSyncError(userId, error);
+    markLocalWorkspaceDirty(userId);
+    return Promise.resolve({ synced: false, error });
+  }
   return enqueueCloudWrite(userId, async () => {
     const normalized = normalizeCoursesForCloud(userId, courses);
     const desiredCourses = dedupeById(normalized.map(({ collections, sourceLocalId, ...course }) => course)).filter((row) => !isDeleted(userId, 'course', row.id));
@@ -338,7 +340,15 @@ export function saveCloudWorkspace(userId, courses) {
     if (desiredNotes.length) { const { error } = await supabase.from('notes').upsert(desiredNotes, { onConflict: 'id' }); if (error) throw error; }
     await deleteRowsMissingFromSnapshot('collections', userId, desiredCollections.map((row) => row.id));
     await deleteRowsMissingFromSnapshot('courses', userId, desiredCourses.map((row) => row.id));
+  }).then(() => {
+    clearSyncError(userId);
     clearLocalWorkspaceDirty(userId);
+    return { synced: true };
+  }).catch((error) => {
+    markSyncError(userId, error);
+    markLocalWorkspaceDirty(userId);
+    try { window.dispatchEvent(new CustomEvent('workspace-cloud-sync-error', { detail: { userId, message: error?.message || 'Cloud sync failed.' } })); } catch {}
+    return { synced: false, error };
   });
 }
 
