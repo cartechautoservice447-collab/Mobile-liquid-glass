@@ -2,8 +2,10 @@ import { supabase } from './lib/supabase.js';
 
 const WORKSPACE_KEY = 'mobile-liquid-glass-workspace-v1';
 let initialized = false;
+let hydratedUserId = '';
 
 function getUserId() {
+  if (hydratedUserId) return hydratedUserId;
   try {
     for (let i = 0; i < localStorage.length; i += 1) {
       const key = localStorage.key(i);
@@ -20,7 +22,7 @@ function getUserId() {
       }
     }
   } catch {}
-  return '';
+  return 'anonymous';
 }
 
 function readWorkspace(userId) {
@@ -131,7 +133,6 @@ function enhance() {
   ensureTrigger(header);
 
   const userId = getUserId();
-  if (!userId) return;
   const courseName = header.querySelector('.eyebrow')?.textContent?.trim() || '';
   const course = readWorkspace(userId).find((entry) => normalize(entry?.name) === normalize(courseName));
   if (course) ensureRows(list, course);
@@ -140,10 +141,19 @@ function enhance() {
 function start() {
   if (initialized || typeof document === 'undefined') return;
   initialized = true;
-  const run = () => enhance();
+  const run = () => { try { enhance(); } catch {} };
   run();
   new MutationObserver(run).observe(document.body, { childList: true, subtree: true });
-  try { supabase?.auth?.onAuthStateChange?.(() => window.setTimeout(run, 0)); } catch {}
+  try {
+    supabase?.auth?.onAuthStateChange?.((_event, session) => {
+      hydratedUserId = session?.user?.id ? String(session.user.id) : 'anonymous';
+      window.setTimeout(run, 0);
+    });
+    void supabase?.auth?.getSession?.().then(({ data }) => {
+      hydratedUserId = data?.session?.user?.id ? String(data.session.user.id) : 'anonymous';
+      run();
+    }).catch(() => {});
+  } catch {}
 }
 
 start();
