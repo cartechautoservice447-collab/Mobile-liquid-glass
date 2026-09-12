@@ -2,8 +2,6 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import './workspaceHydrationRepair.js';
 import './collectionTombstoneRepair.js';
-import './collectionDeleteRuntimeRepair.js';
-import './collectionDeleteHydrationRetry.js';
 import App from './App.jsx';
 import { configureNativeAuth } from './nativeAuth.js';
 import { configureSharedNotifications } from './sharedNotifications.js';
