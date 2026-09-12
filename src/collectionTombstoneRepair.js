@@ -2,37 +2,27 @@ import { supabase } from './lib/supabase.js';
 
 const TOMBSTONE_KEY = 'mobile-liquid-glass-delete-tombstones-v1';
 
-function clearExistingCloudTombstones(userId, tables) {
+function clearExistingCollectionTombstones(userId, rows) {
   try {
     const key = `${TOMBSTONE_KEY}:${userId}`;
     const parsed = JSON.parse(localStorage.getItem(key) || '{}');
     let changed = false;
-    for (const [type, rows] of Object.entries(tables)) {
-      for (const row of rows || []) {
-        const tombstoneKey = `${type}:${row.id}`;
-        if (Object.prototype.hasOwnProperty.call(parsed, tombstoneKey)) {
-          delete parsed[tombstoneKey];
-          changed = true;
-        }
+    for (const row of rows || []) {
+      const tombstoneKey = `collection:${row.id}`;
+      if (Object.prototype.hasOwnProperty.call(parsed, tombstoneKey)) {
+        delete parsed[tombstoneKey];
+        changed = true;
       }
     }
     if (changed) localStorage.setItem(key, JSON.stringify(parsed));
   } catch {}
 }
 
-async function repairExistingCloudRows(userId) {
+async function repairExistingCloudCollections(userId) {
   if (!supabase || !userId || userId === 'anonymous') return;
-  const [coursesResult, collectionsResult, notesResult] = await Promise.all([
-    supabase.from('courses').select('id').eq('user_id', userId),
-    supabase.from('collections').select('id').eq('user_id', userId),
-    supabase.from('notes').select('id').eq('user_id', userId),
-  ]);
-  if (coursesResult.error || collectionsResult.error || notesResult.error) return;
-  clearExistingCloudTombstones(userId, {
-    course: coursesResult.data,
-    collection: collectionsResult.data,
-    note: notesResult.data,
-  });
+  const { data, error } = await supabase.from('collections').select('id').eq('user_id', userId);
+  if (error) return;
+  clearExistingCollectionTombstones(userId, data);
 }
 
 if (supabase) {
@@ -42,9 +32,9 @@ if (supabase) {
     const userId = result?.data?.session?.user?.id ? String(result.data.session.user.id) : 'anonymous';
     if (userId !== 'anonymous') {
       try {
-        await repairExistingCloudRows(userId);
+        await repairExistingCloudCollections(userId);
       } catch (error) {
-        console.warn('Cloud tombstone repair skipped:', error?.message || error);
+        console.warn('Collection tombstone repair skipped:', error?.message || error);
       }
     }
     return result;
