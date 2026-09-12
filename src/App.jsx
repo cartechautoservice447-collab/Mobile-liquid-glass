@@ -73,8 +73,6 @@ export default function App() {
       setSession(nextSession);
       setWorkspaceReady(false);
 
-      // Do not allow an in-flight mutation from another account/session to continue
-      // into the new account's React state.
       if (nextUserId !== hydratedUserIdRef.current) {
         hydratedUserIdRef.current = nextUserId;
       }
@@ -126,7 +124,6 @@ export default function App() {
     const { data: listener } = supabase.auth.onAuthStateChange((event, nextSession) => {
       if (event === 'INITIAL_SESSION') return;
       const nextUserId = nextSession?.user?.id ? String(nextSession.user.id) : 'anonymous';
-      // Token refreshes and unrelated auth events do not need to rehydrate the whole workspace.
       if (event !== 'SIGNED_IN' && event !== 'SIGNED_OUT' && event !== 'USER_UPDATED' && nextUserId === currentUserIdRef.current) return;
       void hydrate(nextSession);
     });
@@ -247,14 +244,79 @@ function AuthScreen({ email, password, setEmail, setPassword, busy, message, sig
 
 function Dashboard({ courses, totalNotes, performance, setPerformanceMode, settings, setSetting, resetEngineSettings, openCourseCreator, openCourseFolders, openCourse, deleteCourse, updateCourse, action, setAction, message, courseCreateOpen, closeCourseCreator, newCourseName, newCourseDescription, newCourseColor, setNewCourseName, setNewCourseDescription, setNewCourseColor, addCourse, onLogout }) {
   const greeting = settings.displayName ? `Welcome back, ${settings.displayName}!` : 'Welcome back!';
-  return <main className="screen dashboard-screen"><section className="dashboard-shell"><header className="dashboard-header glass-card"><div className="dashboard-copy"><span className="eyebrow">Liquid Glass Studio</span><h1>{greeting}</h1><p>Select a course folder to access your workspace</p></div><div className="dashboard-controls"><div className="performance-control glass-inner"><Zap size={15} /><span>Performance</span><button className={performance === 'high' ? 'toggle-active' : ''} onClick={() => setPerformanceMode('high')}>High</button><button className={performance === 'ultra' ? 'toggle-active' : ''} onClick={() => setPerformanceMode('ultra')}>Ultra</button></div><button className="icon-button" onClick={() => setSetting('theme', settings.theme === 'light' ? 'dark' : 'light')} aria-label={settings.theme === 'light' ? 'Switch to dark theme' : 'Switch to light theme'}>{settings.theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}</button><button className="icon-button" onClick={() => setAction('history')} aria-label="History"><History size={18} /></button><button className="icon-button" onClick={() => setAction('settings')} aria-label="Settings"><Settings2 size={18} /></button></div></header><section className="quick-actions">{[['study','Study Session',Sparkles],['overview','Overview',BookOpen],['history','History',History],['settings','Settings',Settings2]].map(([key,label,Icon])=><button key={key} className="action-card glass-card" onClick={() => setAction(key)}><span className="action-icon"><Icon size={18}/></span><div><strong>{label}</strong><span>{key==='study'?'Focus with guided sessions':key==='overview'?'Track your progress':key==='history'?'Review activity':'Manage your engine'}</span></div></button>)}</section><section className="section-heading"><div><span className="eyebrow">Course library</span><h2>Your courses</h2></div><button className="view-all-button" onClick={openCourseFolders}>View all <span aria-hidden="true">→</span></button></section><section className="course-grid">{courses.map((course)=><div key={course.id} className="course-dashboard-card glass-card"><button className="course-open" onClick={() => openCourse(course.id)}><span className="course-accent" style={{ background: COURSE_ACCENTS.find((accent) => accent.name === course.color)?.value || COURSE_ACCENTS[0].value }} /><div className="course-copy"><span className="course-label">Course workspace</span><h3>{course.name}</h3><p>{course.description}</p></div><div className="course-metrics"><span>{course.collections.length} collections</span><span>{course.collections.reduce((sum, c) => sum + c.notes.length, 0)} notes</span></div></button><div className="course-actions"><button className="icon-button" onClick={() => updateCourse({ description: course.description ? '' : 'New course workspace' })} aria-label={`Toggle description for ${course.name}`}><Folder size={15}/></button><button className="icon-button danger" onClick={() => deleteCourse(course.id)} aria-label={`Delete ${course.name}`}><Trash2 size={15}/></button></div></div>)}</section>{courseCreateOpen&&<CourseCreateModal close={closeCourseCreator} name={newCourseName} description={newCourseDescription} color={newCourseColor} setName={setNewCourseName} setDescription={setNewCourseDescription} setColor={setNewCourseColor} submit={addCourse} />}{action&&<ActionModal action={action} close={() => setAction(null)} />}{message&&<p className="message">{message}</p>}</section></main>;
+  const recentCourses = courses.slice(0, 3);
+  return <main className="screen dashboard-screen"><section className="dashboard-shell">
+    <header className="dashboard-header glass-card">
+      <div className="dashboard-copy"><span className="eyebrow">Liquid Glass Studio</span><h1>{greeting}</h1><p>Select a course folder to access your workspace</p></div>
+      <div className="dashboard-controls">
+        <div className="performance-control glass-inner"><Zap size={15} /><span>Performance</span><button className={performance === 'high' ? 'toggle-active' : ''} onClick={() => setPerformanceMode('high')}>High</button><button className={performance === 'ultra' ? 'toggle-active' : ''} onClick={() => setPerformanceMode('ultra')}>Ultra</button></div>
+        <button className="icon-button" onClick={() => setSetting('theme', settings.theme === 'light' ? 'dark' : 'light')} aria-label={settings.theme === 'light' ? 'Switch to dark theme' : 'Switch to light theme'}>{settings.theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}</button>
+      </div>
+    </header>
+
+    <section className="quick-actions" aria-label="Study tools">
+      <button className="action-card glass-card" onClick={() => setAction('study')}>
+        <span className="action-icon"><Sparkles size={22}/></span><div><strong>Study Hub</strong><span>Focus with guided study sessions</span></div><span className="action-arrow" aria-hidden="true">›</span>
+      </button>
+      <button className="action-card glass-card" onClick={() => setAction('overview')}>
+        <span className="action-icon"><BookOpen size={22}/></span><div><strong>Overview</strong><span>Track your learning progress</span></div><span className="action-arrow" aria-hidden="true">›</span>
+      </button>
+      <button className="action-card glass-card" onClick={() => setAction('pomodoro')}>
+        <span className="action-icon"><History size={22}/></span><div><strong>Pomodoro</strong><span>Focus timer</span></div><span className="action-arrow" aria-hidden="true">›</span>
+      </button>
+    </section>
+
+    <section className="section-heading">
+      <div><span className="eyebrow">Course library</span><h2>All courses</h2></div>
+      <button className="view-all-button" data-dashboard-courses onClick={openCourseFolders}>View all <span aria-hidden="true">→</span></button>
+    </section>
+
+    {recentCourses.length > 0 && <section className="dashboard-recent-notes glass-card">
+      <div className="dashboard-recent-heading"><div><span className="eyebrow">Workspace activity</span><h2>Recent notes</h2></div><span>{totalNotes} notes</span></div>
+      <div className="dashboard-recent-list">
+        {recentCourses.map((course, index) => {
+          const notes = course.collections.reduce((sum, collection) => sum + collection.notes.length, 0);
+          return <button type="button" className="dashboard-recent-item" key={course.id} onClick={() => openCourse(course.id)}><span className="dashboard-recent-index">{String(index + 1).padStart(2, '0')}</span><span><strong>{course.name}</strong><small>{notes} {notes === 1 ? 'note' : 'notes'} · Open course</small></span><b aria-hidden="true">›</b></button>;
+        })}
+      </div>
+    </section>}
+
+    <section className="dashboard-progress-snapshot glass-card">
+      <div className="dashboard-snapshot-heading"><div><span className="eyebrow">Progress snapshot</span><h2>Your learning at a glance</h2></div><span className="dashboard-snapshot-live">Live</span></div>
+      <div className="dashboard-snapshot-grid">
+        <div className="dashboard-snapshot-stat"><span>Courses</span><strong>{courses.length}</strong><small>in your workspace</small></div>
+        <div className="dashboard-snapshot-stat"><span>Notes</span><strong>{totalNotes}</strong><small>captured so far</small></div>
+        <div className="dashboard-snapshot-stat dashboard-progress-stat"><span>Current course</span><strong>{courses[0]?.progress || 0}%</strong><small>{courses[0]?.name || 'Your learning'}</small><div className="dashboard-progress-track"><i style={{ width: `${Math.max(0, Math.min(courses[0]?.progress || 0, 100))}%` }} /></div></div>
+      </div>
+    </section>
+
+    <button type="button" className="add-course-trigger glass-card" onClick={openCourseCreator} aria-label="Add a new course"><span className="add-course-symbol"><Plus size={20}/></span><span><strong>Add New Course</strong></span><span aria-hidden="true">›</span></button>
+
+    <section className="course-grid" aria-label="Course cards">
+      {courses.map((course)=><div key={course.id} className="course-dashboard-card glass-card">
+        <button className="course-open" onClick={() => openCourse(course.id)}>
+          <span className="course-accent" style={{ background: COURSE_ACCENTS.find((accent) => accent.name === course.color)?.value || COURSE_ACCENTS[0].value }} />
+          <div className="course-copy"><span className="course-label">Course workspace</span><h3>{course.name}</h3><p>{course.description}</p></div>
+          <div className="course-metrics"><span>{course.collections.length} collections</span><span>{course.collections.reduce((sum, c) => sum + c.notes.length, 0)} notes</span></div>
+        </button>
+        <div className="course-actions">
+          <button className="icon-button" onClick={(event) => { event.stopPropagation(); updateCourse({ description: course.description ? '' : 'New course workspace' }); }} aria-label={`Toggle description for ${course.name}`}><Folder size={15}/></button>
+          <button className="icon-button danger" onClick={(event) => { event.stopPropagation(); deleteCourse(course.id); }} aria-label={`Delete ${course.name}`}><Trash2 size={15}/></button>
+        </div>
+      </div>)}
+    </section>
+
+    {courseCreateOpen&&<CourseCreateModal close={closeCourseCreator} name={newCourseName} description={newCourseDescription} color={newCourseColor} setName={setNewCourseName} setDescription={setNewCourseDescription} setColor={setNewCourseColor} submit={addCourse} />}
+    {action&&<ActionModal action={action} close={() => setAction(null)} />}
+    {message&&<p className="message">{message}</p>}
+  </section></main>;
 }
 
 function CourseCreateModal({ close, name, description, color, setName, setDescription, setColor, submit }) {
   return <div className="modal-backdrop" onClick={close}><section className="course-create-modal glass-modal" onClick={(event) => event.stopPropagation()}><button className="modal-close" onClick={close} aria-label="Close"><X size={17}/></button><div className="modal-heading"><span className="eyebrow">New workspace</span><h2>Create New Course</h2><p>Create a new course and start organizing your notes</p></div><form onSubmit={submit} className="course-create-form"><label><span>Course Name</span><input value={name} onChange={(e)=>setName(e.target.value)} placeholder="e.g. Computer Science" autoFocus required /></label><label><span>Description</span><textarea value={description} onChange={(e)=>setDescription(e.target.value)} placeholder="What will you study here?" /></label><div className="course-color-field"><span>Course Color</span><div className="course-color-options" role="group" aria-label="Course Color">{COURSE_ACCENTS.map((accent)=><button key={accent.name} type="button" className={`course-color-swatch ${color===accent.name?'selected':''}`} onClick={()=>setColor(accent.name)} aria-label={`Use ${accent.name} color`}><span style={{background:accent.value}} /></button>)}</div></div><div className="course-form-actions"><button type="button" className="secondary-button" onClick={close}>Cancel</button><button type="submit" className="primary-button">Create Course</button></div></form></section></div>;
 }
 
-function ActionModal({ action, close }) { const details = { study: ['Study Hub', 'CS50 learning session setup and focused review.'], overview: ['Overview', 'Your study progress and activity overview.'], history: ['History', 'Your recent workspace activity will appear here.'], settings: ['Settings', 'Engine, display, and performance settings are available here.'], 'courses-more': ['Course library', 'Select a course to open its details and manage notes or collections.'] }[action]; return <div className="modal-backdrop" onClick={close}><section className="glass-modal" onClick={(event)=>event.stopPropagation()}><button className="modal-close" onClick={close} aria-label="Close"><X size={17}/></button><div className="modal-heading"><span className="eyebrow">Liquid Glass Studio</span><h2>{details?.[0]||'Action'}</h2><p>{details?.[1]||'This workspace action is ready.'}</p></div><button className="primary-button" onClick={close}>Close</button></section></div>; }
+function ActionModal({ action, close }) { const details = { study: ['Study Hub', 'CS50 learning session setup and focused review.'], overview: ['Overview', 'Your study progress and activity overview.'], pomodoro: ['Pomodoro', 'Focus timer and deep-work session controls.'], history: ['History', 'Your recent workspace activity will appear here.'], settings: ['Settings', 'Engine, display, and performance settings are available here.'], 'courses-more': ['Course library', 'Select a course to open its details and manage notes or collections.'] }[action]; return <div className="modal-backdrop" onClick={close}><section className="glass-modal" onClick={(event)=>event.stopPropagation()}><button className="modal-close" onClick={close} aria-label="Close"><X size={17}/></button><div className="modal-heading"><span className="eyebrow">Liquid Glass Studio</span><h2>{details?.[0]||'Action'}</h2><p>{details?.[1]||'This workspace action is ready.'}</p></div><button className="primary-button" onClick={close}>Close</button></section></div>; }
 function CollectionsPage({ course, newCollectionName, setNewCollectionName, addCollection, onBack, openCollection, message }) { return <main className="screen feature-screen collections-page"><section className="full-glass-panel"><header className="feature-header"><button className="back-button" onClick={onBack} aria-label="Back"><ArrowLeft size={20}/></button><div className="header-title"><span className="eyebrow">{course.name}</span><h1>Collections</h1></div></header><form className="top-action-form collection-create-form-inline" onSubmit={addCollection}><input value={newCollectionName} onChange={(e)=>setNewCollectionName(e.target.value)} placeholder="Collection name" aria-label="Collection name" /><button className="collection-add-button" type="submit" aria-label="Add collection"><Plus size={19}/></button></form><div className="collections-list">{course.collections.map((collection,index)=><button key={collection.id} className="glass-list-item" onClick={()=>openCollection(collection.id)}><span className="list-index">{String(index+1).padStart(2,'0')}</span><div className="list-copy"><strong>{collection.title}</strong><span>{collection.notes.length} notes</span></div><span className="collection-count">{collection.notes.length}</span><span className="list-chevron" aria-hidden="true">→</span></button>)}</div>{message&&<p className="message">{message}</p>}</section></main>; }
 function AllCourseNotesPage({ course, onBack, openCollection }) { const noteCount = course.collections.reduce((sum, c) => sum + c.notes.length, 0); return <main className="screen feature-screen collections-page"><section className="full-glass-panel"><header className="feature-header"><button className="back-button" onClick={onBack} aria-label="Back"><ArrowLeft size={20}/></button><div className="header-title"><span className="eyebrow">{course.name}</span><h1>All Notes</h1></div></header><div className="list-summary"><span>{noteCount} notes</span><span>{course.collections.length} collections</span></div>{course.collections.map((collection)=><section key={collection.id} className="notes-group"><h3>{collection.title}</h3>{collection.notes.map((note)=><button key={note.id} className="glass-list-item" onClick={()=>openCollection(collection.id)}><span className="list-index">•</span><div className="list-copy"><strong>{note.title}</strong><span>{collection.title}</span></div><span className="list-chevron" aria-hidden="true">→</span></button>)}</section>)}</section></main>;
 }
