@@ -55,6 +55,9 @@ export default function App() {
   const [action, setAction] = useState(null);
   const latestCoursesRef = useRef(courses);
   const workspaceMutationQueueRef = useRef(Promise.resolve());
+  const currentUserIdRef = useRef(null);
+  const hydrationGenerationRef = useRef(0);
+  const hydratedUserIdRef = useRef(null);
 
   useEffect(() => { latestCoursesRef.current = courses; }, [courses]);
 
@@ -64,12 +67,22 @@ export default function App() {
 
     const hydrate = async (nextSession) => {
       if (!active) return;
+      const nextUserId = nextSession?.user?.id ? String(nextSession.user.id) : 'anonymous';
+      const hydrationGeneration = ++hydrationGenerationRef.current;
+      currentUserIdRef.current = nextUserId;
       setSession(nextSession);
       setWorkspaceReady(false);
 
-      if (!nextSession?.user?.id) {
-        latestCoursesRef.current = readLocalWorkspace('anonymous') || INITIAL_COURSES;
-        setCourses(latestCoursesRef.current);
+      // Do not allow an in-flight mutation from another account/session to continue
+      // into the new account's React state.
+      if (nextUserId !== hydratedUserIdRef.current) {
+        hydratedUserIdRef.current = nextUserId;
+      }
+
+      if (nextUserId === 'anonymous') {
+        const local = readLocalWorkspace('anonymous') || INITIAL_COURSES;
+        latestCoursesRef.current = local;
+        setCourses(local);
         setSelectedCourseId(null);
         setSelectedCollectionId(null);
         setSelectedNoteId(null);
@@ -80,20 +93,19 @@ export default function App() {
       }
 
       try {
-        const cloud = await loadCloudWorkspace(nextSession.user.id);
-        if (!active) return;
+        const cloud = await loadCloudWorkspace(nextUserId);
+        if (!active || hydrationGeneration !== hydrationGenerationRef.current || currentUserIdRef.current !== nextUserId) return;
         if (cloud) {
           latestCoursesRef.current = cloud;
           setCourses(cloud);
         }
         setWorkspaceReady(true);
       } catch (error) {
-        if (!active) return;
-        // Keep the already-loaded local workspace visible when cloud hydration fails.
+        if (!active || hydrationGeneration !== hydrationGenerationRef.current || currentUserIdRef.current !== nextUserId) return;
         setWorkspaceReady(true);
         setMessage(`Workspace sync unavailable: ${error.message}`);
       } finally {
-        if (active) setLoading(false);
+        if (active && hydrationGeneration === hydrationGenerationRef.current && currentUserIdRef.current === nextUserId) setLoading(false);
       }
     };
 
@@ -112,8 +124,10 @@ export default function App() {
     };
 
     const { data: listener } = supabase.auth.onAuthStateChange((event, nextSession) => {
-      // INITIAL_SESSION is handled by getSession() so the app performs one hydration path.
       if (event === 'INITIAL_SESSION') return;
+      const nextUserId = nextSession?.user?.id ? String(nextSession.user.id) : 'anonymous';
+      // Token refreshes and unrelated auth events do not need to rehydrate the whole workspace.
+      if (event !== 'SIGNED_IN' && event !== 'SIGNED_OUT' && event !== 'USER_UPDATED' && nextUserId === currentUserIdRef.current) return;
       void hydrate(nextSession);
     });
 
@@ -145,30 +159,42 @@ export default function App() {
   const setPerformanceMode = (mode) => setSetting('performance', mode);
   const selectedCourse = useMemo(() => courses.find((course) => course.id === selectedCourseId) || null, [courses, selectedCourseId]);
   const selectedCollection = useMemo(() => selectedCourse?.collections.find((collection) => collection.id === selectedCollectionId) || null, [selectedCourse, selectedCollectionId]);
-  const selectedNote = useMemo(() => selectedCollection?.notes.find((note) => note.id === selectedNoteId) || null, [selectedCollection, selectedNoteId]);
+  const selectedNote = useMemo(() => selectedCollection?.notes.find((item) => item.id === selectedNoteId) || null, [selectedCollection, selectedNoteId]);
   const totalNotes = courses.reduce((sum, course) => sum + course.collections.reduce((inner, collection) => inner + collection.notes.length, 0), 0);
 
-  const persistWorkspace = async (nextCourses) => {
-    const userId = session?.user?.id || 'anonymous';
-    latestCoursesRef.current = nextCourses;
-    writeLocalWorkspace(nextCourses, userId);
-    setCourses(nextCourses);
-    if (!session?.user?.id || !supabase) return;
-    try {
-      await saveCloudWorkspace(session.user.id, nextCourses);
-      clearLocalWorkspaceDirtyFlag(session.user.id);
-    } catch (error) {
-      // The local copy remains intact and marked dirty for a later retry.
-      setMessage(`Cloud save failed: ${error.message}`);
-      throw error;
+  const persistWorkspace = async (nextCourses, userId) => {
+    const expectedUserId = String(userId || 'anonymous');
+    writeLocalWorkspace(nextCourses, expectedUserId);
+
+    if (expectedUserId !== 'anonymous' && (!session?.user?.id || String(session.user.id) !== expectedUserId)) {
+      throw new Error('Workspace session changed before the mutation could be committed.');
+    }
+
+    if (expectedUserId !== 'anonymous' && supabase) {
+      try {
+        await saveCloudWorkspace(expectedUserId, nextCourses);
+        clearLocalWorkspaceDirtyFlag(expectedUserId);
+      } catch (error) {
+        setMessage(`Cloud save failed: ${error.message}`);
+        throw error;
+      }
+    }
+
+    if (currentUserIdRef.current === expectedUserId) {
+      latestCoursesRef.current = nextCourses;
+      setCourses(nextCourses);
     }
   };
 
   const runWorkspaceMutation = (mutator) => {
+    const mutationUserId = String(session?.user?.id || 'anonymous');
     const execute = workspaceMutationQueueRef.current.catch(() => {}).then(async () => {
+      if (String(currentUserIdRef.current || 'anonymous') !== mutationUserId) {
+        throw new Error('Workspace session changed before the queued mutation started.');
+      }
       const current = latestCoursesRef.current;
       const nextCourses = mutator(current);
-      await persistWorkspace(nextCourses);
+      await persistWorkspace(nextCourses, mutationUserId);
       return nextCourses;
     });
     workspaceMutationQueueRef.current = execute.catch(() => {});
@@ -221,14 +247,14 @@ function AuthScreen({ email, password, setEmail, setPassword, busy, message, sig
 
 function Dashboard({ courses, totalNotes, performance, setPerformanceMode, settings, setSetting, resetEngineSettings, openCourseCreator, openCourseFolders, openCourse, deleteCourse, updateCourse, action, setAction, message, courseCreateOpen, closeCourseCreator, newCourseName, newCourseDescription, newCourseColor, setNewCourseName, setNewCourseDescription, setNewCourseColor, addCourse, onLogout }) {
   const greeting = settings.displayName ? `Welcome back, ${settings.displayName}!` : 'Welcome back!';
-  return <main className="screen dashboard-screen"><section className="dashboard-shell"><header className="dashboard-header glass-card"><div className="dashboard-copy"><span className="eyebrow">Liquid Glass Studio</span><h1>{greeting}</h1><p>Select a course folder to access your workspace</p></div><div className="dashboard-controls"><div className="performance-control glass-inner"><Zap size={15} /><span>Performance</span><button className={performance === 'high' ? 'toggle-active' : ''} onClick={() => setPerformanceMode('high')}>High</button><button className={performance === 'ultra' ? 'toggle-active' : ''} onClick={() => setPerformanceMode('ultra')}>Ultra</button></div><button className="icon-button" onClick={() => setSetting('theme', settings.theme === 'light' ? 'dark' : 'light')} aria-label={settings.theme === 'light' ? 'Switch to dark theme' : 'Switch to light theme'}>{settings.theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}</button><button className="icon-button" onClick={() => setAction('settings')} aria-label="Engine settings"><Settings2 size={18} /></button><button className="icon-button" onClick={onLogout} aria-label="Account"><User size={18} /></button></div></header><div className="quick-actions"><ActionCard settings={settings} icon={<BookOpen size={22} />} title="Study Hub" text="CS50 lectures" onClick={() => setAction('study')} /><ActionCard settings={settings} icon={<History size={22} />} title="Overview" text="All study tools and progress" onClick={() => setAction('overview')} /></div><div className="section-heading"><div><span className="heading-dot" /><h2>Course Folders</h2></div><button className="view-all-button" data-dashboard-courses type="button" onClick={openCourseFolders}>View All <span>→</span></button><span className="note-total">{totalNotes} total notes</span></div><button className="glass-card add-course-trigger" type="button" onClick={openCourseCreator}><span className="add-course-symbol"><Plus size={20} /></span><span><strong>Add New Course</strong><small>Create a course folder and customize its details.</small></span><span className="action-arrow">›</span></button><div className="course-grid">{courses.map((course) => <CourseDashboardCard key={course.id} course={course} settings={settings} onOpen={() => openCourse(course.id)} onDelete={() => deleteCourse(course.id)} onUpdate={updateCourse} />)}</div>{message && <p className="message">{message}</p>}{action === 'settings' && <EngineSettingsModal settings={settings} setSetting={setSetting} reset={resetEngineSettings} close={() => setAction(null)} />}{action && action !== 'settings' && <ActionModal action={action} close={() => setAction(null)} />}{courseCreateOpen && <CourseCreateModal close={closeCourseCreator} name={newCourseName} description={newCourseDescription} color={newCourseColor} setName={setNewCourseName} setDescription={setNewCourseDescription} setColor={setNewCourseColor} submit={addCourse} />}</section></main>;
+  return <main className="screen dashboard-screen"><section className="dashboard-shell"><header className="dashboard-header glass-card"><div className="dashboard-copy"><span className="eyebrow">Liquid Glass Studio</span><h1>{greeting}</h1><p>Select a course folder to access your workspace</p></div><div className="dashboard-controls"><div className="performance-control glass-inner"><Zap size={15} /><span>Performance</span><button className={performance === 'high' ? 'toggle-active' : ''} onClick={() => setPerformanceMode('high')}>High</button><button className={performance === 'ultra' ? 'toggle-active' : ''} onClick={() => setPerformanceMode('ultra')}>Ultra</button></div><button className="icon-button" onClick={() => setSetting('theme', settings.theme === 'light' ? 'dark' : 'light')} aria-label={settings.theme === 'light' ? 'Switch to dark theme' : 'Switch to light theme'}>{settings.theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}</button><button className="icon-button" onClick={() => setAction('history')} aria-label="History"><History size={18} /></button><button className="icon-button" onClick={() => setAction('settings')} aria-label="Settings"><Settings2 size={18} /></button></div></header><section className="quick-actions">{[['study','Study Session',Sparkles],['overview','Overview',BookOpen],['history','History',History],['settings','Settings',Settings2]].map(([key,label,Icon])=><button key={key} className="action-card glass-card" onClick={() => setAction(key)}><span className="action-icon"><Icon size={18}/></span><div><strong>{label}</strong><span>{key==='study'?'Focus with guided sessions':key==='overview'?'Track your progress':key==='history'?'Review activity':'Manage your engine'}</span></div></button>)}</section><section className="section-heading"><div><span className="eyebrow">Course library</span><h2>Your courses</h2></div><button className="view-all-button" onClick={openCourseFolders}>View all <span aria-hidden="true">→</span></button></section><section className="course-grid">{courses.map((course)=><div key={course.id} className="course-dashboard-card glass-card"><button className="course-open" onClick={() => openCourse(course.id)}><span className="course-accent" style={{ background: COURSE_ACCENTS.find((accent) => accent.name === course.color)?.value || COURSE_ACCENTS[0].value }} /><div className="course-copy"><span className="course-label">Course workspace</span><h3>{course.name}</h3><p>{course.description}</p></div><div className="course-metrics"><span>{course.collections.length} collections</span><span>{course.collections.reduce((sum, c) => sum + c.notes.length, 0)} notes</span></div></button><div className="course-actions"><button className="icon-button" onClick={() => updateCourse({ description: course.description ? '' : 'New course workspace' })} aria-label={`Toggle description for ${course.name}`}><Folder size={15}/></button><button className="icon-button danger" onClick={() => deleteCourse(course.id)} aria-label={`Delete ${course.name}`}><Trash2 size={15}/></button></div></div>)}</section>{courseCreateOpen&&<CourseCreateModal close={closeCourseCreator} name={newCourseName} description={newCourseDescription} color={newCourseColor} setName={setNewCourseName} setDescription={setNewCourseDescription} setColor={setNewCourseColor} submit={addCourse} />}{action&&<ActionModal action={action} close={() => setAction(null)} />}{message&&<p className="message">{message}</p>}</section></main>;
 }
-function ActionCard({ settings, icon, title, text, onClick }) { const gel = settings.liquidGel / 100; const spring = { type: 'spring', stiffness: settings.bounceStiffness, damping: settings.bounceDamping, mass: 0.6 + gel / 140 }; return <motion.button className="glass-card action-card" onClick={onClick} whileHover={{ scale: 1.025, y: -4 }} whileTap={{ scale: 0.96 }} transition={spring}><span className="action-icon">{icon}</span><span><strong>{title}</strong><small>{text}</small></span><span className="action-arrow">›</span></motion.button>; }
-function CourseDashboardCard({ settings, course, onOpen, onDelete, onUpdate }) { const noteCount = course.collections.reduce((sum, collection) => sum + collection.notes.length, 0); const accent = COURSE_ACCENTS.find((item) => item.name === course.color)?.value || COURSE_ACCENTS[0].value; const gel = settings.liquidGel / 100; const spring = { type: 'spring', stiffness: settings.bounceStiffness, damping: settings.bounceDamping, mass: 0.6 + gel / 140 }; return <motion.article className="glass-card course-dashboard-card" style={{ '--course-accent': accent }} whileHover={{ scale: 1.03, y: -6 }} whileTap={{ scale: 0.97 }} transition={spring}><button className="course-open" onClick={onOpen}><div className="course-top"><span className="folder-icon"><Folder size={20} /></span><span className="note-pill"><FileText size={12} />{noteCount} {noteCount === 1 ? 'note' : 'notes'}</span></div><div className="course-copy"><h3>{course.name}</h3><span className="course-color">{course.color}</span><p>{course.description}</p></div><div className="course-footer"><span>{course.progress ? `${course.progress}% complete` : 'No notes yet'}</span><span>Open course ›</span></div></button><button className="delete-course" onClick={(event) => { event.stopPropagation(); if (window.confirm(`Delete ${course.name}?`)) onDelete(); }} aria-label={`Delete ${course.name}`}><Trash2 size={15} /></button></motion.article>; }
+
 function CourseCreateModal({ close, name, description, color, setName, setDescription, setColor, submit }) {
-  return <div className="modal-backdrop course-create-backdrop" onClick={close}><section className="glass-modal course-create-modal" onClick={(event) => event.stopPropagation()}><button className="modal-close" onClick={close} aria-label="Close"><X size={21} /></button><h2>Add New Course</h2><p>Create a new course and start organizing your notes</p><form onSubmit={submit} className="course-create-form"><label><span>Course Name</span><input value={name} onChange={(event) => setName(event.target.value)} placeholder="e.g. Computer Science" autoFocus required /></label><label className="course-description-field"><span>Description (optional)</span><textarea value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Brief description of your course..." rows={3} maxLength={200} /><small className="description-count">{description.length}/200</small></label><div className="course-form-row"><span className="course-form-label">Accent Color</span><div className="accent-options">{COURSE_ACCENTS.map((accent) => <button key={accent.name} type="button" aria-label={accent.name} onClick={() => setColor(accent.name)} className={`accent-swatch ${color === accent.name ? 'accent-selected' : ''}`} style={{ '--accent-value': accent.value }}><span className="accent-swatch-orb" /><span className="accent-swatch-name">{accent.name[0].toUpperCase() + accent.name.slice(1)}</span></button>)}</div></div><div className="course-form-actions"><button type="submit" className="primary-button create-course-submit">Create Course <span aria-hidden="true">→</span></button></div></form></section></div>;
+  return <div className="modal-backdrop" onClick={close}><section className="course-create-modal glass-modal" onClick={(event) => event.stopPropagation()}><button className="modal-close" onClick={close} aria-label="Close"><X size={17}/></button><div className="modal-heading"><span className="eyebrow">New workspace</span><h2>Create New Course</h2><p>Create a new course and start organizing your notes</p></div><form onSubmit={submit} className="course-create-form"><label><span>Course Name</span><input value={name} onChange={(e)=>setName(e.target.value)} placeholder="e.g. Computer Science" autoFocus required /></label><label><span>Description</span><textarea value={description} onChange={(e)=>setDescription(e.target.value)} placeholder="What will you study here?" /></label><div className="course-color-field"><span>Course Color</span><div className="course-color-options" role="group" aria-label="Course Color">{COURSE_ACCENTS.map((accent)=><button key={accent.name} type="button" className={`course-color-swatch ${color===accent.name?'selected':''}`} onClick={()=>setColor(accent.name)} aria-label={`Use ${accent.name} color`}><span style={{background:accent.value}} /></button>)}</div></div><div className="course-form-actions"><button type="button" className="secondary-button" onClick={close}>Cancel</button><button type="submit" className="primary-button">Create Course</button></div></form></section></div>;
 }
-function ActionModal({ action, close }) { const details = { study: ['Study Hub', 'CS50 lectures and study workspace will open here.'], overview: ['Overview', 'Your study tools, progress and activity overview will appear here.'], theme: ['Theme', 'Liquid Glass appearance controls are available from Engine Settings.'], settings: ['Engine Settings', 'Liquid density, gel, bounce and display controls are available here.'], 'course-more': ['Course actions', 'Use Edit or Delete from the course header to manage this course.'], 'courses-more': ['Course library', 'Select a course to open its details and manage notes or collections.'] }[action]; return <div className="modal-backdrop" onClick={close}><section className="glass-modal" onClick={(e) => e.stopPropagation()}><button className="modal-close" onClick={close} aria-label="Close"><X size={18} /></button><span className="modal-symbol"><Sparkles size={22} /></span><h2>{details[0]}</h2><p>{details[1]}</p><button className="primary-button" onClick={close}>Close</button></section></div>; }
-function CollectionsPage({ course, newCollectionName, setNewCollectionName, addCollection, onBack, openCollection, message }) { return <main className="screen feature-screen"><section className="full-glass-panel"><header className="feature-header centered-header"><button className="back-button" onClick={onBack} aria-label="Back">‹</button><div className="header-title"><span className="eyebrow">{course.name}</span><h1>Collections</h1></div></header><form className="top-action-form collection-create-form-inline" onSubmit={addCollection}><input value={newCollectionName} onChange={(e) => setNewCollectionName(e.target.value)} placeholder="Collection name" aria-label="Collection name" /><button className="collection-add-button" type="submit" aria-label="Create collection"><Plus size={18} /></button></form><div className="collections-list">{course.collections.map((collection, index) => <button className="glass-list-item" key={collection.id} onClick={() => openCollection(collection.id)}><span className="list-index">{String(index + 1).padStart(2, '0')}</span><span className="list-copy"><strong>{collection.title}</strong><span>{collection.description}</span></span><span className="collection-count">{collection.notes.length} notes</span><span className="list-arrow">›</span></button>)}</div>{message && <p className="message">{message}</p>}</section></main>; }
-function AllCourseNotesPage({ course, onBack, openCollection }) { const noteCount = course.collections.reduce((sum, collection) => sum + collection.notes.length, 0); return <main className="screen feature-screen"><section className="full-glass-panel"><header className="feature-header centered-header"><button className="back-button" onClick={onBack} aria-label="Back to course"><History size={18} /></button><div className="header-title"><span className="eyebrow">{course.name}</span><h1>All Notes</h1></div></header><div className="section-heading course-section-heading"><div><span className="heading-dot" /><h2>Course notes</h2></div><span className="note-total">{noteCount} total</span></div><div className="notes-list">{course.collections.map((collection, index) => <button className="glass-list-item" key={collection.id} onClick={() => openCollection(collection.id)}><span className="list-index">{String(index + 1).padStart(2, '0')}</span><span className="list-copy"><strong>{collection.title}</strong><span>{collection.notes.length} notes · Open collection</span></span><span className="collection-count">{collection.notes.length}</span><span className="list-arrow">›</span></button>)}</div></section></main>; }
-function EditorPage({ course, collection, note, content, setContent, onBack, onSave, message }) { return <main className="screen feature-screen"><section className="full-glass-panel editor-panel"><header className="feature-header"><button className="back-button" onClick={onBack} aria-label="Back"><ArrowLeft size={18} /></button><div><span className="eyebrow">{course.name} · {collection.title}</span><h1>{note?.title || 'New note'}</h1></div><button className="primary-button compact-button" onClick={onSave}>Save</button></header><div className="editor-layout"><section className="editor-surface glass-inner"><span className="section-label">Editor</span><textarea value={content} onChange={(e) => setContent(e.target.value)} placeholder="Write your note here…" /></section><section className="preview-surface glass-inner"><span className="section-label">Preview</span><article className="note-preview">{content ? <p>{content}</p> : <p className="empty-preview">Your note preview will appear here.</p>}</article></section></div>{message && <p className="message">{message}</p>}</section></main>; }
+
+function ActionModal({ action, close }) { const details = { study: ['Study Hub', 'CS50 learning session setup and focused review.'], overview: ['Overview', 'Your study progress and activity overview.'], history: ['History', 'Your recent workspace activity will appear here.'], settings: ['Settings', 'Engine, display, and performance settings are available here.'], 'courses-more': ['Course library', 'Select a course to open its details and manage notes or collections.'] }[action]; return <div className="modal-backdrop" onClick={close}><section className="glass-modal" onClick={(event)=>event.stopPropagation()}><button className="modal-close" onClick={close} aria-label="Close"><X size={17}/></button><div className="modal-heading"><span className="eyebrow">Liquid Glass Studio</span><h2>{details?.[0]||'Action'}</h2><p>{details?.[1]||'This workspace action is ready.'}</p></div><button className="primary-button" onClick={close}>Close</button></section></div>; }
+function CollectionsPage({ course, newCollectionName, setNewCollectionName, addCollection, onBack, openCollection, message }) { return <main className="screen feature-screen collections-page"><section className="full-glass-panel"><header className="feature-header"><button className="back-button" onClick={onBack} aria-label="Back"><ArrowLeft size={20}/></button><div className="header-title"><span className="eyebrow">{course.name}</span><h1>Collections</h1></div></header><form className="top-action-form collection-create-form-inline" onSubmit={addCollection}><input value={newCollectionName} onChange={(e)=>setNewCollectionName(e.target.value)} placeholder="Collection name" aria-label="Collection name" /><button className="collection-add-button" type="submit" aria-label="Add collection"><Plus size={19}/></button></form><div className="collections-list">{course.collections.map((collection,index)=><button key={collection.id} className="glass-list-item" onClick={()=>openCollection(collection.id)}><span className="list-index">{String(index+1).padStart(2,'0')}</span><div className="list-copy"><strong>{collection.title}</strong><span>{collection.notes.length} notes</span></div><span className="collection-count">{collection.notes.length}</span><span className="list-chevron" aria-hidden="true">→</span></button>)}</div>{message&&<p className="message">{message}</p>}</section></main>; }
+function AllCourseNotesPage({ course, onBack, openCollection }) { const noteCount = course.collections.reduce((sum, c) => sum + c.notes.length, 0); return <main className="screen feature-screen collections-page"><section className="full-glass-panel"><header className="feature-header"><button className="back-button" onClick={onBack} aria-label="Back"><ArrowLeft size={20}/></button><div className="header-title"><span className="eyebrow">{course.name}</span><h1>All Notes</h1></div></header><div className="list-summary"><span>{noteCount} notes</span><span>{course.collections.length} collections</span></div>{course.collections.map((collection)=><section key={collection.id} className="notes-group"><h3>{collection.title}</h3>{collection.notes.map((note)=><button key={note.id} className="glass-list-item" onClick={()=>openCollection(collection.id)}><span className="list-index">•</span><div className="list-copy"><strong>{note.title}</strong><span>{collection.title}</span></div><span className="list-chevron" aria-hidden="true">→</span></button>)}</section>)}</section></main>;
+}
