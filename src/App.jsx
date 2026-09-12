@@ -10,7 +10,7 @@ import CourseFolderPage from './CourseFolderPage.jsx';
 import CollectionWorkspace from './CollectionWorkspace.jsx';
 import EngineSettingsModal from './EngineSettingsModal.jsx';
 import useEngineSettings from './useEngineSettings.js';
-import { deleteCloudCourse, deleteCloudNote, loadCloudWorkspace, readLocalWorkspace, saveCloudWorkspace, writeLocalWorkspace } from './cloudWorkspace.js';
+import { clearLocalWorkspaceDirtyFlag, deleteCloudCourse, deleteCloudNote, loadCloudWorkspace, readLocalWorkspace, saveCloudWorkspace, writeLocalWorkspace } from './cloudWorkspace.js';
 
 const ICON = '/icon.svg';
 const SKIP_AUTH_KEY = 'mobile-liquid-glass-skip-auth';
@@ -61,40 +61,65 @@ export default function App() {
   useEffect(() => {
     if (!supabase) { setWorkspaceReady(true); setLoading(false); return undefined; }
     let active = true;
-    supabase.auth.getSession().then(async ({ data }) => {
+
+    const hydrate = async (nextSession) => {
       if (!active) return;
-      setSession(data.session);
-      if (data.session?.user?.id) {
-        try {
-          const cloud = await loadCloudWorkspace(data.session.user.id);
-          if (active && cloud) { latestCoursesRef.current = cloud; setCourses(cloud); }
-          if (active) setWorkspaceReady(true);
-        } catch (error) {
-          if (active) { setMessage(`Workspace sync unavailable: ${error.message}`); setWorkspaceReady(true); }
-        }
-      } else if (active) setWorkspaceReady(true);
-      if (active) setLoading(false);
-    }).catch((error) => {
-      if (active) { setWorkspaceReady(true); setLoading(false); setMessage(`Authentication check failed: ${error.message}`); }
-    });
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       setSession(nextSession);
       setWorkspaceReady(false);
+
+      if (!nextSession?.user?.id) {
+        latestCoursesRef.current = readLocalWorkspace('anonymous') || INITIAL_COURSES;
+        setCourses(latestCoursesRef.current);
+        setSelectedCourseId(null);
+        setSelectedCollectionId(null);
+        setSelectedNoteId(null);
+        setPage('workspace');
+        setWorkspaceReady(true);
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const cloud = await loadCloudWorkspace(nextSession.user.id);
+        if (!active) return;
+        if (cloud) {
+          latestCoursesRef.current = cloud;
+          setCourses(cloud);
+        }
+        setWorkspaceReady(true);
+      } catch (error) {
+        if (!active) return;
+        // Keep the already-loaded local workspace visible when cloud hydration fails.
+        setWorkspaceReady(true);
+        setMessage(`Workspace sync unavailable: ${error.message}`);
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+
+    const initialize = async () => {
+      try {
+        const { data, error } = await supabase.auth.getSession();
+        if (error) throw error;
+        await hydrate(data.session);
+      } catch (error) {
+        if (active) {
+          setWorkspaceReady(true);
+          setLoading(false);
+          setMessage(`Authentication check failed: ${error.message}`);
+        }
+      }
+    };
+
+    const { data: listener } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      // INITIAL_SESSION is handled by getSession() so the app performs one hydration path.
+      if (event === 'INITIAL_SESSION') return;
+      void hydrate(nextSession);
     });
+
+    void initialize();
     return () => { active = false; listener.subscription.unsubscribe(); };
   }, []);
-
-  useEffect(() => {
-    if (!supabase || !session?.user?.id || !workspaceReady) return undefined;
-    let active = true;
-    loadCloudWorkspace(session.user.id).then((cloud) => {
-      if (!active) return;
-      if (cloud) { latestCoursesRef.current = cloud; setCourses(cloud); }
-    }).catch((error) => {
-      if (active) setMessage(`Workspace reload failed: ${error.message}`);
-    });
-    return () => { active = false; };
-  }, [session?.user?.id, workspaceReady]);
 
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return undefined;
@@ -124,12 +149,19 @@ export default function App() {
   const totalNotes = courses.reduce((sum, course) => sum + course.collections.reduce((inner, collection) => inner + collection.notes.length, 0), 0);
 
   const persistWorkspace = async (nextCourses) => {
+    const userId = session?.user?.id || 'anonymous';
     latestCoursesRef.current = nextCourses;
-    writeLocalWorkspace(nextCourses);
+    writeLocalWorkspace(nextCourses, userId);
     setCourses(nextCourses);
     if (!session?.user?.id || !supabase) return;
-    try { await saveCloudWorkspace(session.user.id, nextCourses); }
-    catch (error) { setMessage(`Cloud save failed: ${error.message}`); throw error; }
+    try {
+      await saveCloudWorkspace(session.user.id, nextCourses);
+      clearLocalWorkspaceDirtyFlag(session.user.id);
+    } catch (error) {
+      // The local copy remains intact and marked dirty for a later retry.
+      setMessage(`Cloud save failed: ${error.message}`);
+      throw error;
+    }
   };
 
   const runWorkspaceMutation = (mutator) => {
