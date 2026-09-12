@@ -1,0 +1,26 @@
+name: Restore original dashboard stylesheet
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  restore:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Restore dashboard-phase1.css from ce8e8d7
+        run: |
+          git show ce8e8d7a60874ce060e66906e2d47fd00bfd55d9:public/dashboard-phase1.css > public/dashboard-phase1.css
+          rm -f .github/workflows/restore-dashboard-css.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/dashboard-phase1.css .github/workflows/restore-dashboard-css.yml
+          git commit -m "fix: restore original dashboard stylesheet from ce8e8d7"
+          git push origin HEAD:main
