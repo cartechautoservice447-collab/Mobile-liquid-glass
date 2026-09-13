@@ -51,11 +51,19 @@ export function getMobileWebAuthRedirect() {
 
 if (supabase) {
   const originalSignInWithOAuth = supabase.auth.signInWithOAuth.bind(supabase.auth);
-  supabase.auth.signInWithOAuth = async (options = {}) => originalSignInWithOAuth({
-    ...options,
-    options: {
-      ...(options.options || {}),
-      redirectTo: getMobileWebAuthRedirect(),
-    },
-  });
+  supabase.auth.signInWithOAuth = async (options = {}) => {
+    const requestedRedirectTo = options?.options?.redirectTo;
+    const browserOrigin = typeof window !== 'undefined' ? window.location.origin : '';
+    const redirectTo = requestedRedirectTo && requestedRedirectTo !== browserOrigin
+      ? requestedRedirectTo
+      : getMobileWebAuthRedirect();
+
+    return originalSignInWithOAuth({
+      ...options,
+      options: {
+        ...(options.options || {}),
+        redirectTo,
+      },
+    });
+  };
 }
