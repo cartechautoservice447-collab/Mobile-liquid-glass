@@ -10,6 +10,11 @@ export const MOBILE_WEB_AUTH_ORIGIN = 'https://mobile-liquid-glass.vercel.app';
 export const MOBILE_WEB_AUTH_REDIRECT = `${MOBILE_WEB_AUTH_ORIGIN}/auth/callback`;
 export const MOBILE_NATIVE_AUTH_REDIRECT = 'com.liquidglass.studio://auth/callback';
 
+function isNativeCapacitorApp() {
+  if (typeof window === 'undefined') return false;
+  return Boolean(window.Capacitor?.isNativePlatform?.());
+}
+
 function createSupabaseFetch(supabaseKey) {
   return (input, init) => {
     const headers = new Headers(
@@ -45,9 +50,12 @@ export const supabase = isSupabaseConfigured
 
 export function getMobileWebAuthRedirect() {
   if (typeof window === 'undefined') return MOBILE_WEB_AUTH_REDIRECT;
-  const origin = window.location.origin;
-  const isLocal = /^(https?:\/\/localhost(?::\d+)?|https?:\/\/127\.0\.0\.1(?::\d+)?)$/i.test(origin);
-  return isLocal ? `${origin}/auth/callback` : MOBILE_WEB_AUTH_REDIRECT;
+  if (isNativeCapacitorApp()) return MOBILE_NATIVE_AUTH_REDIRECT;
+
+  // Keep OAuth on the exact browser origin where it started. This is important
+  // for Vercel preview deployments because the PKCE verifier is stored on the
+  // browser origin and must survive the Google -> callback round trip.
+  return `${window.location.origin}/auth/callback`;
 }
 
 if (supabase) {
