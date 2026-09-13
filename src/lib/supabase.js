@@ -6,7 +6,8 @@ import { createClient } from '@supabase/supabase-js';
 export const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://asgwpmsuutigtvaxuxmr.supabase.co';
 export const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_fi3mpoY8ZrymYbnxdpREYw_hnUmTYxG';
 
-export const MOBILE_WEB_AUTH_ORIGIN = 'https://mobile-liquid-glass.vercel.app';
+// This is the exact public website the mobile login must return to.
+export const MOBILE_WEB_AUTH_ORIGIN = 'https://id-glass.vercel.app';
 export const MOBILE_WEB_AUTH_REDIRECT = `${MOBILE_WEB_AUTH_ORIGIN}/auth/callback`;
 export const MOBILE_NATIVE_AUTH_REDIRECT = 'com.liquidglass.studio://auth/callback';
 
@@ -52,10 +53,10 @@ export function getMobileWebAuthRedirect() {
   if (typeof window === 'undefined') return MOBILE_WEB_AUTH_REDIRECT;
   if (isNativeCapacitorApp()) return MOBILE_NATIVE_AUTH_REDIRECT;
 
-  // Keep OAuth on the exact browser origin where it started. This is important
-  // for Vercel preview deployments because the PKCE verifier is stored on the
-  // browser origin and must survive the Google -> callback round trip.
-  return `${window.location.origin}/auth/callback`;
+  // Production web authentication always returns to the exact mobile website.
+  // This prevents Supabase's Site URL from sending the user to the desktop
+  // fluid-glass-studio deployment after Google authentication.
+  return MOBILE_WEB_AUTH_REDIRECT;
 }
 
 if (supabase) {
