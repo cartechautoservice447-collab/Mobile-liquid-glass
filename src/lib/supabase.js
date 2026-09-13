@@ -1,13 +1,20 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Mobile-liquid-glass intentionally uses the exact same Supabase backend as
-// fluid-glass-studio. Do not override this with a second project at runtime.
-export const SUPABASE_URL = 'https://asgwpmsuutigtvaxuxmr.supabase.co';
-export const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_fi3mpoY8ZrymYbnxdpREYw_hnUmTYxG';
+// Exact same Supabase project and public publishable key used by fluid-glass-studio.
+// Prefer Vercel environment variables, but keep the same public fallbacks as the
+// reference project so hosted builds remain connected when VITE_* is not injected.
+export const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://asgwpmsuutigtvaxuxmr.supabase.co';
+export const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_fi3mpoY8ZrymYbnxdpREYw_hnUmTYxG';
 
-export const MOBILE_WEB_AUTH_ORIGIN = 'https://mobile-liquid-glass.vercel.app';
+// This is the exact public website the mobile login must return to.
+export const MOBILE_WEB_AUTH_ORIGIN = 'https://id-glass.vercel.app';
 export const MOBILE_WEB_AUTH_REDIRECT = `${MOBILE_WEB_AUTH_ORIGIN}/auth/callback`;
 export const MOBILE_NATIVE_AUTH_REDIRECT = 'com.liquidglass.studio://auth/callback';
+
+function isNativeCapacitorApp() {
+  if (typeof window === 'undefined') return false;
+  return Boolean(window.Capacitor?.isNativePlatform?.());
+}
 
 function createSupabaseFetch(supabaseKey) {
   return (input, init) => {
@@ -44,9 +51,12 @@ export const supabase = isSupabaseConfigured
 
 export function getMobileWebAuthRedirect() {
   if (typeof window === 'undefined') return MOBILE_WEB_AUTH_REDIRECT;
-  const origin = window.location.origin;
-  const isLocal = /^(https?:\/\/localhost(?::\d+)?|https?:\/\/127\.0\.0\.1(?::\d+)?)$/i.test(origin);
-  return isLocal ? `${origin}/auth/callback` : MOBILE_WEB_AUTH_REDIRECT;
+  if (isNativeCapacitorApp()) return MOBILE_NATIVE_AUTH_REDIRECT;
+
+  // Production web authentication always returns to the exact mobile website.
+  // This prevents Supabase's Site URL from sending the user to the desktop
+  // fluid-glass-studio deployment after Google authentication.
+  return MOBILE_WEB_AUTH_REDIRECT;
 }
 
 if (supabase) {
