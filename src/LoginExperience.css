@@ -1,0 +1,26 @@
+/* Premium Liquid Glass login layer. Preserves the existing auth-card hook and all Supabase actions. */
+.app-root-layer .auth-card{position:relative;isolation:isolate;width:min(94vw,470px)!important;margin:0 auto;padding:clamp(28px,5vw,46px)!important;border:1px solid rgba(255,255,255,.22)!important;border-radius:34px!important;background:radial-gradient(circle at 15% 0%,rgba(125,211,252,.20),transparent 34%),radial-gradient(circle at 90% 12%,rgba(168,85,247,.18),transparent 32%),linear-gradient(145deg,rgba(255,255,255,.16),rgba(255,255,255,.055))!important;box-shadow:0 40px 90px rgba(0,0,0,.34),inset 0 1px 0 rgba(255,255,255,.22),inset 0 -1px 0 rgba(255,255,255,.07)!important;backdrop-filter:blur(34px) saturate(150%);-webkit-backdrop-filter:blur(34px) saturate(150%);overflow:hidden}
+.app-root-layer .auth-card:before{content:'';position:absolute;inset:0;z-index:-2;pointer-events:none;background:radial-gradient(circle at 10% 90%,rgba(96,165,250,.15),transparent 27%),radial-gradient(circle at 86% 82%,rgba(192,132,252,.13),transparent 30%)}
+.app-root-layer .auth-card:after{content:'';position:absolute;top:-120px;right:-80px;width:270px;height:270px;border-radius:50%;z-index:-1;pointer-events:none;background:radial-gradient(circle,rgba(255,255,255,.13),transparent 70%);filter:blur(8px)}
+.app-root-layer .auth-card .brand{display:flex;align-items:center;gap:16px;margin-bottom:18px}
+.app-root-layer .auth-card .app-icon{width:68px!important;height:68px!important;flex:0 0 68px;border-radius:20px!important;object-fit:contain;box-shadow:0 16px 28px rgba(0,0,0,.20),0 0 0 1px rgba(255,255,255,.12)}
+.app-root-layer .auth-card .eyebrow{display:inline-flex;margin-bottom:5px;font-size:.72rem;letter-spacing:.16em;text-transform:uppercase;opacity:.74}
+.app-root-layer .auth-card h1{margin:0;letter-spacing:-.04em;font-size:clamp(1.8rem,5vw,2.45rem)}
+.app-root-layer .auth-card .subtitle{margin:0 0 26px;line-height:1.55;opacity:.72}
+.app-root-layer .auth-card form{display:grid;gap:16px}
+.app-root-layer .auth-card form label{display:grid;gap:8px;font-size:.82rem;font-weight:600;letter-spacing:.01em}
+.app-root-layer .auth-card input{width:100%;min-height:54px;box-sizing:border-box;padding:0 16px;border-radius:17px;border:1px solid rgba(255,255,255,.15);outline:none;background:rgba(255,255,255,.075);color:inherit;box-shadow:inset 0 1px 0 rgba(255,255,255,.075);transition:border-color 160ms ease,background 160ms ease,box-shadow 160ms ease,transform 160ms ease}
+.app-root-layer .auth-card input::placeholder{opacity:.42}
+.app-root-layer .auth-card input:focus{border-color:rgba(147,197,253,.62);background:rgba(255,255,255,.11);box-shadow:0 0 0 3px rgba(96,165,250,.12),inset 0 1px 0 rgba(255,255,255,.10);transform:translateY(-1px)}
+.app-root-layer .auth-card .primary-button,.app-root-layer .auth-card .google-button,.app-root-layer .auth-card .link-button{min-height:52px;border-radius:16px;font:inherit}
+.app-root-layer .auth-card .primary-button{margin-top:3px;border:1px solid rgba(255,255,255,.20);background:linear-gradient(135deg,rgba(96,165,250,.92),rgba(139,92,246,.92));box-shadow:0 14px 28px rgba(59,130,246,.24),inset 0 1px 0 rgba(255,255,255,.22)}
+.app-root-layer .auth-card .primary-button:hover:not(:disabled){transform:translateY(-1px);filter:brightness(1.05)}
+.app-root-layer .auth-card .google-button{width:100%;margin-top:12px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.085);color:inherit;box-shadow:inset 0 1px 0 rgba(255,255,255,.08)}
+.app-root-layer .auth-card .google-button:hover:not(:disabled){background:rgba(255,255,255,.13);transform:translateY(-1px)}
+.app-root-layer .auth-card .link-button{width:100%;border:0;background:transparent;color:inherit;opacity:.76}
+.app-root-layer .auth-card .link-button:hover:not(:disabled){opacity:1;background:rgba(255,255,255,.055)}
+.app-root-layer .auth-card .skip-button{margin-top:-6px;font-size:.86rem;opacity:.56}
+.app-root-layer .auth-card .message,.app-root-layer .auth-card .notice{margin-top:14px;padding:12px 14px;border-radius:15px;border:1px solid rgba(255,255,255,.11);background:rgba(255,255,255,.055);line-height:1.45}
+.app-root-layer .auth-card button:disabled,.app-root-layer .auth-card input:disabled{cursor:not-allowed;opacity:.52}
+@media (max-width:520px){.app-root-layer .auth-card{width:min(92vw,470px)!important;padding:24px!important;border-radius:28px!important}.app-root-layer .auth-card .app-icon{width:58px!important;height:58px!important;flex-basis:58px}.app-root-layer .auth-card .brand{gap:13px}}
+@media (prefers-reduced-motion:reduce){.app-root-layer .auth-card input,.app-root-layer .auth-card button{transition:none}}
