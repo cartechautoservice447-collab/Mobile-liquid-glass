@@ -1,4 +1,4 @@
-import { StrictMode } from 'react';
+import { StrictMode, useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import './workspaceHydrationRepair.js';
 import './collectionTombstoneRepair.js';
@@ -28,44 +28,102 @@ import './FeatureBackgroundUnification.css';
 import './MobileNoteCodeBlockFix.css';
 import './GlassSurfaceRuntimeLock.js';
 
-function handleWebAuthCallback() {
-  if (!supabase || typeof window === 'undefined') return;
-  if (window.location.pathname !== '/auth/callback') return;
-  if (!window.location.search.includes('code=')) return;
+function AuthCallbackScreen({ message }) {
+  return (
+    <main style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', padding: 24 }}>
+      <section className="standalone-auth-card standalone-auth-loading" role="status" aria-live="polite">
+        {message}
+      </section>
+    </main>
+  );
+}
 
-  void (async () => {
-    const url = new URL(window.location.href);
-    const code = url.searchParams.get('code');
-    if (!code) return;
+function ApplicationShell() {
+  const [sharedNotificationsDispose, setSharedNotificationsDispose] = useState(null);
 
+  useEffect(() => {
+    const dispose = configureSharedNotifications();
+    setSharedNotificationsDispose(() => dispose);
+    return () => dispose?.();
+  }, []);
+
+  useEffect(() => () => sharedNotificationsDispose?.(), [sharedNotificationsDispose]);
+
+  return (
+    <SupabaseLoginGate>
+      <div className="app-root-layer">
+        <LiquidEnvironment />
+        <LiquidRefractionFilter />
+        <App />
+      </div>
+    </SupabaseLoginGate>
+  );
+}
+
+async function finishWebAuthCallback() {
+  if (!supabase || typeof window === 'undefined') return { handled: false, error: null };
+  if (window.location.pathname !== '/auth/callback') return { handled: false, error: null };
+
+  const url = new URL(window.location.href);
+  const code = url.searchParams.get('code');
+  const errorDescription = url.searchParams.get('error_description');
+  const errorCode = url.searchParams.get('error');
+
+  if (!code && !errorDescription && !errorCode) return { handled: false, error: null };
+
+  if (errorDescription || errorCode) {
+    return { handled: true, error: errorDescription || errorCode || 'Google sign-in failed.' };
+  }
+
+  try {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
-    if (error) {
-      console.error('Supabase OAuth callback failed:', error.message);
-      return;
-    }
+    if (error) return { handled: true, error: error.message };
 
-    const destination = getMobileWebAuthRedirect().replace(/\/auth\/callback$/, '/');
-    window.history.replaceState({}, document.title, destination);
-    window.dispatchEvent(new CustomEvent('mobile-auth-callback-complete'));
-  })();
+    window.history.replaceState({}, document.title, '/');
+    return { handled: true, error: null };
+  } catch (error) {
+    return {
+      handled: true,
+      error: error instanceof Error ? error.message : 'Unable to complete Google sign-in. Please try again.',
+    };
+  }
+}
+
+function mountApplication() {
+  const root = document.getElementById('root');
+  if (!root) return () => {};
+
+  const dispose = configureSharedNotifications();
+  createRoot(root).render(
+    <StrictMode>
+      <ApplicationShell />
+    </StrictMode>,
+  );
+  return dispose;
+}
+
+async function bootstrap() {
+  const root = document.getElementById('root');
+  if (!root) return;
+
+  const callbackPath = typeof window !== 'undefined' && window.location.pathname === '/auth/callback';
+  if (callbackPath) {
+    root.innerHTML = '<main style="min-height:100vh;display:grid;place-items:center;padding:24px"><section class="standalone-auth-card standalone-auth-loading" role="status" aria-live="polite">Signing you in securely…</section></main>';
+  }
+
+  const callback = await finishWebAuthCallback();
+  if (callback.error) {
+    root.innerHTML = '';
+    createRoot(root).render(
+      <StrictMode>
+        <AuthCallbackScreen message={callback.error} />
+      </StrictMode>,
+    );
+    return;
+  }
+
+  mountApplication();
 }
 
 void configureNativeAuth();
-handleWebAuthCallback();
-const disposeSharedNotifications = configureSharedNotifications();
-
-createRoot(document.getElementById('root')).render(
-  <StrictMode>
-    <div className="app-root-layer">
-      <LiquidEnvironment />
-      <LiquidRefractionFilter />
-      <SupabaseLoginGate>
-        <App />
-      </SupabaseLoginGate>
-    </div>
-  </StrictMode>,
-);
-
-if (import.meta.hot) {
-  import.meta.hot.dispose(() => disposeSharedNotifications?.());
-}
+void bootstrap();
