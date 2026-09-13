@@ -23,6 +23,18 @@ const hashPassword = async (value) => {
 
 const makeUserId = (email) => `local-${email.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${Date.now().toString(36)}`;
 
+if (!window.__mobileLiquidGlassStandaloneAuthPatched) {
+  const nativeRemoveItem = localStorage.removeItem.bind(localStorage);
+  localStorage.removeItem = (key) => {
+    nativeRemoveItem(key);
+    if (key === SKIP_AUTH_KEY) {
+      nativeRemoveItem(SESSION_KEY);
+      window.dispatchEvent(new CustomEvent('standalone-auth-changed'));
+    }
+  };
+  window.__mobileLiquidGlassStandaloneAuthPatched = true;
+}
+
 export const getStandaloneSession = () => readJson(SESSION_KEY, null);
 
 export const clearStandaloneSession = () => {
