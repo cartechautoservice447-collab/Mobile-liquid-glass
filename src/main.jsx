@@ -4,9 +4,9 @@ import './workspaceHydrationRepair.js';
 import './collectionTombstoneRepair.js';
 import './collectionDeleteIntegration.js';
 import App from './App.jsx';
-import { configureNativeAuth } from './nativeAuth.js';
+import StandaloneAuth from './StandaloneAuth.jsx';
 import { configureSharedNotifications } from './sharedNotifications.js';
-import { supabase, getMobileWebAuthRedirect } from './lib/supabase.js';
+import { supabase } from './lib/supabase.js';
 import LiquidEnvironment from './LiquidEnvironment.jsx';
 import LiquidRefractionFilter from './LiquidRefractionFilter.jsx';
 import './styles.css';
@@ -27,30 +27,19 @@ import './FeatureBackgroundUnification.css';
 import './MobileNoteCodeBlockFix.css';
 import './GlassSurfaceRuntimeLock.js';
 
-function handleWebAuthCallback() {
-  if (!supabase || typeof window === 'undefined') return;
-  if (window.location.pathname !== '/auth/callback') return;
-  if (!window.location.search.includes('code=')) return;
+const disableSupabaseAuthForStandaloneLogin = () => {
+  if (!supabase?.auth) return;
 
-  void (async () => {
-    const url = new URL(window.location.href);
-    const code = url.searchParams.get('code');
-    if (!code) return;
+  supabase.auth.getSession = async () => ({ data: { session: null }, error: null });
+  supabase.auth.onAuthStateChange = () => ({ data: { subscription: { unsubscribe() {} } } });
+  supabase.auth.signInWithPassword = async () => ({ data: { user: null, session: null }, error: new Error('Supabase Auth is disabled. Use the new standalone login.') });
+  supabase.auth.signUp = async () => ({ data: { user: null, session: null }, error: new Error('Supabase Auth is disabled. Use the new standalone login.') });
+  supabase.auth.signInWithOAuth = async () => ({ data: { provider: null, url: null }, error: new Error('Supabase OAuth is disabled. Use the new standalone login.') });
+  supabase.auth.exchangeCodeForSession = async () => ({ data: { session: null, user: null }, error: new Error('Supabase Auth is disabled. Use the new standalone login.') });
+  supabase.auth.signOut = async () => ({ error: null });
+};
 
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
-    if (error) {
-      console.error('Mobile OAuth callback failed:', error.message);
-      return;
-    }
-
-    const destination = getMobileWebAuthRedirect().replace(/\/auth\/callback$/, '/');
-    window.history.replaceState({}, document.title, destination);
-    window.dispatchEvent(new CustomEvent('mobile-auth-callback-complete'));
-  })();
-}
-
-void configureNativeAuth();
-handleWebAuthCallback();
+disableSupabaseAuthForStandaloneLogin();
 const disposeSharedNotifications = configureSharedNotifications();
 
 createRoot(document.getElementById('root')).render(
@@ -58,7 +47,9 @@ createRoot(document.getElementById('root')).render(
     <div className="app-root-layer">
       <LiquidEnvironment />
       <LiquidRefractionFilter />
-      <App />
+      <StandaloneAuth>
+        <App />
+      </StandaloneAuth>
     </div>
   </StrictMode>,
 );
