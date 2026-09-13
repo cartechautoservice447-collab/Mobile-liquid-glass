@@ -29,7 +29,9 @@ import './GlassSurfaceRuntimeLock.js';
 
 function handleWebAuthCallback() {
   if (!supabase || typeof window === 'undefined') return;
-  if (window.location.pathname !== '/auth/callback') return;
+  const callbackPath = window.location.pathname === '/auth/callback';
+  const rootWithCode = window.location.pathname === '/' && window.location.search.includes('code=');
+  if (!callbackPath && !rootWithCode) return;
   if (!window.location.search.includes('code=')) return;
 
   void (async () => {
