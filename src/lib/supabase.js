@@ -1,9 +1,9 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Mobile-liquid-glass intentionally uses the exact same Supabase backend as
-// fluid-glass-studio. Do not override this with a second project at runtime.
-export const SUPABASE_URL = 'https://asgwpmsuutigtvaxuxmr.supabase.co';
-export const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_fi3mpoY8ZrymYbnxdpREYw_hnUmTYxG';
+// Mobile-liquid-glass uses its dedicated Supabase project. Keep the client
+// configured for real Supabase Auth so RLS policies can use auth.uid().
+export const SUPABASE_URL = 'https://hqawxbrddthjvqoyxjha.supabase.co';
+export const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_dFTZ_Uka4QfY4Zg4Z7Nf2A_1LfivjCc';
 
 export const MOBILE_WEB_AUTH_ORIGIN = 'https://mobile-liquid-glass.vercel.app';
 export const MOBILE_WEB_AUTH_REDIRECT = `${MOBILE_WEB_AUTH_ORIGIN}/auth/callback`;
