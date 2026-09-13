@@ -1,6 +1,7 @@
 import { Capacitor } from '@capacitor/core';
 import { App as CapacitorApp } from '@capacitor/app';
 import { supabase, MOBILE_NATIVE_AUTH_REDIRECT } from './lib/supabase.js';
+import './LoginExperience.css';
 
 export const NATIVE_AUTH_REDIRECT = MOBILE_NATIVE_AUTH_REDIRECT;
 export const AUTH_ERROR_KEY = 'mobile-liquid-glass-auth-error';
