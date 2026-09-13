@@ -4,6 +4,7 @@ import './workspaceHydrationRepair.js';
 import './collectionTombstoneRepair.js';
 import './collectionDeleteIntegration.js';
 import App from './App.jsx';
+import SupabaseLoginGate from './SupabaseLoginGate.jsx';
 import { configureNativeAuth } from './nativeAuth.js';
 import { configureSharedNotifications } from './sharedNotifications.js';
 import { supabase, getMobileWebAuthRedirect } from './lib/supabase.js';
@@ -58,7 +59,9 @@ createRoot(document.getElementById('root')).render(
     <div className="app-root-layer">
       <LiquidEnvironment />
       <LiquidRefractionFilter />
-      <App />
+      <SupabaseLoginGate>
+        <App />
+      </SupabaseLoginGate>
     </div>
   </StrictMode>,
 );
