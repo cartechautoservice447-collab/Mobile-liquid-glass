@@ -1,9 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Mobile-liquid-glass uses its dedicated Supabase project. Keep the client
-// configured for real Supabase Auth so RLS policies can use auth.uid().
-export const SUPABASE_URL = 'https://hqawxbrddthjvqoyxjha.supabase.co';
-export const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_dFTZ_Uka4QfY4Zg4Z7Nf2A_1LfivjCc';
+// Dedicated Supabase project for Mobile Liquid Glass.
+export const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://hqawxbrddthjvqoyxjha.supabase.co';
+const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_KEY || '';
 
 export const MOBILE_WEB_AUTH_ORIGIN = 'https://mobile-liquid-glass.vercel.app';
 export const MOBILE_WEB_AUTH_REDIRECT = `${MOBILE_WEB_AUTH_ORIGIN}/auth/callback`;
@@ -28,11 +27,11 @@ function createSupabaseFetch(supabaseKey) {
   };
 }
 
-export const isSupabaseConfigured = Boolean(SUPABASE_URL && SUPABASE_PUBLISHABLE_KEY);
+export const isSupabaseConfigured = Boolean(SUPABASE_URL && SUPABASE_KEY);
 
 export const supabase = isSupabaseConfigured
-  ? createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
-      global: { fetch: createSupabaseFetch(SUPABASE_PUBLISHABLE_KEY) },
+  ? createClient(SUPABASE_URL, SUPABASE_KEY, {
+      global: { fetch: createSupabaseFetch(SUPABASE_KEY) },
       auth: {
         flowType: 'pkce',
         persistSession: true,
