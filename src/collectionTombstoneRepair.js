@@ -18,25 +18,9 @@ function clearExistingCollectionTombstones(userId, rows) {
   } catch {}
 }
 
-async function repairExistingCloudCollections(userId) {
+export async function repairExistingCloudCollections(userId) {
   if (!supabase || !userId || userId === 'anonymous') return;
   const { data, error } = await supabase.from('collections').select('id').eq('user_id', userId);
   if (error) return;
   clearExistingCollectionTombstones(userId, data);
-}
-
-if (supabase) {
-  const originalGetSession = supabase.auth.getSession.bind(supabase.auth);
-  supabase.auth.getSession = async (...args) => {
-    const result = await originalGetSession(...args);
-    const userId = result?.data?.session?.user?.id ? String(result.data.session.user.id) : 'anonymous';
-    if (userId !== 'anonymous') {
-      try {
-        await repairExistingCloudCollections(userId);
-      } catch (error) {
-        console.warn('Collection tombstone repair skipped:', error?.message || error);
-      }
-    }
-    return result;
-  };
 }

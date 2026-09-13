@@ -11,6 +11,8 @@ import CollectionWorkspace from './CollectionWorkspace.jsx';
 import EngineSettingsModal from './EngineSettingsModal.jsx';
 import useEngineSettings from './useEngineSettings.js';
 import { clearLocalWorkspaceDirtyFlag, deleteCloudCourse, deleteCloudNote, loadCloudWorkspace, readLocalWorkspace, saveCloudWorkspace, writeLocalWorkspace } from './cloudWorkspace.js';
+import { repairWorkspaceBeforeHydration } from './workspaceHydrationRepair.js';
+import { repairExistingCloudCollections } from './collectionTombstoneRepair.js';
 
 const ICON = '/icon.svg';
 const SKIP_AUTH_KEY = 'mobile-liquid-glass-skip-auth';
@@ -112,6 +114,18 @@ export default function App() {
         const { data, error } = await supabase.auth.getSession();
         if (error) throw error;
         await hydrate(data.session);
+        // Run workspace repairs after hydration completes — fire-and-forget so they
+        // do not block the loading spinner from clearing. Each has isolated error
+        // handling so a repair failure cannot affect startup.
+        const repairUserId = data.session?.user?.id ? String(data.session.user.id) : null;
+        if (repairUserId) {
+          void repairWorkspaceBeforeHydration(repairUserId).catch((error) => {
+            console.warn('Workspace hydration repair skipped:', error?.message || error);
+          });
+          void repairExistingCloudCollections(repairUserId).catch((error) => {
+            console.warn('Collection tombstone repair skipped:', error?.message || error);
+          });
+        }
       } catch (error) {
         if (active) {
           setWorkspaceReady(true);

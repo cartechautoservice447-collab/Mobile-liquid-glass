@@ -144,7 +144,7 @@ function mergeCloudIntoLocal(localCourses, cloudCourses) {
   return merged;
 }
 
-async function repairWorkspaceBeforeHydration(userId) {
+export async function repairWorkspaceBeforeHydration(userId) {
   if (!supabase || !userId || userId === 'anonymous' || !isDirty(userId)) return;
   const local = readLocal(userId);
   if (!Array.isArray(local)) return;
@@ -161,20 +161,4 @@ async function repairWorkspaceBeforeHydration(userId) {
   const cloud = cloudWorkspace(coursesResult.data, collectionsResult.data, notesResult.data);
   const merged = mergeCloudIntoLocal(local, cloud);
   writeLocal(userId, merged);
-}
-
-if (supabase) {
-  const originalGetSession = supabase.auth.getSession.bind(supabase.auth);
-  supabase.auth.getSession = async (...args) => {
-    const result = await originalGetSession(...args);
-    const userId = result?.data?.session?.user?.id ? String(result.data.session.user.id) : 'anonymous';
-    if (userId !== 'anonymous') {
-      try {
-        await repairWorkspaceBeforeHydration(userId);
-      } catch (error) {
-        console.warn('Workspace hydration repair skipped:', error?.message || error);
-      }
-    }
-    return result;
-  };
 }
