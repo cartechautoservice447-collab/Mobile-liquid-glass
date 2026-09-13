@@ -13,7 +13,7 @@
     <link rel="stylesheet" href="/course-create-reference-final.css" />
     <link rel="stylesheet" href="/dashboard-learning-suite.css" />
     <link rel="stylesheet" href="/dashboard-learning-suite-spacing.css" />
-    <link rel="stylesheet" href="/dashboard-depth-parallax.css" />
+    <link rel="stylesheet" href="/dashboard-depth-parallax.css" media="(min-width: 701px)" />
     <link rel="stylesheet" href="/liquid-glass-ripple.css" />
     <link rel="stylesheet" href="/liquid-glass-morph.css" />
     <link rel="stylesheet" href="/liquid-glass-shimmer.css" />
@@ -25,24 +25,52 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      (() => {
+        const isMobile = window.matchMedia('(max-width: 700px)').matches;
+        const desktopScripts = [
+          '/dashboard-enhancer.js',
+          '/dashboard-pomodoro.js',
+          '/course-navigation-fix.js',
+          '/theme-controller.js',
+          '/theme-menu-position-fix.js',
+          '/dashboard-learning-suite.js',
+          '/dashboard-depth-parallax.js',
+          '/liquid-glass-ripple.js',
+          '/liquid-glass-morph.js',
+          '/liquid-glass-fluid.js',
+          '/liquid-glass-shimmer.js',
+          '/ai-auth-scope.js',
+          '/study-review-intelligence-v4.js',
+          '/study-review-short-session-fix.js',
+          '/ai-study-intelligence.js',
+          '/ai-welcome-fix.js',
+          '/ai-welcome-dedupe.js',
+          '/p2-refinement.js'
+        ];
+        const mobileScripts = [
+          '/dashboard-pomodoro.js',
+          '/course-navigation-fix.js',
+          '/theme-controller.js',
+          '/theme-menu-position-fix.js',
+          '/dashboard-learning-suite.js',
+          '/p2-refinement.js'
+        ];
+        const scripts = isMobile ? mobileScripts : desktopScripts;
+        const loadScripts = () => {
+          for (const src of scripts) {
+            const script = document.createElement('script');
+            script.src = src;
+            script.defer = true;
+            script.crossOrigin = 'anonymous';
+            document.body.appendChild(script);
+          }
+        };
+        window.requestIdleCallback
+          ? window.requestIdleCallback(loadScripts, { timeout: isMobile ? 2500 : 1200 })
+          : window.setTimeout(loadScripts, isMobile ? 1200 : 0);
+      })();
+    </script>
     <script type="module" src="/src/main.jsx"></script>
-    <script src="/dashboard-enhancer.js" defer></script>
-    <script src="/dashboard-pomodoro.js" defer></script>
-    <script src="/course-navigation-fix.js" defer></script>
-    <script src="/theme-controller.js" defer></script>
-    <script src="/theme-menu-position-fix.js" defer></script>
-    <script src="/dashboard-learning-suite.js" defer></script>
-    <script src="/dashboard-depth-parallax.js" defer></script>
-    <script src="/liquid-glass-ripple.js" defer></script>
-    <script src="/liquid-glass-morph.js" defer></script>
-    <script src="/liquid-glass-fluid.js" defer></script>
-    <script src="/liquid-glass-shimmer.js" defer></script>
-    <script src="/ai-auth-scope.js" defer></script>
-    <script src="/study-review-intelligence-v4.js" defer></script>
-    <script src="/study-review-short-session-fix.js" defer></script>
-    <script src="/ai-study-intelligence.js" defer></script>
-    <script src="/ai-welcome-fix.js" defer></script>
-    <script src="/ai-welcome-dedupe.js" defer></script>
-    <script src="/p2-refinement.js" defer></script>
   </body>
 </html>
