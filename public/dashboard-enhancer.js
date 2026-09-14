@@ -233,8 +233,13 @@
       return;
     }
     if (key === 'more') {
-      showDashboardOverlay('Quick access', '<div class="dashboard-more-actions"><button type="button" data-dashboard-trigger="course">Add a course</button><button type="button" data-dashboard-trigger="theme">Theme</button><button type="button" data-dashboard-trigger="settings">Settings</button><button type="button" data-dashboard-trigger="account">Account</button></div>');
+      showDashboardOverlay('Quick access', '<div class="dashboard-more-actions"><button type="button" data-dashboard-trigger="course">Add a course</button><button type="button" data-dashboard-trigger="theme">Theme</button><button type="button" data-dashboard-trigger="settings">Settings</button><button type="button" data-dashboard-trigger="account">Account</button><button type="button" data-dashboard-trigger="planner">Daily Planner</button></div>');
       setTimeout(() => qsa(document, '[data-dashboard-trigger]').forEach((action) => action.addEventListener('click', () => {
+        if (action.dataset.dashboardTrigger === 'planner') {
+          closeDashboardOverlay();
+          window.dispatchEvent(new CustomEvent('mobile-glass-open-planner'));
+          return;
+        }
         const map = { course: '.add-course-trigger', theme: '[aria-label*="Theme"]', settings: '[aria-label="Engine settings"]', account: '[aria-label="Account"]' };
         const target = qs(dashboard, map[action.dataset.dashboardTrigger]);
         closeDashboardOverlay();

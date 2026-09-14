@@ -13,6 +13,7 @@ import useEngineSettings from './useEngineSettings.js';
 import { clearLocalWorkspaceDirtyFlag, deleteCloudCourse, deleteCloudNote, loadCloudWorkspace, readLocalWorkspace, saveCloudWorkspace, writeLocalWorkspace } from './cloudWorkspace.js';
 import { repairWorkspaceBeforeHydration } from './workspaceHydrationRepair.js';
 import { repairExistingCloudCollections } from './collectionTombstoneRepair.js';
+import DailyPlannerPage from './DailyPlannerPage.jsx';
 
 const ICON = '/icon.svg';
 const SKIP_AUTH_KEY = 'mobile-liquid-glass-skip-auth';
@@ -158,12 +159,21 @@ export default function App() {
         case 'course-notes': setPage('course-workspace'); break;
         case 'course-workspace': setSelectedCollectionId(null); setSelectedNoteId(null); setPage('workspace'); break;
         case 'courses': setPage('workspace'); break;
+        case 'daily-planner': setPage('workspace'); break;
         default: await CapacitorApp.exitApp();
       }
     });
     const registration = register();
     return () => { registration.then((handle) => handle.remove()); };
   }, [action, courseCreateOpen, page]);
+
+  // Bridge for plain-JS scripts (dashboard-enhancer.js) that cannot import
+  // ES modules. They dispatch 'mobile-glass-open-planner' to navigate here.
+  useEffect(() => {
+    const handler = () => setPage('daily-planner');
+    window.addEventListener('mobile-glass-open-planner', handler, { passive: true });
+    return () => window.removeEventListener('mobile-glass-open-planner', handler);
+  }, []);
 
   const { settings, setSetting, reset: resetEngineSettings } = useEngineSettings(session?.user?.id || null);
   const performance = settings.performance;
@@ -251,6 +261,7 @@ export default function App() {
   if (page === 'notes' && selectedCourse && selectedCollection) return <CollectionWorkspace course={selectedCourse} collection={selectedCollection} newNoteName={newNoteName} setNewNoteName={setNewNoteName} addNote={addNote} onBack={() => setPage('collections')} onSaveNote={saveCollectionNote} onDeleteNote={deleteCollectionNote} message={message} />;
   if (page === 'course-notes' && selectedCourse) return <AllCourseNotesPage course={selectedCourse} onBack={() => setPage('course-workspace')} openCollection={openCollection} />;
   if (page === 'collections' && selectedCourse) return <CollectionsPage course={selectedCourse} newCollectionName={newCollectionName} setNewCollectionName={setNewCollectionName} addCollection={addCollection} onBack={() => setPage('course-workspace')} openCollection={openCollection} message={message} />;
+  if (page === 'daily-planner') return <DailyPlannerPage session={session} onBack={() => setPage('workspace')} />;
   return <Dashboard courses={courses} totalNotes={totalNotes} performance={performance} setPerformanceMode={setPerformanceMode} settings={settings} setSetting={setSetting} resetEngineSettings={resetEngineSettings} openCourseCreator={openCourseCreator} openCourseFolders={openCourseFolders} openCourse={openCourse} deleteCourse={deleteCourse} updateCourse={updateCourse} action={action} setAction={setAction} message={message} courseCreateOpen={courseCreateOpen} closeCourseCreator={closeCourseCreator} newCourseName={newCourseName} newCourseDescription={newCourseDescription} newCourseColor={newCourseColor} setNewCourseName={setNewCourseName} setNewCourseDescription={setNewCourseDescription} setNewCourseColor={setNewCourseColor} addCourse={addCourse} onLogout={session ? () => supabase?.auth.signOut() : returnToLogin} />;
 }
 
