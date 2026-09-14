@@ -27,14 +27,94 @@
   function addNotificationControl(dashboard) {
     const controls = qs(dashboard, '.dashboard-controls');
     if (!controls || qs(controls, '.dashboard-notification')) return;
+
+    // Inject CSS that hides the dot by default; the event listener below
+    // reveals it when there are unread notifications.
+    if (!document.getElementById('mlg-notification-badge-styles')) {
+      const style = document.createElement('style');
+      style.id = 'mlg-notification-badge-styles';
+      style.textContent = [
+        '.dashboard-notification-dot{display:none!important}',
+        '.dashboard-notification-dot.has-unread{display:block!important}',
+        '.mlg-notification-list{display:grid;gap:10px;margin-bottom:14px;max-height:52vh;overflow:auto}',
+        '.mlg-notification-item{padding:11px 13px;border-radius:14px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.09);text-align:left}',
+        '.mlg-notification-item.is-unread{border-color:rgba(201,169,255,.35);background:rgba(190,140,255,.10)}',
+        '.mlg-notification-item strong{display:block;font-size:14px;margin-bottom:3px}',
+        '.mlg-notification-item p{margin:0 0 4px;opacity:.78;font-size:13px;line-height:1.45}',
+        '.mlg-notification-item small{opacity:.54;font-size:11px}',
+        '.mlg-notification-actions{display:flex;flex-direction:column;gap:8px}',
+      ].join('');
+      document.head.appendChild(style);
+    }
+
     const button = document.createElement('button');
     button.className = 'icon-button dashboard-notification';
     button.type = 'button';
     button.setAttribute('aria-label', 'Notifications');
     button.innerHTML = '<span class="dashboard-bell-glyph">●</span><span class="dashboard-notification-dot" aria-hidden="true"></span>';
-    button.addEventListener('click', () => showDashboardOverlay('Notifications', '<p>You are all caught up.</p><button class="primary-button" data-dashboard-close>Close</button>'));
+    button.addEventListener('click', () => openNotificationOverlay());
     controls.insertBefore(button, controls.firstElementChild);
+
+    // Update badge dot whenever the notification system broadcasts a change
+    window.addEventListener('mobile-glass-notifications-update', (event) => {
+      const dot = controls.querySelector('.dashboard-notification-dot');
+      if (!dot) return;
+      const unread = event.detail?.unread ?? 0;
+      dot.classList.toggle('has-unread', unread > 0);
+    }, { passive: true });
+
+    // Apply any state that was already broadcast before this button existed
+    const current = window.__mobileGlassNotificationData;
+    if (current) {
+      const dot = controls.querySelector('.dashboard-notification-dot');
+      if (dot) dot.classList.toggle('has-unread', (current.unread ?? 0) > 0);
+    }
   }
+
+  function openNotificationOverlay() {
+    const data = window.__mobileGlassNotificationData || { notifications: [], unread: 0 };
+    const items = Array.isArray(data.notifications) ? data.notifications : [];
+    const unread = data.unread ?? 0;
+
+    let bodyHtml;
+    if (!items.length) {
+      bodyHtml = '<p>You are all caught up.</p><button class="primary-button" data-dashboard-close>Close</button>';
+    } else {
+      const listHtml = items.slice(0, 15).map((n) => {
+        const time = n.created_at
+          ? new Date(n.created_at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+          : '';
+        return [
+          `<div class="mlg-notification-item${n.read ? '' : ' is-unread'}">`,
+          `<strong>${escapeHtml(n.title)}</strong>`,
+          n.body ? `<p>${escapeHtml(n.body)}</p>` : '',
+          time ? `<small>${escapeHtml(time)}</small>` : '',
+          '</div>',
+        ].join('');
+      }).join('');
+
+      const markBtn = unread > 0
+        ? '<button class="primary-button" data-mlg-mark-all-read>Mark all as read</button>'
+        : '';
+      bodyHtml = `<div class="mlg-notification-list">${listHtml}</div><div class="mlg-notification-actions">${markBtn}<button class="link-button" data-dashboard-close>Close</button></div>`;
+    }
+
+    const heading = `Notifications${unread > 0 ? ` (${unread} unread)` : ''}`;
+    showDashboardOverlay(heading, bodyHtml);
+
+    // Wire up mark-all-read once the overlay is in the DOM
+    setTimeout(() => {
+      const btn = document.querySelector('[data-mlg-mark-all-read]');
+      if (btn) {
+        btn.addEventListener('click', () => {
+          window.dispatchEvent(new CustomEvent('mobile-glass-mark-all-read'));
+          closeDashboardOverlay();
+        });
+      }
+    }, 0);
+  }
+
+
 
   function addRecentNotes(shell) {
     if (qs(shell, '.dashboard-recent-notes')) return;
