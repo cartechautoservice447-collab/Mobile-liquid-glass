@@ -1,21 +1,13 @@
 // api/planner-cron.js
-// Vercel Cron Function — runs every minute (requires Pro plan; on Hobby use
-// "0 * * * *" in vercel.json for hourly delivery).
-//
-// Reads daily_planner_items due in the current minute window via service_role,
-// then calls the EXISTING api/send-notification.js for each user. No second
-// notification sender is created here.
-//
-// Environment variables required (set on Vercel, never in client code):
-//   SUPABASE_URL
-//   SUPABASE_SERVICE_ROLE_KEY
-//   INTERNAL_NOTIFICATIONS_SECRET
+// Vercel Cron Function. Planner clock values are interpreted in India Standard Time.
+// The existing /api/send-notification.js remains the single Web Push sender.
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const INTERNAL_NOTIFICATIONS_SECRET = process.env.INTERNAL_NOTIFICATIONS_SECRET;
 
-// ─── Supabase REST helper (service_role, no client library dependency) ────────
+const TIMEZONE = 'Asia/Kolkata';
+const IST_OFFSET_MINUTES = 330;
 
 async function supabaseRest(path, { method = 'GET', body } = {}) {
   const url = `${SUPABASE_URL}/rest/v1/${path}`;
@@ -37,30 +29,55 @@ async function supabaseRest(path, { method = 'GET', body } = {}) {
   return null;
 }
 
-// ─── Due-item logic ───────────────────────────────────────────────────────────
+function istParts(date = new Date()) {
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: TIMEZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+  const parts = Object.fromEntries(formatter.formatToParts(date).map((part) => [part.type, part.value]));
+  return {
+    date: `${parts.year}-${parts.month}-${parts.day}`,
+    time: `${parts.hour}:${parts.minute}`,
+    year: Number(parts.year),
+    month: Number(parts.month),
+    day: Number(parts.day),
+    hour: Number(parts.hour),
+    minute: Number(parts.minute),
+  };
+}
 
-/**
- * Returns true if a planner item should fire a notification right now.
- * All times are compared in UTC.
- *
- * @param {object} item   - Row from daily_planner_items
- * @param {Date}   now    - Current UTC time
- * @param {string} todayUTC  - 'YYYY-MM-DD' in UTC
- * @param {string} nowTimeUTC - 'HH:MM' in UTC (current minute)
- */
-function isDue(item, now, todayUTC, nowTimeUTC) {
+function istWeekday(isoDate) {
+  const [year, month, day] = isoDate.split('-').map(Number);
+  return new Date(Date.UTC(year, month - 1, day)).getUTCDay();
+}
+
+function localISTDateTime(dateStr, timeStr) {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  const [hour, minute] = (timeStr || '09:00:00').slice(0, 5).split(':').map(Number);
+  return new Date(Date.UTC(year, month - 1, day, hour, minute) - IST_OFFSET_MINUTES * 60000);
+}
+
+function istDateTimeParts(date) {
+  return istParts(date);
+}
+
+function isDue(item, now = new Date()) {
   if (!item.notifications_enabled) return false;
 
-  // Throttle: don't fire again within the same UTC minute window
   if (item.last_notified_at) {
     const lastFired = new Date(item.last_notified_at);
     const minutesSinceLast = (now - lastFired) / 60000;
     if (minutesSinceLast < 1) return false;
   }
 
-  // Normalize notify_time: Postgres returns 'HH:MM:SS', we compare 'HH:MM'
+  const current = istParts(now);
   const itemTime = (item.notify_time || '').slice(0, 5);
-  if (itemTime !== nowTimeUTC) return false;
+  if (itemTime !== current.time) return false;
 
   const rec = item.recurrence;
 
@@ -68,33 +85,18 @@ function isDue(item, now, todayUTC, nowTimeUTC) {
 
   if (rec === 'weekdays') {
     const weekdays = Array.isArray(item.weekdays) ? item.weekdays : [];
-    const todayDow = now.getUTCDay(); // 0=Sun
-    return weekdays.includes(todayDow);
+    return weekdays.includes(istWeekday(current.date));
   }
 
-  if (rec === 'specific' && item.specific_date) {
-    // specific_date is stored as a date string 'YYYY-MM-DD'
-    // For lead_time_minutes, fire on (specific_date - lead_time_minutes)
-    const eventDate = new Date(`${item.specific_date}T${item.notify_time}Z`);
+  if ((rec === 'specific' || rec === 'none') && item.specific_date) {
+    const eventDate = localISTDateTime(item.specific_date, item.notify_time);
     const fireAt = new Date(eventDate.getTime() - (item.lead_time_minutes || 0) * 60000);
-    const fireMinute = `${String(fireAt.getUTCHours()).padStart(2, '0')}:${String(fireAt.getUTCMinutes()).padStart(2, '0')}`;
-    const fireDay = fireAt.toISOString().slice(0, 10);
-    return fireDay === todayUTC && fireMinute === nowTimeUTC;
-  }
-
-  if (rec === 'none' && item.specific_date) {
-    // One-shot: fire on specific_date at notify_time (with optional lead time)
-    const eventDate = new Date(`${item.specific_date}T${item.notify_time}Z`);
-    const fireAt = new Date(eventDate.getTime() - (item.lead_time_minutes || 0) * 60000);
-    const fireMinute = `${String(fireAt.getUTCHours()).padStart(2, '0')}:${String(fireAt.getUTCMinutes()).padStart(2, '0')}`;
-    const fireDay = fireAt.toISOString().slice(0, 10);
-    return fireDay === todayUTC && fireMinute === nowTimeUTC;
+    const fire = istDateTimeParts(fireAt);
+    return fire.date === current.date && fire.time === current.time;
   }
 
   return false;
 }
-
-// ─── Notification type labels ─────────────────────────────────────────────────
 
 function buildNotificationPayload(item) {
   const typeLabels = {
@@ -115,11 +117,7 @@ function buildNotificationPayload(item) {
   };
 }
 
-// ─── Main handler ─────────────────────────────────────────────────────────────
-
 export default async function handler(req, res) {
-  // Vercel Cron sends a GET with a special Authorization header.
-  // We also allow POST for manual triggers (with the internal secret).
   if (req.method === 'POST') {
     const secret = req.headers['x-internal-secret'];
     if (!secret || secret !== INTERNAL_NOTIFICATIONS_SECRET) {
@@ -134,24 +132,20 @@ export default async function handler(req, res) {
   }
 
   const now = new Date();
-  const todayUTC = now.toISOString().slice(0, 10);
-  const nowTimeUTC = `${String(now.getUTCHours()).padStart(2, '0')}:${String(now.getUTCMinutes()).padStart(2, '0')}`;
+  const current = istParts(now);
 
   let items;
   try {
-    // Fetch all enabled planner items. Service_role bypasses RLS.
-    // We filter in JS rather than adding a complex time-window SQL filter
-    // to keep the query simple and correct across all recurrence types.
     items = await supabaseRest(
-      'daily_planner_items?notifications_enabled=eq.true&select=id,user_id,title,type,recurrence,weekdays,specific_date,notify_time,lead_time_minutes,last_notified_at',
+      'daily_planner_items?notifications_enabled=eq.true&select=id,user_id,title,type,recurrence,weekdays,specific_date,notify_time,lead_time_minutes,last_notified_at,timezone',
     );
   } catch (err) {
     console.error('[planner-cron] Failed to query daily_planner_items:', err.message);
     return res.status(502).json({ error: err.message });
   }
 
-  const dueItems = (items || []).filter((item) => isDue(item, now, todayUTC, nowTimeUTC));
-  console.log(`[planner-cron] ${now.toISOString()} — ${dueItems.length} item(s) due out of ${(items || []).length}`);
+  const dueItems = (items || []).filter((item) => isDue(item, now));
+  console.log(`[planner-cron] ${current.date} ${current.time} IST — ${dueItems.length} item(s) due out of ${(items || []).length}`);
 
   const results = [];
   const baseUrl = process.env.VERCEL_URL
@@ -160,10 +154,9 @@ export default async function handler(req, res) {
 
   for (const item of dueItems) {
     const notification = buildNotificationPayload(item);
-
-    // Call the existing send-notification endpoint — no second sender
     let delivered = 0;
     let failed = 0;
+
     try {
       const sendRes = await fetch(`${baseUrl}/api/send-notification`, {
         method: 'POST',
@@ -182,8 +175,6 @@ export default async function handler(req, res) {
       failed = 1;
     }
 
-    // Update last_notified_at regardless of delivery outcome to prevent
-    // repeated fires in the same minute if the push service is slow.
     try {
       await supabaseRest(
         `daily_planner_items?id=eq.${encodeURIComponent(item.id)}`,
@@ -198,6 +189,7 @@ export default async function handler(req, res) {
 
   return res.status(200).json({
     success: true,
+    timezone: TIMEZONE,
     checked: (items || []).length,
     due: dueItems.length,
     results,
