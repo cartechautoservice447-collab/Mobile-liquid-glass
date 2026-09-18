@@ -40,3 +40,21 @@
     background-size:cover!important;
   }
 }
+
+
+/* A selected premium preset becomes the visual stage on feature pages too.
+   The hook only exposes non-default presets here when Background Theme is enabled. */
+html[data-background-preset="aurora-luxe"] .app-root-layer .feature-screen > section,
+html[data-background-preset="aurora-luxe"] .app-root-layer .collection-workspace-screen .generated-editor-glass.collection-workspace,
+html[data-background-preset="emerald-sapphire"] .app-root-layer .feature-screen > section,
+html[data-background-preset="emerald-sapphire"] .app-root-layer .collection-workspace-screen .generated-editor-glass.collection-workspace,
+html[data-background-preset="royal-violet"] .app-root-layer .feature-screen > section,
+html[data-background-preset="royal-violet"] .app-root-layer .collection-workspace-screen .generated-editor-glass.collection-workspace,
+html[data-background-preset="arctic-amethyst"] .app-root-layer .feature-screen > section,
+html[data-background-preset="arctic-amethyst"] .app-root-layer .collection-workspace-screen .generated-editor-glass.collection-workspace{
+  background:var(--premium-background-image)!important;
+  background-color:transparent!important;
+  background-repeat:no-repeat!important;
+  background-size:cover!important;
+  background-position:center!important;
+}
