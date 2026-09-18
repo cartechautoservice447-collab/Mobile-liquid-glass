@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { Moon, RotateCcw, Settings2, Sun, Zap } from 'lucide-react';
+import { BACKGROUND_PRESETS } from './backgroundPresets.js';
 
 const CLARITY_OPTIONS = [
   ['default', 'Default'],
