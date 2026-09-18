@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from './lib/supabase.js';
+import { BACKGROUND_PRESET_VALUES, getBackgroundPreset } from './backgroundPresets.js';
 
 export const ENGINE_DEFAULTS = {
   displayName: '',
@@ -9,6 +10,7 @@ export const ENGINE_DEFAULTS = {
   glassTheme: 'type-1',
   pureBlack: false,
   backgroundThemeEnabled: false,
+  backgroundPreset: 'default',
   backgroundOpacity: 100,
   backgroundBrightness: 100,
   fullDarkBackground: false,
@@ -55,6 +57,7 @@ const normalizeSettings = (raw = {}) => ({
   glassTheme: GLASS_THEME_VALUES.includes(raw.glassTheme) ? raw.glassTheme : ENGINE_DEFAULTS.glassTheme,
   pureBlack: Boolean(raw.pureBlack),
   backgroundThemeEnabled: Boolean(raw.backgroundThemeEnabled),
+  backgroundPreset: BACKGROUND_PRESET_VALUES.includes(raw.backgroundPreset) ? raw.backgroundPreset : ENGINE_DEFAULTS.backgroundPreset,
   backgroundOpacity: clamp(raw.backgroundOpacity, 0, 100, ENGINE_DEFAULTS.backgroundOpacity),
   backgroundBrightness: clamp(raw.backgroundBrightness, 0, 200, ENGINE_DEFAULTS.backgroundBrightness),
   fullDarkBackground: Boolean(raw.fullDarkBackground),
@@ -76,6 +79,7 @@ function readLocalSettings(scope) {
     glassTheme: readStored(scopeKey(scope, 'glass-theme'), ENGINE_DEFAULTS.glassTheme),
     pureBlack: readStored(scopeKey(scope, 'pure-black'), String(ENGINE_DEFAULTS.pureBlack)) === 'true',
     backgroundThemeEnabled: readStored(scopeKey(scope, 'background-theme'), String(ENGINE_DEFAULTS.backgroundThemeEnabled)) === 'true',
+    backgroundPreset: readStored(scopeKey(scope, 'background-preset'), ENGINE_DEFAULTS.backgroundPreset),
     backgroundOpacity: readStored(scopeKey(scope, 'background-opacity'), ENGINE_DEFAULTS.backgroundOpacity),
     backgroundBrightness: readStored(scopeKey(scope, 'background-brightness'), ENGINE_DEFAULTS.backgroundBrightness),
     fullDarkBackground: readStored(scopeKey(scope, 'full-dark-background'), String(ENGINE_DEFAULTS.fullDarkBackground)) === 'true',
@@ -98,6 +102,7 @@ function cacheSettings(scope, settings) {
     ['glass-theme', settings.glassTheme],
     ['pure-black', settings.pureBlack],
     ['background-theme', settings.backgroundThemeEnabled],
+    ['background-preset', settings.backgroundPreset],
     ['background-opacity', settings.backgroundOpacity],
     ['background-brightness', settings.backgroundBrightness],
     ['full-dark-background', settings.fullDarkBackground],
@@ -169,6 +174,7 @@ export default function useEngineSettings(userId) {
     document.documentElement.style.colorScheme = settings.theme;
     document.documentElement.classList.toggle('pure-black', settings.pureBlack);
     document.documentElement.dataset.backgroundTheme = settings.backgroundThemeEnabled ? 'on' : 'off';
+    document.documentElement.dataset.backgroundPreset = settings.backgroundThemeEnabled ? settings.backgroundPreset : 'default';
     document.documentElement.dataset.fullDarkBackground = settings.fullDarkBackground ? 'on' : 'off';
     document.documentElement.dataset.uiTextClarity = settings.uiTextClarity;
     document.documentElement.dataset.glassPerformance = settings.performance;
@@ -200,12 +206,22 @@ export default function useEngineSettings(userId) {
       document.body.style.background = '#000';
     } else if (settings.fullDarkBackground) {
       document.body.style.background = '#050507';
+    } else if (settings.backgroundThemeEnabled && settings.backgroundPreset !== 'default') {
+      const preset = getBackgroundPreset(settings.backgroundPreset);
+      document.body.style.background = preset.background;
+      document.body.style.backgroundSize = 'cover';
+      document.body.style.backgroundPosition = 'center';
+      document.body.style.backgroundRepeat = 'no-repeat';
+      document.body.style.backgroundAttachment = 'fixed';
+      document.documentElement.style.setProperty('--premium-background-image', preset.background);
     } else if (settings.backgroundThemeEnabled) {
       document.body.style.background = settings.theme === 'dark'
         ? `radial-gradient(circle at 20% 0%, rgb(23 59 98 / ${opacity}) 0, transparent 45%), radial-gradient(circle at 100% 100%, rgb(44 22 93 / ${opacity}) 0, transparent 48%), #07111f`
         : `radial-gradient(circle at 20% 0%, rgb(110 197 255 / ${opacity}) 0, transparent 45%), radial-gradient(circle at 100% 100%, rgb(171 126 255 / ${opacity}) 0, transparent 48%), #eef4fb`;
+      document.documentElement.style.removeProperty('--premium-background-image');
     } else {
       document.body.style.background = settings.theme === 'dark' ? '#07111f' : '#eef4fb';
+      document.documentElement.style.removeProperty('--premium-background-image');
     }
     window.dispatchEvent(new CustomEvent('glass-settings-changed'));
   }, [settings]);
@@ -224,6 +240,7 @@ export default function useEngineSettings(userId) {
       if (key === 'theme') return { ...current, theme: value === 'dark' ? 'dark' : 'light' };
       if (key === 'glassTheme') return { ...current, glassTheme: GLASS_THEME_VALUES.includes(value) ? value : current.glassTheme };
       if (key === 'pureBlack' || key === 'backgroundThemeEnabled' || key === 'fullDarkBackground') return { ...current, [key]: Boolean(value) };
+      if (key === 'backgroundPreset') return { ...current, backgroundPreset: BACKGROUND_PRESET_VALUES.includes(value) ? value : current.backgroundPreset };
       if (key === 'backgroundOpacity') return { ...current, backgroundOpacity: clamp(value, 0, 100, current.backgroundOpacity) };
       if (key === 'backgroundBrightness') return { ...current, backgroundBrightness: clamp(value, 0, 200, current.backgroundBrightness) };
       if (key === 'liquidDensity') return { ...current, liquidDensity: clamp(value, 0, 40, current.liquidDensity) };
