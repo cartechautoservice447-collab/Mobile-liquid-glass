@@ -80,7 +80,16 @@ export default function EngineSettingsModal({ settings, setSetting, reset, close
             <div className="engine-section-heading"><span>Appearance</span><small>Theme and background stage controls.</small></div>
             <div className="engine-theme-pair"><button type="button" className={settings.theme === 'light' ? 'active' : ''} onClick={() => setSetting('theme', 'light')} aria-pressed={settings.theme === 'light'}><Sun size={15} /> Day</button><button type="button" className={settings.theme === 'dark' ? 'active' : ''} onClick={() => setSetting('theme', 'dark')} aria-pressed={settings.theme === 'dark'}><Moon size={15} /> Night</button></div>
             <ToggleRow label="Pure black" description="Force a flat black canvas behind the glass." checked={settings.pureBlack} onChange={(value) => setSetting('pureBlack', value)} />
-            <ToggleRow label="Background theme" description="Show the blue/violet stage layer and allow its opacity and brightness to be tuned." checked={settings.backgroundThemeEnabled} onChange={(value) => setSetting('backgroundThemeEnabled', value)} />
+            <ToggleRow label="Background theme" description="Show the selected still stage layer and allow its opacity and brightness to be tuned." checked={settings.backgroundThemeEnabled} onChange={(value) => setSetting('backgroundThemeEnabled', value)} />
+            <div className="engine-background-presets">
+              <div className="engine-background-presets-heading"><strong>Premium Static Backgrounds</strong><small>2K-quality still gradients — no orbs, particles or motion.</small></div>
+              <div className="engine-background-presets-grid">
+                {BACKGROUND_PRESETS.map((preset) => <button key={preset.id} type="button" className={settings.backgroundPreset === preset.id ? 'active' : ''} onClick={() => { setSetting('backgroundPreset', preset.id); if (preset.id !== 'default') setSetting('backgroundThemeEnabled', true); }} aria-pressed={settings.backgroundPreset === preset.id}>
+                  <span className="engine-background-preset-swatch" style={{ background: preset.preview }} aria-hidden="true" />
+                  <span><b>{preset.label}</b><small>{preset.description}</small></span>
+                </button>)}
+              </div>
+            </div>
             {settings.backgroundThemeEnabled && <><Slider label="Background opacity" value={settings.backgroundOpacity} min={0} max={100} display={`${settings.backgroundOpacity}%`} onChange={(value) => setSetting('backgroundOpacity', value)} /><Slider label="Background brightness" value={settings.backgroundBrightness} min={0} max={200} display={`${settings.backgroundBrightness}%`} onChange={(value) => setSetting('backgroundBrightness', value)} /></>}
             <ToggleRow label="Fully dark theme" description="Use a uniform deep-dark stage and hide the ambient color orbs." checked={settings.fullDarkBackground} onChange={(value) => setSetting('fullDarkBackground', value)} />
           </section>
