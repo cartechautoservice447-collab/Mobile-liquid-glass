@@ -102,9 +102,10 @@ export function useGlassBoxTracker(isModalOpen = false) {
     }
 
     // Course dashboard cards (measure the interactive button surface .course-open or the card)
-    const courseCards = document.querySelectorAll('.course-dashboard-card .course-open, .course-dashboard-card:not(:has(.course-open))');
-    courseCards.forEach((card, idx) => {
-      pushBox(`course-card-${idx}`, card, null, 24);
+    const courseCardContainers = document.querySelectorAll('.course-dashboard-card');
+    courseCardContainers.forEach((card, idx) => {
+      const openBtn = card.querySelector('.course-open');
+      pushBox(`course-card-${idx}`, openBtn || card, null, 24);
     });
 
     // Course tools, folder cards, notes, overview cards
@@ -114,7 +115,7 @@ export function useGlassBoxTracker(isModalOpen = false) {
     });
 
     // Only if no child tool cards / course cards are tracked on the screen, track full panels
-    if (toolCards.length === 0 && courseCards.length === 0) {
+    if (toolCards.length === 0 && courseCardContainers.length === 0) {
       const panels = document.querySelectorAll('.full-glass-panel, .course-workspace-panel, .course-folder-panel, .editor-workspace-shell');
       panels.forEach((panel, idx) => {
         pushBox(`panel-${idx}`, panel, null, 26);
