@@ -124,7 +124,11 @@ function Slider({ label, value, min, max, step = 1, display, onChange }) {
         step={step}
         value={value}
         aria-label={label}
-        onChange={(event) => onChange(Number(event.target.value))}
+        onInput={(event) => onChange(Number(event.currentTarget.value))}
+        onChange={(event) => onChange(Number(event.currentTarget.value))}
+        onPointerDown={(event) => event.stopPropagation()}
+        onPointerMove={(event) => event.stopPropagation()}
+        onPointerUp={(event) => event.stopPropagation()}
       />
     </label>
   );
