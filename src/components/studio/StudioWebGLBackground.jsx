@@ -179,6 +179,9 @@ export const StudioWebGLBackground = ({
         uResolution: {
           value: new THREE.Vector2(window.innerWidth, window.innerHeight),
         },
+        uMouse: {
+          value: new THREE.Vector2(-1, -1),
+        },
         uBoxes: { value: boxVectors },
         uRadii: { value: radiiArray },
         uBezels: { value: bezelsArray },
@@ -320,8 +323,20 @@ export const StudioWebGLBackground = ({
 
     window.addEventListener('resize', handleResize);
 
+    const handlePointerMove = (e) => {
+      if (!threeRef.current) return;
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      threeRef.current.material.uniforms.uMouse.value.set(clientX, clientY);
+    };
+
+    window.addEventListener('pointermove', handlePointerMove, { passive: true });
+    window.addEventListener('touchmove', handlePointerMove, { passive: true });
+
     return () => {
       window.removeEventListener('resize', handleResize);
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('touchmove', handlePointerMove);
       if (threeObj.rafId) cancelAnimationFrame(threeObj.rafId);
       threeObj.renderTarget.dispose();
       if (threeObj.loadedImgTexture) {

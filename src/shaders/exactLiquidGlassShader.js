@@ -12,12 +12,13 @@ varying vec2 vUv;
 #define MAX_BOXES 64
 
 uniform vec2 uResolution;
+uniform vec2 uMouse;           // Screen mouse / touch coordinates in px (top-left origin)
 uniform vec4 uBoxes[MAX_BOXES]; // xy = center in screen px (top-left origin), zw = width & height
 uniform float uRadii[MAX_BOXES];
 uniform float uBezels[MAX_BOXES];
 uniform int uBoxCount;
-uniform int uFixedTopBoxIdx; // Index of the fixed top glass (e.g. horizontal bottom dock)
-uniform float uTime;          // Animation time for liquid ripples and specular sheen
+uniform int uFixedTopBoxIdx;   // Index of the fixed top glass (e.g. horizontal bottom dock)
+uniform float uTime;            // Animation time for liquid ripples and specular sheen
 
 uniform float uThickness;
 uniform float uIOR;
@@ -31,19 +32,25 @@ uniform sampler2D uBgTex;
 uniform float uBgAspect;
 uniform float uRenderBg;
 
-// Exact Signed Distance Field from webglGlassShader.ts
+// Signed Distance Field for rounded rectangles / superellipses
 float sdRoundedRect(vec2 p, vec2 halfSize, float r) {
   vec2 q = abs(p) - halfSize + r;
   return min(max(q.x, q.y), 0.0) + length(max(q, 0.0)) - r;
 }
 
-// Exact surface height from webglGlassShader.ts
+// Polynomial smooth minimum for organic liquid blob / meniscus blending
+float smin(float a, float b, float k) {
+  float h = clamp(0.5 + 0.5 * (b - a) / k, 0.0, 1.0);
+  return mix(b, a, h) - k * h * (1.0 - h);
+}
+
+// Exact quartical surface height profile for smooth glass dome curvature
 float surfaceHeight(float t) {
   float s = 1.0 - t;
   return pow(1.0 - s * s * s * s, 0.25);
 }
 
-// Exact background sampling with aspect ratio calculation from webglGlassShader.ts
+// Background texture sampling with aspect ratio preservation
 vec3 sampleBg(vec2 screenUV) {
   float screenAspect = uResolution.x / uResolution.y;
   vec2 uv = screenUV;
@@ -58,7 +65,7 @@ vec3 sampleBg(vec2 screenUV) {
   return texture2D(uBgTex, uv).rgb;
 }
 
-// Exact 16 Poisson disk blur sample offsets from webglGlassShader.ts
+// 16-point Poisson disk blur for realistic physical depth-of-field diffusion
 vec3 sampleBgBlurred(vec2 uv, float radius) {
   if (radius < 0.5) return sampleBg(uv);
   vec3 sum = vec3(0.0);
@@ -88,7 +95,7 @@ vec3 sampleBgBlurred(vec2 uv, float radius) {
 }
 
 void main() {
-  // Screen pixel coordinate with y=0 at the top (matching browser getBoundingClientRect)
+  // Screen pixel coordinate with y=0 at top (matching DOM bounding rects)
   vec2 screenPx = vec2(vUv.x, 1.0 - vUv.y) * uResolution;
 
   float minSd = 1e6;
@@ -100,7 +107,7 @@ void main() {
   float activeBezel = 0.0;
   float totalShadow = 0.0;
 
-  // Track fixed top box specifically (the horizontal bottom dock)
+  // Track fixed top box specifically (e.g. horizontal bottom dock)
   float topBoxSd = 1e6;
   vec2 topCenter = vec2(0.0);
   vec2 topHalfSize = vec2(0.0);
@@ -121,19 +128,18 @@ void main() {
     vec2 p = screenPx - center;
     float sd = sdRoundedRect(p, halfSize, r);
 
-    // If this is the fixed top box, record its SDF parameters
+    // Fixed top box handling
     if (hasTopBox && i == uFixedTopBoxIdx) {
       topBoxSd = sd;
       topCenter = center;
       topHalfSize = halfSize;
       topRadius = r;
       topBezel = b;
-      // Drop shadow cast by the fixed top box onto whatever is underneath
       if (sd > 0.0) {
         float shadowFalloff = exp(-sd * sd / 850.0);
         totalShadow += uShadow * shadowFalloff * 0.75;
       }
-      continue; // Handled with top-layer priority below
+      continue;
     }
 
     // Shadow equation for scrolling boxes
@@ -157,8 +163,7 @@ void main() {
     }
   }
 
-  // 1. If screenPx is inside the fixed top box, it ALWAYS takes priority!
-  // All other glass boxes scroll seamlessly underneath this fixed horizontal glass.
+  // Priority check for fixed top layer
   bool isInsideTopBox = (hasTopBox && topBoxSd <= 0.0);
   if (isInsideTopBox) {
     activeBoxIdx = uFixedTopBoxIdx;
@@ -169,7 +174,7 @@ void main() {
     activeBezel = topBezel;
   }
 
-  // Outside all active glass boxes: render background with accumulated drop shadows
+  // Outside glass: render background with accumulated drop shadows
   if (minSd > 0.0 || activeBoxIdx == -1) {
     totalShadow = clamp(totalShadow, 0.0, 0.75);
     if (uRenderBg > 0.5) {
@@ -182,7 +187,7 @@ void main() {
     return;
   }
 
-  // Inside the active glass box: apply physical liquid refraction optics
+  // Inside glass: calculate physical optics & liquid refraction
   float sd = minSd;
   vec2 p = screenPx - activeCenter;
   vec2 halfSize = activeHalfSize;
@@ -199,7 +204,7 @@ void main() {
   float h2 = surfaceHeight(min(t + dt, 1.0));
   float dh = (h2 - h) / dt;
 
-  // Snell's law refraction displacement
+  // Snell's Law refraction ray displacement
   float slopeAngle = atan(dh * (uThickness / bezel));
   float sinR = sin(slopeAngle) / uIOR;
   sinR = clamp(sinR, -1.0, 1.0);
@@ -223,7 +228,7 @@ void main() {
   vec2 screenUV = screenPx / uResolution;
   vec2 refractedUV = screenUV + offset;
 
-  // Physical chromatic dispersion (wavelength-dependent ray separation at curved boundaries)
+  // Physical chromatic dispersion (wavelength-dependent ray separation)
   vec2 dispDelta = (grad * displacement * (uDispersion * 0.012)) / uResolution;
   vec2 uvR = refractedUV - dispDelta;
   vec2 uvG = refractedUV;
@@ -236,45 +241,57 @@ void main() {
     sampleBgBlurred(uvB, uBlur).b
   );
 
-  // If this pixel is inside a scrolling box that is underneath the shadow of the fixed top box,
-  // cast the fixed top box shadow down onto the scrolling glass!
+  // Cast shadow from fixed top dock onto scrolling background cards
   if (!isInsideTopBox && hasTopBox && topBoxSd > 0.0 && topBoxSd < 45.0) {
     float topShadowFalloff = exp(-topBoxSd * topBoxSd / 600.0);
     color = mix(color, vec3(0.0), topShadowFalloff * uShadow * 0.65);
   }
 
-  // Specular highlight with static light angle matching Main/Reference
+  // Interactive mouse/touch directional light vector
   vec2 lightDir = normalize(vec2(0.5, -0.7));
-  float rimDot = abs(dot(grad, lightDir));
+  if (uMouse.x > 0.0 && uMouse.y > 0.0) {
+    vec2 mouseToPx = (uMouse - screenPx) / uResolution;
+    if (length(mouseToPx) > 0.001) {
+      vec2 dynamicLight = normalize(vec2(mouseToPx.x * 0.8 + 0.3, mouseToPx.y * 0.8 - 0.6));
+      lightDir = normalize(mix(lightDir, dynamicLight, 0.45));
+    }
+  }
+
+  // Blinn-Phong specular highlight & Schlick Fresnel reflection
+  float rimDot = max(0.0, dot(grad, lightDir));
   float rimFalloff = 1.0 - smoothstep(0.0, bezel * 0.4, distFromEdge);
   float specHighlight = pow(rimDot * rimFalloff, 1.5);
-  color += vec3(specHighlight * uSpecular);
 
-  // Fixed horizontal glass WebGL animation: periodic smooth specular light sheen sweep
+  // Physical Schlick Fresnel reflection at grazing angles
+  float f0 = pow((1.0 - uIOR) / (1.0 + uIOR), 2.0);
+  float cosTheta = clamp(1.0 - length(grad * dh * 0.5), 0.0, 1.0);
+  float fresnel = f0 + (1.0 - f0) * pow(1.0 - cosTheta, 5.0);
+
+  color += vec3(specHighlight * uSpecular + fresnel * 0.25 * uSpecular);
+
+  // Periodic specular light sheen sweep for fixed horizontal dock
   if (activeBoxIdx == uFixedTopBoxIdx) {
     float sweepPos = mod(uTime * 0.4, 3.5) - 1.25;
     vec2 normP = p / halfSize;
     float sweepDist = abs((normP.x * 0.85 + normP.y * 0.35) - sweepPos);
     float sheen = exp(-sweepDist * sweepDist * 32.0) * 0.42 * uSpecular;
-    color += vec3(sheen * 0.9, sheen * 1.1, sheen * 1.35); // Prismatic chromatic sheen
+    color += vec3(sheen * 0.9, sheen * 1.1, sheen * 1.35);
 
-    // Ambient liquid shimmer
     float liquidShimmer = sin(p.x * 0.035 + uTime * 2.2) * cos(p.y * 0.035 + uTime * 1.8) * 0.03;
     color += vec3(liquidShimmer * 0.15);
   }
 
-  // Inner shadow
+  // Inner shadow & inner rim glow
   float innerShadow = 1.0 - smoothstep(0.0, bezel * 0.6, distFromEdge);
   color *= mix(1.0, 0.7, innerShadow * 0.3);
 
-  // Inner rim
   float innerRim = smoothstep(0.0, 2.0, distFromEdge) * (1.0 - smoothstep(2.0, 5.0, distFromEdge));
   color += vec3(innerRim * 0.15 * uSpecular);
 
   // Glass tint
   color = mix(color, vec3(1.0), uTint);
 
-  // Smooth edge antialiasing
+  // Antialiased edge boundary
   float alpha = smoothstep(0.0, 1.5, distFromEdge);
   gl_FragColor = vec4(color, alpha);
 }
