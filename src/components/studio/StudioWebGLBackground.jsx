@@ -415,7 +415,7 @@ export const StudioWebGLBackground = ({
       id="studio-webgl-canvas"
       ref={canvasRef}
       className="fixed inset-0 w-full h-full pointer-events-none"
-      style={{ zIndex: isModalOpen ? 45 : 1, position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh' }}
+      style={{ zIndex: 0, position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh' }}
     />
   );
 };
