@@ -1,0 +1,6 @@
+{
+  "name": "Liquid Glass Studio",
+  "description": "Mobile-first study workspace with liquid glass UI, courses, notes, focus timer, and study intelligence.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

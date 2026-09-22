@@ -1,0 +1,253 @@
+/* ==========================================================================
+   Exact WebGL Liquid Glass Surface Normalization
+   When data-glass-engine="webgl", Three.js WebGL canvas is the physical
+   Snell's law refraction & chromatic dispersion layer.
+   ========================================================================== */
+
+[data-glass-engine="webgl"] #studio-webgl-canvas {
+  display: block;
+}
+
+[data-glass-engine="current"] #studio-webgl-canvas {
+  display: none !important;
+}
+
+/* Hide 2D CSS background orbs in WebGL mode since 3D orbs run inside WebGL */
+[data-glass-engine="webgl"] .liquid-environment,
+[data-glass-engine="webgl"] .ambient-orb {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+/* Glass surface normalization in WebGL mode: pure physical optical clarity */
+[data-glass-engine="webgl"] .glass-card,
+[data-glass-engine="webgl"] .full-glass-panel,
+[data-glass-engine="webgl"] .dashboard-header,
+[data-glass-engine="webgl"] .action-card,
+[data-glass-engine="webgl"] .course-dashboard-card,
+[data-glass-engine="webgl"] .course-dashboard-card .course-open,
+[data-glass-engine="webgl"] .add-course-trigger,
+[data-glass-engine="webgl"] .mobile-dock,
+[data-glass-engine="webgl"] .dock,
+[data-glass-engine="webgl"] .dock-container,
+[data-glass-engine="webgl"] .course-workspace-shell,
+[data-glass-engine="webgl"] .course-workspace-panel,
+[data-glass-engine="webgl"] .course-folder-panel,
+[data-glass-engine="webgl"] .course-folder-card,
+[data-glass-engine="webgl"] .course-tool-folder,
+[data-glass-engine="webgl"] .course-workspace-progress,
+[data-glass-engine="webgl"] .course-workspace-hero,
+[data-glass-engine="webgl"] .collection-card,
+[data-glass-engine="webgl"] .collection-note-card,
+[data-glass-engine="webgl"] .planner-item-card,
+[data-glass-engine="webgl"] .overview-stat,
+[data-glass-engine="webgl"] .overview-card,
+[data-glass-engine="webgl"] .overview-hero,
+[data-glass-engine="webgl"] .collections-list > .glass-list-item,
+[data-glass-engine="webgl"] .editor-workspace-shell,
+[data-glass-engine="webgl"] .generated-editor-glass,
+html[data-glass-theme][data-glass-engine="webgl"] .app-root-layer .glass-card,
+html[data-glass-theme][data-glass-engine="webgl"] .app-root-layer .full-glass-panel,
+html[data-glass-theme][data-glass-engine="webgl"] .app-root-layer .dashboard-header,
+html[data-glass-theme][data-glass-engine="webgl"] .app-root-layer .action-card,
+html[data-glass-theme][data-glass-engine="webgl"] .app-root-layer .course-dashboard-card,
+html[data-glass-theme][data-glass-engine="webgl"] .app-root-layer .course-dashboard-card .course-open,
+html[data-glass-theme][data-glass-engine="webgl"] .app-root-layer .add-course-trigger,
+html[data-glass-theme][data-glass-engine="webgl"] .app-root-layer .course-workspace-progress,
+html[data-glass-theme][data-glass-engine="webgl"] .app-root-layer .course-tool-folder,
+html[data-glass-theme][data-glass-engine="webgl"] .app-root-layer .course-folder-card,
+html[data-glass-theme][data-glass-engine="webgl"] .app-root-layer .collection-note-card,
+html[data-glass-theme][data-glass-engine="webgl"] .app-root-layer .glass-list-item,
+html[data-glass-theme][data-glass-engine="webgl"] .app-root-layer .generated-editor-glass {
+  background-color: rgba(255, 255, 255, 0.04) !important;
+  background-image: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  filter: none !important;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.18) !important;
+  border: 1px solid rgba(255, 255, 255, 0.16) !important;
+}
+
+/* Turn off legacy pseudo-elements that injected SVG displacement filters or fake frosted sheen */
+html[data-glass-engine="webgl"] *::before,
+html[data-glass-engine="webgl"] *::after,
+html[data-glass-engine="webgl"] .course-dashboard-card .course-open::before,
+html[data-glass-engine="webgl"] .course-dashboard-card .course-open::after,
+html[data-glass-engine="webgl"] .collection-note-card::before,
+html[data-glass-engine="webgl"] .collection-note-card::after,
+html[data-glass-engine="webgl"] .course-folder-card::before,
+html[data-glass-engine="webgl"] .course-folder-card::after,
+html[data-glass-theme][data-glass-engine="webgl"] .app-root-layer .course-dashboard-card .course-open::before,
+html[data-glass-theme][data-glass-engine="webgl"] .app-root-layer .course-dashboard-card .course-open::after,
+html[data-glass-theme][data-glass-engine="webgl"] .app-root-layer .collection-note-card::before,
+html[data-glass-theme][data-glass-engine="webgl"] .app-root-layer .collection-note-card::after,
+html[data-glass-theme][data-glass-engine="webgl"] .app-root-layer .course-folder-card::before,
+html[data-glass-theme][data-glass-engine="webgl"] .app-root-layer .course-folder-card::after,
+html[data-glass-theme][data-glass-engine="webgl"] .app-root-layer .glass-card::after,
+html[data-glass-theme][data-glass-engine="webgl"] .app-root-layer .glass-inner::after,
+html[data-glass-theme][data-glass-engine="webgl"] .app-root-layer .action-card::after,
+html[data-glass-theme][data-glass-engine="webgl"] .app-root-layer .course-workspace-progress::after,
+html[data-glass-theme][data-glass-engine="webgl"] .app-root-layer .course-tool-folder::after,
+html[data-glass-theme][data-glass-engine="webgl"] .app-root-layer .glass-list-item::after,
+html[data-glass-theme][data-glass-engine="webgl"] .app-root-layer .generated-editor-glass::after {
+  display: none !important;
+  content: none !important;
+  filter: none !important;
+  background: none !important;
+}
+
+[data-theme="dark"][data-glass-engine="webgl"] .glass-card,
+[data-theme="dark"][data-glass-engine="webgl"] .full-glass-panel,
+[data-theme="dark"][data-glass-engine="webgl"] .dashboard-header,
+[data-theme="dark"][data-glass-engine="webgl"] .action-card,
+[data-theme="dark"][data-glass-engine="webgl"] .course-dashboard-card,
+[data-theme="dark"][data-glass-engine="webgl"] .course-dashboard-card .course-open,
+[data-theme="dark"][data-glass-engine="webgl"] .add-course-trigger,
+[data-theme="dark"][data-glass-engine="webgl"] .mobile-dock,
+[data-theme="dark"][data-glass-engine="webgl"] .dock,
+[data-theme="dark"][data-glass-engine="webgl"] .dock-container,
+[data-theme="dark"][data-glass-engine="webgl"] .course-workspace-shell,
+[data-theme="dark"][data-glass-engine="webgl"] .course-workspace-panel,
+[data-theme="dark"][data-glass-engine="webgl"] .collection-card,
+[data-theme="dark"][data-glass-engine="webgl"] .collection-note-card,
+[data-theme="dark"][data-glass-engine="webgl"] .planner-item-card,
+[data-theme="dark"][data-glass-engine="webgl"] .overview-stat,
+[data-theme="dark"][data-glass-engine="webgl"] .overview-card,
+[data-theme="dark"][data-glass-engine="webgl"] .overview-hero,
+[data-theme="dark"][data-glass-engine="webgl"] .collections-list > .glass-list-item,
+[data-theme="dark"][data-glass-engine="webgl"] .editor-workspace-shell,
+html[data-theme="dark"][data-glass-engine="webgl"] .app-root-layer .glass-card,
+html[data-theme="dark"][data-glass-engine="webgl"] .app-root-layer .course-dashboard-card .course-open,
+html[data-theme="dark"][data-glass-engine="webgl"] .app-root-layer .collection-note-card {
+  background-color: rgba(18, 18, 24, 0.22) !important;
+  background-image: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  box-shadow: 0 10px 40px 0 rgba(0, 0, 0, 0.35) !important;
+}
+
+/* Modals and backdrops in WebGL mode */
+[data-glass-engine="webgl"] .modal-backdrop,
+[data-glass-engine="webgl"] .engine-settings-backdrop {
+  background: rgba(0, 0, 0, 0.42) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+[data-glass-engine="webgl"] .engine-settings-modal,
+[data-glass-engine="webgl"] .glass-modal,
+[data-glass-engine="webgl"] .course-create-modal {
+  background: rgba(14, 20, 32, 0.78) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border: 1px solid rgba(255, 255, 255, 0.18) !important;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.52), inset 0 1px 1px rgba(255, 255, 255, 0.22) !important;
+}
+
+/* Engine switch tabs styling */
+.engine-switch-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.22);
+  padding: 4px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  margin-bottom: 16px;
+}
+
+.engine-switch-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 8px;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  text-align: center;
+}
+
+.engine-switch-btn:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.engine-switch-btn.active {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.3);
+  color: #ffffff;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+}
+
+.engine-switch-title {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.engine-switch-badge {
+  font-size: 10px;
+  opacity: 0.75;
+  margin-top: 2px;
+}
+
+/* Background templates carousel in settings */
+.webgl-template-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.webgl-template-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 8px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+}
+
+.webgl-template-item:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.25);
+  transform: translateY(-2px);
+}
+
+.webgl-template-item.active {
+  background: rgba(139, 124, 247, 0.18);
+  border-color: #8b7cf7;
+  box-shadow: 0 0 12px rgba(139, 124, 247, 0.3);
+}
+
+.webgl-template-thumb {
+  width: 100%;
+  height: 60px;
+  border-radius: 8px;
+  object-fit: cover;
+  margin-bottom: 6px;
+  background: #000;
+}
+
+.webgl-template-name {
+  font-size: 11px;
+  font-weight: 600;
+  color: #fff;
+  line-height: 1.2;
+}
+
+.webgl-template-badge {
+  font-size: 9px;
+  color: #a5b4fc;
+  margin-top: 2px;
+}

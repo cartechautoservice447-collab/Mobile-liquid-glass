@@ -1,12 +1,23 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from './lib/supabase.js';
 import { BACKGROUND_PRESET_VALUES, getBackgroundPreset } from './backgroundPresets.js';
+import { DEEP_BLACK_ORBS_URL, isDarkOrbScene, isOrbScene, isWhiteOrbScene } from './data/backgroundTemplates.js';
 
 export const ENGINE_DEFAULTS = {
   displayName: '',
   uiTextClarity: 'default',
   performance: 'high',
   theme: 'light',
+  glassEngine: 'webgl', // 'webgl' (Exact WebGL Liquid Glass from new-mobile-updated) | 'current' (CSS & SVG)
+  webglBg: DEEP_BLACK_ORBS_URL,
+  webglIOR: 3.0,
+  webglDispersion: 1.9,
+  webglBlur: 1.5,
+  webglSpecular: 0.55,
+  webglThickness: 50,
+  webglShadow: 0.5,
+  webglBezel: 55,
+  webglTint: 0.08,
   glassTheme: 'type-1',
   pureBlack: false,
   backgroundThemeEnabled: false,
@@ -27,6 +38,7 @@ const LEGACY_PERFORMANCE_KEY = 'mobile-liquid-glass-performance';
 const STORAGE_PREFIX = 'mobile-liquid-glass-engine-v1';
 const CLARITY_VALUES = ['default', 'smooth', 'medium', 'punchy'];
 const GLASS_THEME_VALUES = ['type-1', 'type-2', 'type-3', 'type-4'];
+const GLASS_ENGINE_VALUES = ['webgl', 'current'];
 
 const clamp = (value, min, max, fallback) => {
   const numeric = Number(value);
@@ -54,6 +66,16 @@ const normalizeSettings = (raw = {}) => ({
   uiTextClarity: CLARITY_VALUES.includes(raw.uiTextClarity) ? raw.uiTextClarity : ENGINE_DEFAULTS.uiTextClarity,
   performance: raw.performance === 'ultra' ? 'ultra' : 'high',
   theme: raw.theme === 'dark' ? 'dark' : 'light',
+  glassEngine: GLASS_ENGINE_VALUES.includes(raw.glassEngine) ? raw.glassEngine : ENGINE_DEFAULTS.glassEngine,
+  webglBg: typeof raw.webglBg === 'string' && raw.webglBg ? raw.webglBg : ENGINE_DEFAULTS.webglBg,
+  webglIOR: clamp(raw.webglIOR, 1.0, 5.0, ENGINE_DEFAULTS.webglIOR),
+  webglDispersion: clamp(raw.webglDispersion, 0, 4.0, ENGINE_DEFAULTS.webglDispersion),
+  webglBlur: clamp(raw.webglBlur, 0, 4.0, ENGINE_DEFAULTS.webglBlur),
+  webglSpecular: clamp(raw.webglSpecular, 0, 1.0, ENGINE_DEFAULTS.webglSpecular),
+  webglThickness: clamp(raw.webglThickness, 10, 100, ENGINE_DEFAULTS.webglThickness),
+  webglShadow: clamp(raw.webglShadow, 0, 1.0, ENGINE_DEFAULTS.webglShadow),
+  webglBezel: clamp(raw.webglBezel, 10, 90, ENGINE_DEFAULTS.webglBezel),
+  webglTint: clamp(raw.webglTint, 0, 0.5, ENGINE_DEFAULTS.webglTint),
   glassTheme: GLASS_THEME_VALUES.includes(raw.glassTheme) ? raw.glassTheme : ENGINE_DEFAULTS.glassTheme,
   pureBlack: Boolean(raw.pureBlack),
   backgroundThemeEnabled: Boolean(raw.backgroundThemeEnabled),
@@ -76,6 +98,16 @@ function readLocalSettings(scope) {
     uiTextClarity: readStored(scopeKey(scope, 'ui-text-clarity'), ENGINE_DEFAULTS.uiTextClarity),
     performance: readStored(scopeKey(scope, 'performance'), readStored(LEGACY_PERFORMANCE_KEY, ENGINE_DEFAULTS.performance)),
     theme: readStored(scopeKey(scope, 'theme'), ENGINE_DEFAULTS.theme),
+    glassEngine: readStored(scopeKey(scope, 'glass-engine'), ENGINE_DEFAULTS.glassEngine),
+    webglBg: readStored(scopeKey(scope, 'webgl-bg'), ENGINE_DEFAULTS.webglBg),
+    webglIOR: readStored(scopeKey(scope, 'webgl-ior'), ENGINE_DEFAULTS.webglIOR),
+    webglDispersion: readStored(scopeKey(scope, 'webgl-dispersion'), ENGINE_DEFAULTS.webglDispersion),
+    webglBlur: readStored(scopeKey(scope, 'webgl-blur'), ENGINE_DEFAULTS.webglBlur),
+    webglSpecular: readStored(scopeKey(scope, 'webgl-specular'), ENGINE_DEFAULTS.webglSpecular),
+    webglThickness: readStored(scopeKey(scope, 'webgl-thickness'), ENGINE_DEFAULTS.webglThickness),
+    webglShadow: readStored(scopeKey(scope, 'webgl-shadow'), ENGINE_DEFAULTS.webglShadow),
+    webglBezel: readStored(scopeKey(scope, 'webgl-bezel'), ENGINE_DEFAULTS.webglBezel),
+    webglTint: readStored(scopeKey(scope, 'webgl-tint'), ENGINE_DEFAULTS.webglTint),
     glassTheme: readStored(scopeKey(scope, 'glass-theme'), ENGINE_DEFAULTS.glassTheme),
     pureBlack: readStored(scopeKey(scope, 'pure-black'), String(ENGINE_DEFAULTS.pureBlack)) === 'true',
     backgroundThemeEnabled: readStored(scopeKey(scope, 'background-theme'), String(ENGINE_DEFAULTS.backgroundThemeEnabled)) === 'true',
@@ -99,6 +131,16 @@ function cacheSettings(scope, settings) {
     ['ui-text-clarity', settings.uiTextClarity],
     ['performance', settings.performance],
     ['theme', settings.theme],
+    ['glass-engine', settings.glassEngine],
+    ['webgl-bg', settings.webglBg],
+    ['webgl-ior', settings.webglIOR],
+    ['webgl-dispersion', settings.webglDispersion],
+    ['webgl-blur', settings.webglBlur],
+    ['webgl-specular', settings.webglSpecular],
+    ['webgl-thickness', settings.webglThickness],
+    ['webgl-shadow', settings.webglShadow],
+    ['webgl-bezel', settings.webglBezel],
+    ['webgl-tint', settings.webglTint],
     ['glass-theme', settings.glassTheme],
     ['pure-black', settings.pureBlack],
     ['background-theme', settings.backgroundThemeEnabled],
@@ -179,6 +221,7 @@ export default function useEngineSettings(userId) {
     document.documentElement.dataset.uiTextClarity = settings.uiTextClarity;
     document.documentElement.dataset.glassPerformance = settings.performance;
     document.documentElement.dataset.glassTheme = settings.glassTheme;
+    document.documentElement.dataset.glassEngine = settings.glassEngine;
 
     const transparency = settings.liquidTransparency / 100;
     const lens = settings.liquidLens / 100;
@@ -202,7 +245,16 @@ export default function useEngineSettings(userId) {
     root.style.setProperty('--liquid-motion-duration', `${Math.round(420 - (settings.bounceStiffness - 100) * 0.7)}ms`);
 
     const opacity = settings.backgroundOpacity / 100;
-    if (settings.pureBlack) {
+    if (settings.glassEngine === 'webgl') {
+      if (isWhiteOrbScene(settings.webglBg)) {
+        document.body.style.background = '#f4f4f7';
+      } else if (isDarkOrbScene(settings.webglBg)) {
+        document.body.style.background = '#000000';
+      } else {
+        document.body.style.background = settings.theme === 'dark' ? '#000000' : '#ffffff';
+      }
+      document.documentElement.style.removeProperty('--premium-background-image');
+    } else if (settings.pureBlack) {
       document.body.style.background = '#000';
     } else if (settings.fullDarkBackground) {
       document.body.style.background = '#050507';
@@ -238,6 +290,16 @@ export default function useEngineSettings(userId) {
       if (key === 'uiTextClarity') return { ...current, uiTextClarity: CLARITY_VALUES.includes(value) ? value : current.uiTextClarity };
       if (key === 'performance') return { ...current, performance: value === 'ultra' ? 'ultra' : 'high' };
       if (key === 'theme') return { ...current, theme: value === 'dark' ? 'dark' : 'light' };
+      if (key === 'glassEngine') return { ...current, glassEngine: GLASS_ENGINE_VALUES.includes(value) ? value : current.glassEngine };
+      if (key === 'webglBg') return { ...current, webglBg: String(value) };
+      if (key === 'webglIOR') return { ...current, webglIOR: clamp(value, 1.0, 5.0, current.webglIOR) };
+      if (key === 'webglDispersion') return { ...current, webglDispersion: clamp(value, 0, 4.0, current.webglDispersion) };
+      if (key === 'webglBlur') return { ...current, webglBlur: clamp(value, 0, 4.0, current.webglBlur) };
+      if (key === 'webglSpecular') return { ...current, webglSpecular: clamp(value, 0, 1.0, current.webglSpecular) };
+      if (key === 'webglThickness') return { ...current, webglThickness: clamp(value, 10, 100, current.webglThickness) };
+      if (key === 'webglShadow') return { ...current, webglShadow: clamp(value, 0, 1.0, current.webglShadow) };
+      if (key === 'webglBezel') return { ...current, webglBezel: clamp(value, 10, 90, current.webglBezel) };
+      if (key === 'webglTint') return { ...current, webglTint: clamp(value, 0, 0.5, current.webglTint) };
       if (key === 'glassTheme') return { ...current, glassTheme: GLASS_THEME_VALUES.includes(value) ? value : current.glassTheme };
       if (key === 'pureBlack' || key === 'backgroundThemeEnabled' || key === 'fullDarkBackground') return { ...current, [key]: Boolean(value) };
       if (key === 'backgroundPreset') return { ...current, backgroundPreset: BACKGROUND_PRESET_VALUES.includes(value) ? value : current.backgroundPreset };

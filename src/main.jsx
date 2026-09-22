@@ -7,8 +7,6 @@ import App from './App.jsx';
 import { configureNativeAuth } from './nativeAuth.js';
 import { configureSharedNotifications } from './sharedNotifications.js';
 import { supabase, getMobileWebAuthRedirect } from './lib/supabase.js';
-import LiquidEnvironment from './LiquidEnvironment.jsx';
-import LiquidRefractionFilter from './LiquidRefractionFilter.jsx';
 import './styles.css';
 import './LiquidGlassSurfaceOverrides.css';
 import './LiquidGlassEngine.css';
@@ -25,7 +23,7 @@ import './NoteEditorPremiumRefinement.css';
 import './AndroidMobileHardening.css';
 import './FeatureBackgroundUnification.css';
 import './MobileNoteCodeBlockFix.css';
-import './GlassSurfaceRuntimeLock.js';
+import './WebGLGlassSurfaceOverrides.css';
 
 function handleWebAuthCallback() {
   if (!supabase || typeof window === 'undefined') return;
@@ -58,8 +56,6 @@ const disposeSharedNotifications = configureSharedNotifications();
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <div className="app-root-layer">
-      <LiquidEnvironment />
-      <LiquidRefractionFilter />
       <App />
     </div>
   </StrictMode>,

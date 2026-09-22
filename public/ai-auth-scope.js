@@ -34,15 +34,17 @@
 
   const scopeKey = (key) => AI_KEYS.has(key) ? `${key}:${findAuthUserId()}` : key;
 
-  Storage.prototype.getItem = function(key) {
-    return originalGetItem.call(this, scopeKey(String(key)));
-  };
-  Storage.prototype.setItem = function(key, value) {
-    return originalSetItem.call(this, scopeKey(String(key)), value);
-  };
-  Storage.prototype.removeItem = function(key) {
-    return originalRemoveItem.call(this, scopeKey(String(key)));
-  };
+  try {
+    Storage.prototype.getItem = function(key) {
+      return originalGetItem.call(this, scopeKey(String(key)));
+    };
+    Storage.prototype.setItem = function(key, value) {
+      return originalSetItem.call(this, scopeKey(String(key)), value);
+    };
+    Storage.prototype.removeItem = function(key) {
+      return originalRemoveItem.call(this, scopeKey(String(key)));
+    };
+  } catch {}
 
   let lastUserId = findAuthUserId();
   const checkAuthChange = () => {
@@ -53,32 +55,65 @@
   };
   setInterval(checkAuthChange, 1000);
 
-  const originalFetch = window.fetch.bind(window);
-  window.fetch = async (input, init = {}) => {
+  const rawFetch = window.fetch || globalThis.fetch;
+  if (typeof rawFetch === 'function') {
+    const originalFetch = rawFetch.bind(window);
+    const customFetch = async (input, init = {}) => {
+      try {
+        const url = typeof input === 'string' ? input : input?.url || '';
+        if (new URL(url, window.location.href).pathname === '/api/study-review') {
+          const headers = new Headers(init.headers || (typeof input !== 'string' ? input.headers : undefined));
+          if (!headers.has('Authorization')) {
+            const userId = findAuthUserId();
+            if (userId !== 'anonymous') {
+              for (let i = 0; i < localStorage.length; i += 1) {
+                const key = localStorage.key(i);
+                if (!key || !key.startsWith('sb-') || !key.endsWith('-auth-token')) continue;
+                const raw = originalGetItem.call(localStorage, key);
+                try {
+                  const parsed = raw ? JSON.parse(raw) : null;
+                  if (parsed?.access_token) {
+                    headers.set('Authorization', `Bearer ${parsed.access_token}`);
+                    break;
+                  }
+                } catch {}
+              }
+            }
+          }
+          return originalFetch(input, { ...init, headers });
+        }
+      } catch {}
+      return originalFetch(input, init);
+    };
+
     try {
-      const url = typeof input === 'string' ? input : input?.url || '';
-      if (new URL(url, window.location.href).pathname === '/api/study-review') {
-        const headers = new Headers(init.headers || (typeof input !== 'string' ? input.headers : undefined));
-        if (!headers.has('Authorization')) {
-          const userId = findAuthUserId();
-          if (userId !== 'anonymous') {
-            for (let i = 0; i < localStorage.length; i += 1) {
-              const key = localStorage.key(i);
-              if (!key || !key.startsWith('sb-') || !key.endsWith('-auth-token')) continue;
-              const raw = originalGetItem.call(localStorage, key);
+      const desc = Object.getOwnPropertyDescriptor(window, 'fetch') || Object.getOwnPropertyDescriptor(Window.prototype, 'fetch');
+      if (desc && desc.configurable === false && !desc.writable && !desc.set) {
+        // Read-only / getter-only fetch in sandboxed iframe; do not attempt override
+      } else {
+        try {
+          Object.defineProperty(window, 'fetch', {
+            value: customFetch,
+            writable: true,
+            configurable: true,
+          });
+        } catch {
+          try {
+            Object.defineProperty(Window.prototype, 'fetch', {
+              value: customFetch,
+              writable: true,
+              configurable: true,
+            });
+          } catch {
+            const currentDesc = Object.getOwnPropertyDescriptor(window, 'fetch');
+            if (!currentDesc || (currentDesc.writable || typeof currentDesc.set === 'function')) {
               try {
-                const parsed = raw ? JSON.parse(raw) : null;
-                if (parsed?.access_token) {
-                  headers.set('Authorization', `Bearer ${parsed.access_token}`);
-                  break;
-                }
+                window.fetch = customFetch;
               } catch {}
             }
           }
         }
-        return originalFetch(input, { ...init, headers });
       }
     } catch {}
-    return originalFetch(input, init);
-  };
+  }
 })();
