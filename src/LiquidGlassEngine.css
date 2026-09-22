@@ -27,3 +27,19 @@ html[data-background-theme="off"] .liquid-environment-orb{opacity:0}
 .course-dashboard-card:active,.action-card:active,.course-tool-folder:active,.course-folder-card:active,.collection-note-card:active,.add-course-trigger:active{transform:scale(.96)}
 .course-dashboard-card[data-liquid-press-locked="true"],.action-card[data-liquid-press-locked="true"],.course-tool-folder[data-liquid-press-locked="true"],.course-folder-card[data-liquid-press-locked="true"],.collection-note-card[data-liquid-press-locked="true"],.add-course-trigger[data-liquid-press-locked="true"]{--liquid-press-duration:0ms}
 @media(prefers-reduced-motion:reduce){.course-dashboard-card,.action-card,.course-tool-folder,.course-folder-card,.collection-note-card,.add-course-trigger{transition:none}.course-dashboard-card:hover,.action-card:hover,.course-tool-folder:hover,.course-folder-card:hover,.collection-note-card:hover,.add-course-trigger:hover,.course-dashboard-card:active,.action-card:active,.course-tool-folder:active,.course-folder-card:active,.collection-note-card:active,.add-course-trigger:active{transform:none}}
+
+/*
+ * Modal stacking hardening:
+ * The WebGL canvas is a visual background layer and must never sit above
+ * interactive modal content. Keep every app-root modal in a dedicated
+ * top stacking layer so settings/create dialogs remain visible and clickable.
+ */
+.app-root-layer > .modal-backdrop,
+.app-root-layer .engine-settings-backdrop,
+.app-root-layer .course-create-backdrop,
+.app-root-layer .planner-modal-backdrop,
+.app-root-layer .collection-delete-modal-backdrop,
+.app-root-layer .study-review-backdrop {
+  position: fixed !important;
+  z-index: 1000 !important;
+}
