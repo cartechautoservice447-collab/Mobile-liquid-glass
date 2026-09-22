@@ -2,7 +2,7 @@
 .course-dashboard-card .course-open::before,
 .collection-note-card::before,
 .collection-workspace-screen .collection-note-card::before,
-.course-folder-card::before{filter:url(#liquid-refraction)!important}
+.course-folder-card::before{filter:none!important}
 
 /* The shared stage is the visual source behind every glass surface. */
 .app-root-layer{background:transparent!important}
