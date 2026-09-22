@@ -18,7 +18,7 @@ uniform float uRadii[MAX_BOXES];
 uniform float uBezels[MAX_BOXES];
 uniform int uBoxCount;
 uniform int uFixedTopBoxIdx;   // Index of the fixed top glass (e.g. horizontal bottom dock)
-uniform float uTime;            // Animation time for liquid ripples and specular sheen
+uniform float uTime;            // Animation time
 
 uniform float uThickness;
 uniform float uIOR;
@@ -217,14 +217,7 @@ void main() {
   grad.y = sdRoundedRect(p + vec2(0.0, eps), halfSize, uRadius) - sd;
   grad = normalize(grad);
 
-  // Dynamic subtle wave displacement for liquid glass animation
-  vec2 animOffset = vec2(0.0);
-  if (activeBoxIdx == uFixedTopBoxIdx) {
-    float wave = sin(p.x * 0.025 + uTime * 2.0) * cos(p.y * 0.035 + uTime * 1.5) * 0.08;
-    animOffset = vec2(wave * 4.0, wave * 2.0);
-  }
-
-  vec2 offset = (-grad * displacement + animOffset) / uResolution;
+  vec2 offset = (-grad * displacement) / uResolution;
   vec2 screenUV = screenPx / uResolution;
   vec2 refractedUV = screenUV + offset;
 
@@ -268,18 +261,6 @@ void main() {
   float fresnel = f0 + (1.0 - f0) * pow(1.0 - cosTheta, 5.0);
 
   color += vec3(specHighlight * uSpecular + fresnel * 0.25 * uSpecular);
-
-  // Periodic specular light sheen sweep for fixed horizontal dock
-  if (activeBoxIdx == uFixedTopBoxIdx) {
-    float sweepPos = mod(uTime * 0.4, 3.5) - 1.25;
-    vec2 normP = p / halfSize;
-    float sweepDist = abs((normP.x * 0.85 + normP.y * 0.35) - sweepPos);
-    float sheen = exp(-sweepDist * sweepDist * 32.0) * 0.42 * uSpecular;
-    color += vec3(sheen * 0.9, sheen * 1.1, sheen * 1.35);
-
-    float liquidShimmer = sin(p.x * 0.035 + uTime * 2.2) * cos(p.y * 0.035 + uTime * 1.8) * 0.03;
-    color += vec3(liquidShimmer * 0.15);
-  }
 
   // Inner shadow & inner rim glow
   float innerShadow = 1.0 - smoothstep(0.0, bezel * 0.6, distFromEdge);
